@@ -162,19 +162,45 @@
       "id": "runtime-process-model",
       "area": "runtime",
       "api_group": "process",
-      "status": "stubbed",
+      "status": "compatible",
+      "check": "xvfb-run -a timeout 30 bin/electron-go --process-model-check compat/fixtures/benchmark-hello",
       "evidence": [
         {
           "kind": "implementation",
           "ref": "internal/runtime",
-          "note": "Go host lifecycle exists."
+          "note": "Routes CEF subprocesses before normal app startup and preserves the browser-process lifecycle state machine."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/native/process_model.go",
+          "note": "Defines the runtime process-model report and rejects missing main-thread stability, missing browser process initialization, missing child process observation, or zombie descendants."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/native/process_model_linux.go",
+          "note": "Samples /proc while CEF owns the message loop to observe real renderer/zygote/utility child process types and post-shutdown descendants."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/native/cef_linux.go",
+          "note": "Runs the process-model check on the locked OS thread through real cef_initialize, BrowserWindow creation, CEF message loop, BrowserWindow close, and cef_shutdown."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/native/process_model_test.go",
+          "note": "Covers process type parsing and process-model report validation failures."
+        },
+        {
+          "kind": "test",
+          "ref": ".github/workflows/conformance.yml",
+          "note": "Ubuntu 22.04 workflow runs bin/electron-go --process-model-check under Xvfb after linking the real CEF binary."
         },
         {
           "kind": "upstream",
           "ref": "electron/docs/api/process.md"
         }
       ],
-      "notes": "Must still cover Electron's main, renderer, utility, sandbox, crash, and process event semantics."
+      "notes": "Compatible for the Linux CEF browser/renderer process ownership gate: the browser process stays on the locked OS thread, CEF subprocesses are observed while the message loop runs, the main frame loads, the BrowserWindow closes, CEF shuts down, and no descendant processes remain. Remaining utilityProcess semantics, sandbox hardening, crash reporting, and Node process APIs remain gated by dedicated ledger items."
     },
     {
       "id": "app-lifecycle-events",

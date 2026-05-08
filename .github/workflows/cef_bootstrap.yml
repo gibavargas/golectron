@@ -76,5 +76,8 @@ jobs:
             test "${zombies}" -eq 0
           '
 
+      - name: Verify runtime process model
+        run: xvfb-run -a timeout 30 bin/electron-go --process-model-check compat/fixtures/benchmark-hello
+
       - name: Report parity gate
         run: bin/electron-go --check-parity || true

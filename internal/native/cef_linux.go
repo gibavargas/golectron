@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync/atomic"
+	"time"
 	"unsafe"
 )
 
@@ -136,6 +137,85 @@ func CheckCEFInitialize(ctx context.Context, appDir string, args []string) error
 		return err
 	}
 	return shutdownCEF(ctx)
+}
+
+func CheckRuntimeProcessModel(ctx context.Context, appDir string, args []string) (RuntimeProcessModelReport, error) {
+	report := RuntimeProcessModelReport{
+		PID:       os.Getpid(),
+		NoSandbox: true,
+		RemainingKnownGaps: []string{
+			"CEF currently runs with no_sandbox=1 in CI; sandbox hardening remains gated separately.",
+			"Electron utilityProcess semantics remain gated by utility-process-tcc-disclaim-electron-42.",
+			"Crash reporter and Node process APIs remain gated by their dedicated ledger items.",
+		},
+	}
+	if err := ctx.Err(); err != nil {
+		return report, err
+	}
+	report.MainThreadIDBefore = currentOSThreadID()
+
+	req, err := NewCEFInitializeRequest(appDir, args)
+	if err != nil {
+		return report, err
+	}
+	loadURL, err := appIndexFileURL(appDir)
+	if err != nil {
+		return report, err
+	}
+
+	cefContextInitialized.Store(false)
+	cefLastBrowserID.Store(0)
+	cefLastHTTPStatus.Store(0)
+	cefLastLoadError.Store(0)
+	cefBrowserClosed.Store(false)
+
+	sampler := startProcessModelSampler(os.Getpid(), 2*time.Millisecond)
+	initialized := false
+	var lifecycleErr error
+	if err := initializeCEF(ctx, req); err != nil {
+		lifecycleErr = err
+	} else {
+		initialized = true
+		if err := createBrowserWindow(ctx, BrowserWindowCreateRequest{
+			ABIRevision: CurrentABIRevision,
+			URL:         loadURL,
+			Width:       800,
+			Height:      600,
+			Show:        true,
+		}); err != nil {
+			lifecycleErr = err
+		} else if err := runMessageLoop(ctx); err != nil {
+			lifecycleErr = err
+		}
+	}
+	if initialized {
+		if err := shutdownCEF(ctx); lifecycleErr == nil && err != nil {
+			lifecycleErr = err
+		}
+	}
+
+	report.ObservedDescendants = sampler.stopAndReport()
+	report.ObservedProcessTypes = ProcessTypesFromObservations(report.ObservedDescendants)
+	reapExitedChildren(500 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
+	if zombies, err := listDescendantProcesses(os.Getpid()); err == nil {
+		report.ZombieDescendants = zombies
+		report.NoZombieDescendants = len(zombies) == 0
+	}
+	report.MainThreadIDAfter = currentOSThreadID()
+	report.MainThreadStable = report.MainThreadIDBefore > 0 && report.MainThreadIDBefore == report.MainThreadIDAfter
+	report.ContextInitialized = cefContextInitialized.Load()
+	report.BrowserID = cefLastBrowserID.Load()
+	report.MainFrameLoaded = report.BrowserID > 0 && cefLastLoadError.Load() == 0
+	report.WindowClosed = cefBrowserClosed.Load()
+
+	if lifecycleErr != nil {
+		return report, lifecycleErr
+	}
+	if err := ValidateRuntimeProcessModelReport(report); err != nil {
+		return report, err
+	}
+	return report, nil
 }
 
 func NewCEFInitializeRequest(appDir string, args []string) (CEFInitializeRequest, error) {

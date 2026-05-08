@@ -47,6 +47,7 @@ func run(argv []string, env []string) int {
 	showLedger := fs.Bool("compat-json", false, "print the compatibility ledger as JSON")
 	checkParity := fs.Bool("check-parity", false, "exit successfully only when every ledger item is compatible")
 	cefInitCheck := fs.Bool("cef-init-check", false, "initialize and shut down CEF without opening a window")
+	processModelCheck := fs.Bool("process-model-check", false, "verify CEF process ownership and subprocess teardown")
 	runHello := fs.Bool("hello", false, "run the bundled hello conformance fixture")
 
 	if err := fs.Parse(args); err != nil {
@@ -89,6 +90,25 @@ func run(argv []string, env []string) int {
 			return 1
 		}
 		fmt.Fprintln(os.Stdout, "electron-go: cef_initialize returned 1")
+		return 0
+	}
+
+	if *processModelCheck {
+		appDir := "."
+		if fs.NArg() > 0 {
+			appDir = fs.Arg(0)
+		}
+		report, err := native.CheckRuntimeProcessModel(ctx, appDir, argv)
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		if encodeErr := enc.Encode(report); encodeErr != nil {
+			fmt.Fprintf(os.Stderr, "electron-go: %v\n", encodeErr)
+			return 1
+		}
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "electron-go: process model check failed: %v\n", err)
+			return 1
+		}
 		return 0
 	}
 

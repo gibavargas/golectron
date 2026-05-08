@@ -26,3 +26,12 @@ func CheckCEFInitialize(ctx context.Context, appDir string, args []string) error
 	}
 	return ErrBridgeUnavailable
 }
+
+func CheckRuntimeProcessModel(ctx context.Context, appDir string, args []string) (RuntimeProcessModelReport, error) {
+	_ = appDir
+	_ = args
+	if err := ctx.Err(); err != nil {
+		return RuntimeProcessModelReport{}, err
+	}
+	return RuntimeProcessModelReport{}, ErrBridgeUnavailable
+}

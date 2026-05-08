@@ -78,6 +78,9 @@ jobs:
       - name: Run Electron-Go hello fixture
         run: xvfb-run -a timeout 30 bin/electron-go compat/fixtures/benchmark-hello
 
+      - name: Verify Electron-Go runtime process model
+        run: xvfb-run -a timeout 30 bin/electron-go --process-model-check compat/fixtures/benchmark-hello
+
       - name: Run Go conformance suite against both binaries
         run: |
           xvfb-run -a env \
