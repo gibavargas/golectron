@@ -19,6 +19,14 @@ The native bridge owns bundled Chromium, Node.js, and V8. It must expose a small
 ABI to Go while preserving Electron behavior above it. The bridge is allowed to
 use C++ internally because Chromium, Node.js, and V8 are native C++ projects.
 
+The first browser implementation target is CEF bootstrap. That target exists to
+prove the non-negotiable ownership model before API parity work builds on it:
+
+- the process-original OS main thread is locked at executable entry;
+- CEF subprocess execution is checked before normal app startup;
+- CEF initialization and message-loop ownership stay behind the native ABI;
+- callbacks into Go copy data immediately and never store Go heap pointers in C.
+
 ## JS Compatibility Layer
 
 The JS layer must expose Electron-compatible modules to application code. The

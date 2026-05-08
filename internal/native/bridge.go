@@ -12,6 +12,8 @@ var ErrBridgeUnavailable = errors.New("native Chromium/Node/V8 bridge unavailabl
 
 const CurrentABIRevision uint32 = 1
 
+const CEFSubprocessUnavailableExitCode = 78
+
 type Status string
 
 const (
@@ -28,6 +30,54 @@ type EngineVersions struct {
 	V8       string
 }
 
+type CEFLogSeverity string
+
+const (
+	CEFLogSeverityDefault CEFLogSeverity = ""
+	CEFLogSeverityVerbose CEFLogSeverity = "verbose"
+	CEFLogSeverityInfo    CEFLogSeverity = "info"
+	CEFLogSeverityWarning CEFLogSeverity = "warning"
+	CEFLogSeverityError   CEFLogSeverity = "error"
+	CEFLogSeverityFatal   CEFLogSeverity = "fatal"
+	CEFLogSeverityDisable CEFLogSeverity = "disable"
+)
+
+// CEFSettings mirrors the small bootstrap subset exposed by the native C ABI.
+// The native bridge must be initialized and shut down on the process main
+// thread; callbacks crossing this boundary must be short-lived, non-blocking,
+// and must not retain Go pointers after returning.
+type CEFSettings struct {
+	NoSandbox   bool
+	CachePath   string
+	LogSeverity CEFLogSeverity
+}
+
+type CEFInitializeRequest struct {
+	ABIRevision uint32
+	AppDir      string
+	Settings    CEFSettings
+}
+
+type BrowserWindowCreateRequest struct {
+	ABIRevision uint32
+	URL         string
+	Width       int
+	Height      int
+	Show        bool
+}
+
+type BrowserWindowLoadRequest struct {
+	ABIRevision uint32
+	BrowserID   int64
+	URL         string
+}
+
+type SubprocessExecutionResult struct {
+	ExitCode int
+	Status   Status
+	Error    string
+}
+
 type StartRequest struct {
 	ABIRevision     uint32
 	AppDir          string
@@ -36,7 +86,7 @@ type StartRequest struct {
 	AppVersion      string
 	ElectronVersion string
 	Args            []string
-	Environment     map[string]string
+	Environment     []string
 }
 
 type StartResult struct {
@@ -91,7 +141,79 @@ func ValidateStartRequest(req StartRequest) error {
 	return nil
 }
 
+func IsCEFSubprocessArgs(args []string) bool {
+	for _, arg := range args {
+		if arg == "--type" || strings.HasPrefix(arg, "--type=") {
+			return true
+		}
+	}
+	return false
+}
+
+func ValidateCEFInitializeRequest(req CEFInitializeRequest) error {
+	if err := validateABIRevision(req.ABIRevision); err != nil {
+		return err
+	}
+	if strings.TrimSpace(req.AppDir) == "" {
+		return fmt.Errorf("app directory is required")
+	}
+	if strings.TrimSpace(req.Settings.CachePath) == "" {
+		return fmt.Errorf("CEF cache path is required")
+	}
+	return validateCEFLogSeverity(req.Settings.LogSeverity)
+}
+
+func ValidateBrowserWindowCreateRequest(req BrowserWindowCreateRequest) error {
+	if err := validateABIRevision(req.ABIRevision); err != nil {
+		return err
+	}
+	if strings.TrimSpace(req.URL) == "" {
+		return fmt.Errorf("browser window URL is required")
+	}
+	if req.Width <= 0 {
+		return fmt.Errorf("browser window width must be positive")
+	}
+	if req.Height <= 0 {
+		return fmt.Errorf("browser window height must be positive")
+	}
+	return nil
+}
+
+func ValidateBrowserWindowLoadRequest(req BrowserWindowLoadRequest) error {
+	if err := validateABIRevision(req.ABIRevision); err != nil {
+		return err
+	}
+	if req.BrowserID <= 0 {
+		return fmt.Errorf("browser ID must be positive")
+	}
+	if strings.TrimSpace(req.URL) == "" {
+		return fmt.Errorf("browser window URL is required")
+	}
+	return nil
+}
+
 func NormalizeStartRequest(req StartRequest) StartRequest {
+	if req.ABIRevision == 0 {
+		req.ABIRevision = CurrentABIRevision
+	}
+	return req
+}
+
+func NormalizeCEFInitializeRequest(req CEFInitializeRequest) CEFInitializeRequest {
+	if req.ABIRevision == 0 {
+		req.ABIRevision = CurrentABIRevision
+	}
+	return req
+}
+
+func NormalizeBrowserWindowCreateRequest(req BrowserWindowCreateRequest) BrowserWindowCreateRequest {
+	if req.ABIRevision == 0 {
+		req.ABIRevision = CurrentABIRevision
+	}
+	return req
+}
+
+func NormalizeBrowserWindowLoadRequest(req BrowserWindowLoadRequest) BrowserWindowLoadRequest {
 	if req.ABIRevision == 0 {
 		req.ABIRevision = CurrentABIRevision
 	}
@@ -106,5 +228,27 @@ func UnavailableResult(platform string) StartResult {
 		Status:         StatusUnavailable,
 		BridgeRevision: fmt.Sprintf("abi-%d-stub", CurrentABIRevision),
 		Platform:       platform,
+	}
+}
+
+func validateABIRevision(revision uint32) error {
+	if revision != 0 && revision != CurrentABIRevision {
+		return fmt.Errorf("unsupported native bridge ABI revision: %d", revision)
+	}
+	return nil
+}
+
+func validateCEFLogSeverity(severity CEFLogSeverity) error {
+	switch severity {
+	case CEFLogSeverityDefault,
+		CEFLogSeverityVerbose,
+		CEFLogSeverityInfo,
+		CEFLogSeverityWarning,
+		CEFLogSeverityError,
+		CEFLogSeverityFatal,
+		CEFLogSeverityDisable:
+		return nil
+	default:
+		return fmt.Errorf("unsupported CEF log severity: %q", severity)
 	}
 }

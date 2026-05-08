@@ -701,6 +701,25 @@
       "notes": "Requires crash upload, extra parameters, dynamic keys, renderer OOM diagnostics, contentTracing categories, and heap profile capture."
     },
     {
+      "id": "cef_bootstrap",
+      "area": "chromium-integration",
+      "api_group": "CEF bootstrap / BrowserWindow.loadURL",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "architecture",
+          "ref": "docs/architecture.md",
+          "note": "CEF is the first browser integration milestone because it validates main-thread ownership, subprocess routing, message loop control, and the C callback boundary."
+        },
+        {
+          "kind": "test-plan",
+          "ref": "docs/agent-workflow.md",
+          "note": "Acceptance is a single visible BrowserWindow loading a file URL, clean exit on close, no zombie renderer processes, and Linux x86_64 validation before any compatible claim."
+        }
+      ],
+      "notes": "First boss packet. Implement CEF initialize, cef_execute_process subprocess routing, process-original main-thread ownership, one BrowserWindow file load, message loop shutdown, and C-to-Go callback lifetime discipline. No JavaScript, Electron IPC, or multi-window parity is in scope for this packet."
+    },
+    {
       "id": "chromium-features-webgl-webgpu-media-and-pdf",
       "area": "chromium-integration",
       "api_group": "Chromium 148",

@@ -23,6 +23,7 @@ type packet struct {
 func main() {
 	status := flag.String("status", "", "comma-separated status filter")
 	area := flag.String("area", "", "comma-separated area filter")
+	ids := flag.String("id", "", "comma-separated ledger item ID filter")
 	format := flag.String("format", "markdown", "output format: markdown or json")
 	limit := flag.Int("limit", 0, "maximum packets to print")
 	flag.Parse()
@@ -33,7 +34,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	packets := buildPackets(ledger, filterSet(*status), filterSet(*area))
+	packets := buildPackets(ledger, filterSet(*status), filterSet(*area), filterSet(*ids))
 	if *limit > 0 && len(packets) > *limit {
 		packets = packets[:*limit]
 	}
@@ -54,13 +55,16 @@ func main() {
 	}
 }
 
-func buildPackets(ledger compat.Ledger, statuses, areas map[string]bool) []packet {
+func buildPackets(ledger compat.Ledger, statuses, areas, ids map[string]bool) []packet {
 	packets := make([]packet, 0, len(ledger.Items))
 	for _, item := range ledger.Items {
 		if len(statuses) > 0 && !statuses[item.Status] {
 			continue
 		}
 		if len(areas) > 0 && !areas[item.Area] {
+			continue
+		}
+		if len(ids) > 0 && !ids[item.ID] {
 			continue
 		}
 		packets = append(packets, packet{
@@ -98,6 +102,9 @@ func filterSet(raw string) map[string]bool {
 }
 
 func promptFor(item compat.Item) string {
+	if item.ID == "cef_bootstrap" {
+		return "Implement Electron-Go CEF bootstrap parity. Preserve process-original OS main-thread ownership with runtime.LockOSThread at executable entry, route CEF subprocesses before normal app initialization, initialize CEF through the native C ABI, create one visible BrowserWindow, load the hello fixture file URL, run the CEF message loop, exit cleanly on window close with no zombie renderer processes, and keep JavaScript execution and IPC out of scope until this packet is proven."
+	}
 	return fmt.Sprintf("Implement Electron-Go parity for ledger item %q in area %q. Preserve Electron 42.0.0 behavior, add conformance tests against official Electron fixtures, update evidence only after tests prove compatibility, and keep the ledger honest.", item.ID, item.Area)
 }
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -30,6 +31,8 @@ func TestRuntimeReportsStubBridgeUnavailable(t *testing.T) {
 
 func TestRuntimeStartsBridge(t *testing.T) {
 	dir := fixtureApp(t)
+	args := []string{"electron-go", "--inspect", dir}
+	env := []string{"ELECTRON_ENABLE_LOGGING=1", "PATH=/test/bin"}
 	var got native.StartRequest
 	rt := New(Options{
 		AppDir:          dir,
@@ -38,6 +41,8 @@ func TestRuntimeStartsBridge(t *testing.T) {
 			got = req
 			return &native.StartResult{PID: 100, WindowCount: 1, Chromium: "148.0.7778.96", Node: "24.15.0", V8: "14.8.178.14"}, nil
 		}),
+		Args:        args,
+		Environment: env,
 	})
 
 	if err := rt.Run(context.Background()); err != nil {
@@ -54,6 +59,78 @@ func TestRuntimeStartsBridge(t *testing.T) {
 	}
 	if !strings.HasSuffix(got.MainPath, "main.js") {
 		t.Fatalf("MainPath = %q, want suffix main.js", got.MainPath)
+	}
+	if !slices.Equal(got.Args, args) {
+		t.Fatalf("Args = %#v, want %#v", got.Args, args)
+	}
+	if !slices.Equal(got.Environment, env) {
+		t.Fatalf("Environment = %#v, want %#v", got.Environment, env)
+	}
+}
+
+func TestRuntimeSubprocessHookShortCircuitsBeforeAppInit(t *testing.T) {
+	args := []string{"electron-go", "--type=renderer"}
+	env := []string{"CEF_SUBPROCESS=1"}
+	var got SubprocessRequest
+
+	rt := New(Options{
+		AppDir:          filepath.Join(t.TempDir(), "missing-app"),
+		ElectronVersion: "42.0.0",
+		Bridge: bridgeFunc(func(context.Context, native.StartRequest) (*native.StartResult, error) {
+			t.Fatal("bridge.Start called after subprocess hook handled request")
+			return nil, nil
+		}),
+		SubprocessHook: func(_ context.Context, req SubprocessRequest) (SubprocessResult, error) {
+			got = req
+			return SubprocessResult{Handled: true, ExitCode: 9}, nil
+		},
+		Args:        args,
+		Environment: env,
+	})
+
+	err := rt.Run(context.Background())
+	var subprocessExit *SubprocessExit
+	if !errors.As(err, &subprocessExit) {
+		t.Fatalf("Run() error = %v, want SubprocessExit", err)
+	}
+	if subprocessExit.Code != 9 {
+		t.Fatalf("SubprocessExit.Code = %d, want 9", subprocessExit.Code)
+	}
+	if rt.State() != StateStopped {
+		t.Fatalf("State() = %s, want %s", rt.State(), StateStopped)
+	}
+	if !slices.Equal(got.Args, args) {
+		t.Fatalf("hook Args = %#v, want %#v", got.Args, args)
+	}
+	if !slices.Equal(got.Environment, env) {
+		t.Fatalf("hook Environment = %#v, want %#v", got.Environment, env)
+	}
+}
+
+func TestNativeSubprocessHookHandlesCEFSubprocessArgs(t *testing.T) {
+	result, err := NativeSubprocessHook(context.Background(), SubprocessRequest{
+		Args: []string{"electron-go", "--type=renderer"},
+	})
+	if err != nil {
+		t.Fatalf("NativeSubprocessHook() error = %v", err)
+	}
+	if !result.Handled {
+		t.Fatal("NativeSubprocessHook() did not handle CEF subprocess args")
+	}
+	if result.ExitCode != native.CEFSubprocessUnavailableExitCode {
+		t.Fatalf("ExitCode = %d, want %d", result.ExitCode, native.CEFSubprocessUnavailableExitCode)
+	}
+}
+
+func TestNativeSubprocessHookIgnoresBrowserProcessArgs(t *testing.T) {
+	result, err := NativeSubprocessHook(context.Background(), SubprocessRequest{
+		Args: []string{"electron-go", "./app"},
+	})
+	if err != nil {
+		t.Fatalf("NativeSubprocessHook() error = %v", err)
+	}
+	if result.Handled {
+		t.Fatal("NativeSubprocessHook() handled browser process args")
 	}
 }
 

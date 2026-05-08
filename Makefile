@@ -1,4 +1,4 @@
-.PHONY: test bench build run-hello parity workpackets memaudit releasecheck conformance
+.PHONY: test bench build run-hello parity workpackets cef-packet memaudit releasecheck conformance
 
 test:
 	go test ./...
@@ -17,6 +17,9 @@ parity:
 
 workpackets:
 	go run ./tools/workpackets --status unstarted,stubbed,partial --limit 10
+
+cef-packet:
+	go run ./tools/workpackets --id cef_bootstrap
 
 memaudit:
 	go run ./tools/memaudit --root .

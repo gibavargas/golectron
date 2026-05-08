@@ -7,20 +7,37 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	goruntime "runtime"
 
 	"github.com/gibavargas/electron-go/internal/compat"
 	"github.com/gibavargas/electron-go/internal/native"
-	"github.com/gibavargas/electron-go/internal/runtime"
+	egruntime "github.com/gibavargas/electron-go/internal/runtime"
 )
 
 const version = "0.1.0"
 
 func main() {
-	code := run(os.Args[1:])
+	goruntime.LockOSThread()
+	code := run(os.Args, os.Environ())
 	os.Exit(code)
 }
 
-func run(args []string) int {
+func run(argv []string, env []string) int {
+	ctx := context.Background()
+	subprocess, err := egruntime.ExecuteSubprocess(ctx, egruntime.NativeSubprocessHook, argv, env)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "electron-go: %v\n", err)
+		return 1
+	}
+	if subprocess.Handled {
+		return subprocess.ExitCode
+	}
+
+	args := []string(nil)
+	if len(argv) > 1 {
+		args = argv[1:]
+	}
+
 	fs := flag.NewFlagSet("electron-go", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 
@@ -63,14 +80,20 @@ func run(args []string) int {
 		appDir = fs.Arg(0)
 	}
 
-	rt := runtime.New(runtime.Options{
+	rt := egruntime.New(egruntime.Options{
 		AppDir:          appDir,
 		ElectronVersion: ledger.Target.Electron,
 		Bridge:          native.NewBridge(),
+		Args:            argv,
+		Environment:     env,
 		Out:             os.Stdout,
 	})
 
-	if err := rt.Run(context.Background()); err != nil {
+	if err := rt.Run(ctx); err != nil {
+		var subprocessExit *egruntime.SubprocessExit
+		if errors.As(err, &subprocessExit) {
+			return subprocessExit.Code
+		}
 		if errors.Is(err, native.ErrBridgeUnavailable) {
 			fmt.Fprintf(os.Stderr, "electron-go: %v\n", err)
 			return 78

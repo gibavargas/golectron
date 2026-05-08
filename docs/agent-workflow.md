@@ -11,6 +11,7 @@ Generate the next backlog from the compatibility ledger:
 ```sh
 go run ./tools/workpackets --status unstarted,stubbed,partial --limit 10
 go run ./tools/workpackets --area ipc --format json
+go run ./tools/workpackets --id cef_bootstrap
 ```
 
 Each packet names the Electron 42.0.0 behavior area, the current status, existing
@@ -54,3 +55,19 @@ Every real porting packet should follow the same loop:
 5. update ledger evidence only when results match.
 
 Benchmarks are attached after correctness, not before.
+
+## First Boss: `cef_bootstrap`
+
+The first real browser packet is `cef_bootstrap`, not a broad Electron API.
+It exists to prove the native architecture before higher-level parity work
+depends on it.
+
+Acceptance criteria:
+
+- `runtime.LockOSThread` runs at executable entry before CEF or app init;
+- CEF subprocess flags are routed before normal Electron-Go startup;
+- one visible BrowserWindow loads `file://` content from the hello fixture;
+- the CEF message loop owns the UI thread and exits on window close;
+- renderer/GPU/network subprocesses do not remain as zombies;
+- Linux x86_64 passes first, with macOS and Windows allowed to remain stubs;
+- JavaScript execution, Electron IPC, and multi-window support stay out of scope.
