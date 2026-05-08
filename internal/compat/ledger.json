@@ -1,0 +1,96 @@
+{
+  "target": {
+    "electron": "42.0.0",
+    "chromium": "148.0.7778.96",
+    "node": "24.15.0",
+    "v8": "14.8.178.14"
+  },
+  "generated": "2026-05-08",
+  "completion": "incomplete",
+  "items": [
+    {
+      "id": "process-model",
+      "area": "runtime",
+      "status": "stubbed",
+      "evidence": [
+        "internal/runtime"
+      ],
+      "notes": "Go host lifecycle exists; Chromium renderer, utility, and crash process parity is not implemented."
+    },
+    {
+      "id": "app",
+      "area": "main-process-api",
+      "status": "unstarted",
+      "evidence": [],
+      "notes": "Electron app API must match events, lifecycle semantics, single instance behavior, paths, and platform quirks."
+    },
+    {
+      "id": "browser-window",
+      "area": "main-process-api",
+      "status": "unstarted",
+      "evidence": [],
+      "notes": "Requires native Chromium window bridge and option/event parity."
+    },
+    {
+      "id": "web-contents",
+      "area": "main-process-api",
+      "status": "unstarted",
+      "evidence": [],
+      "notes": "Requires navigation, frames, DevTools, capture, printing, preload, permissions, and event parity."
+    },
+    {
+      "id": "ipc-main-renderer",
+      "area": "ipc",
+      "status": "partial",
+      "evidence": [
+        "internal/ipc"
+      ],
+      "notes": "Router exists; JS binding, structured clone behavior, frame routing, and security constraints are pending."
+    },
+    {
+      "id": "session-protocol",
+      "area": "networking",
+      "status": "unstarted",
+      "evidence": [],
+      "notes": "Must cover sessions, cookies, cache, permissions, protocol handlers, and network service behavior."
+    },
+    {
+      "id": "sandbox-context-isolation-preload",
+      "area": "security",
+      "status": "unstarted",
+      "evidence": [],
+      "notes": "Must match Electron 42 defaults and all supported combinations."
+    },
+    {
+      "id": "native-modules-node-v8",
+      "area": "node",
+      "status": "unstarted",
+      "evidence": [],
+      "notes": "Requires embedded Node 24.15.0 and ABI compatibility."
+    },
+    {
+      "id": "menus-dialogs-shell-notifications",
+      "area": "desktop-integrations",
+      "status": "unstarted",
+      "evidence": [],
+      "notes": "Must cover platform-native desktop integrations."
+    },
+    {
+      "id": "packaging-updater-crash-reporter",
+      "area": "distribution",
+      "status": "unstarted",
+      "evidence": [],
+      "notes": "Must cover ASAR, packaging, autoUpdater, crashReporter, signing/notarization expectations, and platform outputs."
+    },
+    {
+      "id": "benchmarks",
+      "area": "performance",
+      "status": "partial",
+      "evidence": [
+        "docs/benchmarks.md",
+        "tools/benchmarks"
+      ],
+      "notes": "Benchmark harness exists; no speed claims are valid until official Electron and Electron-Go runs are recorded."
+    }
+  ]
+}

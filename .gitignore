@@ -1,0 +1,12 @@
+.DS_Store
+bin/
+build/
+dist/
+/electron-go
+coverage.out
+*.test
+*.prof
+*.trace
+node_modules/
+.electron-go/
+benchmark-results/
