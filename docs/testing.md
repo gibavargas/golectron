@@ -20,6 +20,45 @@ fixture applications.
 
 Initial fixtures live in `compat/fixtures/hello`.
 
+Run the JSON conformance runner with an installed official Electron binary:
+
+```sh
+go run ./tools/conformance \
+  --fixture ./compat/fixtures/hello \
+  --electron "electron" \
+  --electron-go "go run ./cmd/electron-go" \
+  --timeout 30s \
+  --output conformance-report.json
+```
+
+Multiple fixtures can be passed by repeating `--fixture` or using comma-separated
+values:
+
+```sh
+go run ./tools/conformance \
+  --fixture ./compat/fixtures/hello,./compat/fixtures/another-fixture \
+  --fixture ./compat/fixtures/yet-another-fixture \
+  --electron "electron" \
+  --electron-go "go run ./cmd/electron-go" \
+  --timeout 30s \
+  --output conformance-report.json
+```
+
+The command exits nonzero when official Electron and Electron-Go differ on exit
+code, stdout, stderr, timeout status, or command error. To write evidence while
+known gaps are still expected, keep the JSON report but allow the process to
+exit zero:
+
+```sh
+go run ./tools/conformance \
+  --fixture ./compat/fixtures/hello \
+  --electron "electron" \
+  --electron-go "go run ./cmd/electron-go" \
+  --timeout 30s \
+  --output conformance-report.json \
+  --allow-mismatch
+```
+
 Required comparison points:
 
 - process exit code;

@@ -34,17 +34,32 @@ Run:
 ```sh
 go run ./cmd/electron-go --compat-json
 go run ./cmd/electron-go --check-parity
+go run ./tools/releasecheck
 ```
 
 `--check-parity` must fail until every ledger item is `compatible`. That failure
 is intentional. It prevents accidental release notes, README text, or marketing
 copy from claiming complete Electron support too early.
 
+`tools/releasecheck` is the release gate for the version baseline. It fetches the
+official Electron releases feed from `https://releases.electronjs.org/releases.json`,
+finds the latest stable Electron release, and compares Electron, Chromium,
+Node.js, and V8 versions against the ledger target. The command exits nonzero
+when the ledger target is stale. For CI fixtures or mirrors, use:
+
+```sh
+go run ./tools/releasecheck \
+  --url https://releases.electronjs.org/releases.json \
+  --release-url-template https://releases.electronjs.org/release/v%s \
+  --timeout 15s \
+  --json
+```
+
 ## Updating The Baseline
 
 Before a release:
 
-1. check the latest stable release at `https://releases.electronjs.org/`;
+1. run `go run ./tools/releasecheck`;
 2. update the Electron, Chromium, Node.js, and V8 versions in the ledger;
 3. add release-note entries for breaking changes, new APIs, and behavior fixes
    that affect app-visible behavior;

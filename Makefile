@@ -1,4 +1,4 @@
-.PHONY: test bench build run-hello parity
+.PHONY: test bench build run-hello parity workpackets memaudit releasecheck conformance
 
 test:
 	go test ./...
@@ -17,3 +17,12 @@ parity:
 
 workpackets:
 	go run ./tools/workpackets --status unstarted,stubbed,partial --limit 10
+
+memaudit:
+	go run ./tools/memaudit --root .
+
+releasecheck:
+	go run ./tools/releasecheck --json
+
+conformance:
+	go run ./tools/conformance --fixture ./compat/fixtures/hello --electron electron --electron-go "go run ./cmd/electron-go" --allow-mismatch
