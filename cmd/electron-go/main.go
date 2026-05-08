@@ -46,6 +46,7 @@ func run(argv []string, env []string) int {
 	showVersion := fs.Bool("version", false, "print the Electron-Go version")
 	showLedger := fs.Bool("compat-json", false, "print the compatibility ledger as JSON")
 	checkParity := fs.Bool("check-parity", false, "exit successfully only when every ledger item is compatible")
+	cefInitCheck := fs.Bool("cef-init-check", false, "initialize and shut down CEF without opening a window")
 	runHello := fs.Bool("hello", false, "run the bundled hello conformance fixture")
 
 	if err := fs.Parse(args); err != nil {
@@ -76,6 +77,19 @@ func run(argv []string, env []string) int {
 		}
 		fmt.Fprintf(os.Stderr, "electron-go parity incomplete for Electron %s: %d/%d compatible\n", ledger.Target.Electron, ledger.CompatibleCount(), ledger.TotalCount())
 		return 1
+	}
+
+	if *cefInitCheck {
+		appDir := "."
+		if fs.NArg() > 0 {
+			appDir = fs.Arg(0)
+		}
+		if err := native.CheckCEFInitialize(ctx, appDir, argv); err != nil {
+			fmt.Fprintf(os.Stderr, "electron-go: cef init check failed: %v\n", err)
+			return 1
+		}
+		fmt.Fprintln(os.Stdout, "electron-go: cef_initialize returned 1")
+		return 0
 	}
 
 	appDir := "."

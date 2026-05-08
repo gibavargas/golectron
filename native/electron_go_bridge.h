@@ -55,6 +55,8 @@ typedef struct eg_cef_subprocess_result {
 typedef struct eg_cef_initialize_request {
   uint32_t abi_revision;
   eg_string_view app_dir;
+  uint64_t argc;
+  const eg_string_view* argv;
   eg_cef_settings settings;
 } eg_cef_initialize_request;
 

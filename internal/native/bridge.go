@@ -9,7 +9,7 @@ import (
 )
 
 var ErrBridgeUnavailable = errors.New("native Chromium/Node/V8 bridge unavailable")
-var ErrCEFInitializeNotImplemented = errors.New("CEF initialize not implemented")
+var ErrCEFBrowserWindowNotImplemented = errors.New("CEF BrowserWindow bootstrap not implemented")
 
 const CurrentABIRevision uint32 = 1
 
@@ -56,6 +56,7 @@ type CEFSettings struct {
 type CEFInitializeRequest struct {
 	ABIRevision uint32
 	AppDir      string
+	Args        []string
 	Settings    CEFSettings
 }
 
