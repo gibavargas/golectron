@@ -9,6 +9,116 @@
   "completion": "incomplete",
   "items": [
     {
+      "id": "cef-fetch",
+      "area": "chromium-integration",
+      "api_group": "CEF artifact fetch",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "implementation",
+          "ref": "native/CEF_VERSION",
+          "note": "Records the Electron 42 Chromium 148.0.7778.96 target and forbids Chromium 130 as parity evidence."
+        },
+        {
+          "kind": "implementation",
+          "ref": "tools/cefresolve",
+          "note": "Resolves exact CEF artifacts from the Spotify build index and can report same-major fallbacks separately."
+        },
+        {
+          "kind": "implementation",
+          "ref": "tools/ceffetch",
+          "note": "Fetches, checksum-verifies, extracts, and stages CEF runtime files without vendoring the archive."
+        }
+      ],
+      "notes": "Atomic dependency for runtime-process-model. Acceptance: deterministic CEF target/fetch tooling tests pass with go test ./internal/cefbuild ./tools/cefresolve ./tools/ceffetch, and exact-artifact absence remains an explicit blocker for cef-linked rather than a reason to use the wrong Chromium."
+    },
+    {
+      "id": "cef-linked",
+      "area": "chromium-integration",
+      "api_group": "CEF cgo linkage",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "implementation",
+          "ref": "internal/native/cef_linux.go",
+          "note": "Defines opt-in Linux amd64 CEF cgo flags with libcef lookup beside bin/electron-go through $ORIGIN."
+        },
+        {
+          "kind": "implementation",
+          "ref": "native/cef_shim.c",
+          "note": "Owns CEF vtable callback storage on the C side instead of storing Go function pointers in CEF structs."
+        },
+        {
+          "kind": "test-plan",
+          "ref": "docs/cef-bootstrap.md",
+          "note": "Requires Ubuntu 22.04, staged CEF runtime layout, and an electron_go_cef tagged build."
+        }
+      ],
+      "notes": "Atomic dependency for runtime-process-model. Acceptance: after cef-fetch provides an exact Chromium 148.0.7778.96 CEF artifact, tools/fetch_cef.sh stages bin/, go run ./tools/memaudit --root . --check-cef-layout ./bin passes, and go build -tags electron_go_cef -o bin/electron-go ./cmd/electron-go links without stubs."
+    },
+    {
+      "id": "cef-initialize",
+      "area": "chromium-integration",
+      "api_group": "CEF initialize / subprocess routing",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "implementation",
+          "ref": "cmd/electron-go/main.go",
+          "note": "Locks the process OS thread before Electron-Go startup."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/runtime",
+          "note": "Routes CEF subprocess flags before normal app metadata or bridge startup."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/native/dispatcher.go",
+          "note": "Provides the callback handoff boundary for CEF-to-Go signals."
+        }
+      ],
+      "notes": "Atomic dependency for runtime-process-model. Acceptance: real CEF cef_execute_process and cef_initialize are wired through the native shim, context initialization reaches Go through the dispatcher, cef_shutdown runs, and a headless Ubuntu 22.04 job exits 0 without creating a BrowserWindow."
+    },
+    {
+      "id": "browser-window-open",
+      "area": "chromium-integration",
+      "api_group": "BrowserWindow.loadURL",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "fixture",
+          "ref": "compat/fixtures/hello",
+          "note": "Hello fixture is the first file URL target for the CEF BrowserWindow path."
+        },
+        {
+          "kind": "test-plan",
+          "ref": "docs/agent-workflow.md",
+          "note": "Requires a single visible BrowserWindow loading file:// content from the hello fixture."
+        }
+      ],
+      "notes": "Atomic dependency for runtime-process-model. Acceptance: bin/electron-go --hello under Xvfb creates one BrowserWindow, loads the hello fixture file URL, observes CEF load completion, and exits nonzero only on a real load/open failure. JavaScript IPC and multi-window behavior are out of scope."
+    },
+    {
+      "id": "browser-window-close",
+      "area": "chromium-integration",
+      "api_group": "BrowserWindow close / CEF shutdown",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "test-plan",
+          "ref": ".github/workflows/cef_bootstrap.yml",
+          "note": "Headless bootstrap workflow includes timeout-bounded hello execution and zombie process checks."
+        },
+        {
+          "kind": "test-plan",
+          "ref": "docs/cef-bootstrap.md",
+          "note": "Clean window close and no zombie renderer/GPU/network subprocesses are required before runtime-process-model can advance."
+        }
+      ],
+      "notes": "Atomic dependency for runtime-process-model. Acceptance: closing the hello BrowserWindow quits the CEF message loop, bin/electron-go --hello exits 0, cef_shutdown runs, and pgrep finds no remaining electron-go renderer, GPU, network, or utility subprocesses."
+    },
+    {
       "id": "runtime-process-model",
       "area": "runtime",
       "api_group": "process",
@@ -699,30 +809,6 @@
         "#51205"
       ],
       "notes": "Requires crash upload, extra parameters, dynamic keys, renderer OOM diagnostics, contentTracing categories, and heap profile capture."
-    },
-    {
-      "id": "cef_bootstrap",
-      "area": "chromium-integration",
-      "api_group": "CEF bootstrap / BrowserWindow.loadURL",
-      "status": "unstarted",
-      "evidence": [
-        {
-          "kind": "architecture",
-          "ref": "docs/architecture.md",
-          "note": "CEF is the first browser integration milestone because it validates main-thread ownership, subprocess routing, message loop control, and the C callback boundary."
-        },
-        {
-          "kind": "test-plan",
-          "ref": "docs/agent-workflow.md",
-          "note": "Acceptance is a single visible BrowserWindow loading a file URL, clean exit on close, no zombie renderer processes, and Linux x86_64 validation before any compatible claim."
-        },
-        {
-          "kind": "bootstrap-plan",
-          "ref": "docs/cef-bootstrap.md",
-          "note": "Linux bootstrap uses Ubuntu 22.04, deterministic CEF artifact resolution, staged bin runtime layout, explicit electron_go_cef cgo linkage, and records no_sandbox as a temporary bootstrap-only gap."
-        }
-      ],
-      "notes": "First boss packet. Implement CEF initialize, cef_execute_process subprocess routing, process-original main-thread ownership, one BrowserWindow file load, message loop shutdown, and C-to-Go callback lifetime discipline. No JavaScript, Electron IPC, or multi-window parity is in scope for this packet."
     },
     {
       "id": "chromium-features-webgl-webgpu-media-and-pdf",
