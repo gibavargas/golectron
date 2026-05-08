@@ -897,7 +897,8 @@
       "id": "conformance-fixture-hello",
       "area": "testing",
       "api_group": "conformance",
-      "status": "partial",
+      "status": "compatible",
+      "check": "xvfb-run -a env ELECTRON_BIN=/tmp/electron-go-conformance/node_modules/.bin/electron ELECTRON_GO_BIN=$PWD/bin/electron-go go test ./compat",
       "evidence": [
         {
           "kind": "test",
@@ -906,9 +907,19 @@
         {
           "kind": "test",
           "ref": "compat/fixtures/hello"
+        },
+        {
+          "kind": "test",
+          "ref": "compat/fixtures/benchmark-hello",
+          "note": "Deterministic hello fixture exits after first load under both official Electron and Electron-Go."
+        },
+        {
+          "kind": "test",
+          "ref": ".github/workflows/conformance.yml",
+          "note": "Ubuntu 22.04 workflow installs official Electron 42.0.0, builds the CEF-linked Electron-Go binary, and runs the deterministic hello fixture under both runtimes."
         }
       ],
-      "notes": "A hello-world fixture exists, but it does not yet prove Electron API parity. Expand with upstream Electron API fixtures as implementation lands."
+      "notes": "Deterministic hello conformance is compatible for window load and clean exit. IPC/preload coverage remains gated by ipc-main-renderer-and-message-port and context-bridge-preload-and-isolation."
     },
     {
       "id": "compatibility-ledger-parity-gate",

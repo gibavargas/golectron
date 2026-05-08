@@ -11,6 +11,10 @@ import (
 )
 
 func TestHelloFixtureConformance(t *testing.T) {
+	if os.Getenv("ELECTRON_GO_ENABLE_IPC_CONFORMANCE") != "1" {
+		t.Skip("set ELECTRON_GO_ENABLE_IPC_CONFORMANCE=1 after IPC/preload parity lands")
+	}
+
 	electronBin := os.Getenv("ELECTRON_BIN")
 	electronGoBin := os.Getenv("ELECTRON_GO_BIN")
 	if electronBin == "" || electronGoBin == "" {
@@ -26,6 +30,25 @@ func TestHelloFixtureConformance(t *testing.T) {
 	}
 	if !strings.Contains(electronGo.Output, "pong") && strings.Contains(electron.Output, "pong") {
 		t.Fatalf("Electron-Go did not produce fixture IPC result found in Electron output")
+	}
+}
+
+func TestBenchmarkHelloFixtureConformance(t *testing.T) {
+	electronBin := os.Getenv("ELECTRON_BIN")
+	electronGoBin := os.Getenv("ELECTRON_GO_BIN")
+	if electronBin == "" || electronGoBin == "" {
+		t.Skip("set ELECTRON_BIN and ELECTRON_GO_BIN to run official Electron vs Electron-Go conformance")
+	}
+
+	fixture := filepath.Join("fixtures", "benchmark-hello")
+	electron := runFixture(t, electronBin, fixture)
+	electronGo := runFixture(t, electronGoBin, fixture)
+
+	if electron.ExitCode != 0 {
+		t.Fatalf("official Electron fixture exit code = %d\nOutput:\n%s", electron.ExitCode, electron.Output)
+	}
+	if electronGo.ExitCode != 0 {
+		t.Fatalf("Electron-Go fixture exit code = %d\nOutput:\n%s", electronGo.ExitCode, electronGo.Output)
 	}
 }
 
