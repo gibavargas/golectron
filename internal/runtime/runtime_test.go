@@ -49,6 +49,9 @@ func TestRuntimeStartsBridge(t *testing.T) {
 	if got.AppName != "fixture" {
 		t.Fatalf("AppName = %q, want fixture", got.AppName)
 	}
+	if got.ABIRevision != native.CurrentABIRevision {
+		t.Fatalf("ABIRevision = %d, want %d", got.ABIRevision, native.CurrentABIRevision)
+	}
 	if !strings.HasSuffix(got.MainPath, "main.js") {
 		t.Fatalf("MainPath = %q, want suffix main.js", got.MainPath)
 	}

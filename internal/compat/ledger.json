@@ -9,88 +9,790 @@
   "completion": "incomplete",
   "items": [
     {
-      "id": "process-model",
+      "id": "runtime-process-model",
       "area": "runtime",
+      "api_group": "process",
       "status": "stubbed",
       "evidence": [
-        "internal/runtime"
+        {
+          "kind": "implementation",
+          "ref": "internal/runtime",
+          "note": "Go host lifecycle exists."
+        },
+        {
+          "kind": "upstream",
+          "ref": "electron/docs/api/process.md"
+        }
       ],
-      "notes": "Go host lifecycle exists; Chromium renderer, utility, and crash process parity is not implemented."
+      "notes": "Must still cover Electron's main, renderer, utility, sandbox, crash, and process event semantics."
     },
     {
-      "id": "app",
+      "id": "app-lifecycle-events",
       "area": "main-process-api",
+      "api_group": "app",
       "status": "unstarted",
-      "evidence": [],
-      "notes": "Electron app API must match events, lifecycle semantics, single instance behavior, paths, and platform quirks."
+      "evidence": [
+        {
+          "kind": "upstream",
+          "ref": "electron/docs/api/app.md"
+        }
+      ],
+      "notes": "Inventory app readiness, quit, activation, open-file/open-url, before/after quit, window-all-closed, and platform lifecycle behavior."
     },
     {
-      "id": "browser-window",
+      "id": "app-paths-protocol-client-and-badges",
       "area": "main-process-api",
+      "api_group": "app",
       "status": "unstarted",
-      "evidence": [],
-      "notes": "Requires native Chromium window bridge and option/event parity."
+      "evidence": [
+        {
+          "kind": "upstream",
+          "ref": "electron/docs/api/app.md"
+        }
+      ],
+      "notes": "Inventory app path lookup, path overrides, default protocol client APIs, recent documents, login item settings, dock/taskbar badges, and user tasks."
     },
     {
-      "id": "web-contents",
+      "id": "app-webauthn-touch-id-electron-42",
+      "area": "electron-42-release-notes",
+      "api_group": "app.configureWebAuthn",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "release-note",
+          "ref": "https://releases.electronjs.org/release/v42.0.0",
+          "note": "Electron 42 adds app.configureWebAuthn({ touchID: { keychainAccessGroup } }) and the select-webauthn-account session event."
+        }
+      ],
+      "electron_refs": [
+        "#51411"
+      ],
+      "notes": "Requires macOS Touch ID WebAuthn wiring and session event parity before any compatibility claim."
+    },
+    {
+      "id": "app-is-active-electron-42",
+      "area": "electron-42-release-notes",
+      "api_group": "app.isActive",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "release-note",
+          "ref": "https://releases.electronjs.org/release/v42.0.0",
+          "note": "Electron 42 adds app.isActive() on macOS."
+        }
+      ],
+      "electron_refs": [
+        "#49622"
+      ],
+      "notes": "Requires foreground application state parity on macOS."
+    },
+    {
+      "id": "browser-window-constructor-options",
       "area": "main-process-api",
+      "api_group": "BrowserWindow",
       "status": "unstarted",
-      "evidence": [],
-      "notes": "Requires navigation, frames, DevTools, capture, printing, preload, permissions, and event parity."
+      "evidence": [
+        {
+          "kind": "upstream",
+          "ref": "electron/docs/api/browser-window.md"
+        }
+      ],
+      "notes": "Inventory BrowserWindow option parsing, platform defaults, parent/modal behavior, webPreferences, visibility, focus, traffic light, and bounds behavior."
     },
     {
-      "id": "ipc-main-renderer",
+      "id": "browser-window-events-and-methods",
+      "area": "main-process-api",
+      "api_group": "BrowserWindow",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "upstream",
+          "ref": "electron/docs/api/browser-window.md"
+        }
+      ],
+      "notes": "Inventory window lifecycle events, size/position/fullscreen/minimize/maximize methods, represented file, sheets, thumbnails, progress bar, and platform quirks."
+    },
+    {
+      "id": "base-window-view-and-webcontentsview",
+      "area": "main-process-api",
+      "api_group": "BaseWindow/View/WebContentsView",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "upstream",
+          "ref": "electron/docs/api/base-window.md"
+        },
+        {
+          "kind": "upstream",
+          "ref": "electron/docs/api/web-contents-view.md"
+        }
+      ],
+      "notes": "Inventory the newer view tree APIs, resize behavior, visibility propagation, child view ordering, and WebContentsView ownership semantics."
+    },
+    {
+      "id": "view-bounds-animation-and-background-blur-electron-42",
+      "area": "electron-42-release-notes",
+      "api_group": "View",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "release-note",
+          "ref": "https://releases.electronjs.org/release/v42.0.0",
+          "note": "Electron 42 adds animation support to view.setBounds and adds view.setBackgroundBlur."
+        }
+      ],
+      "electron_refs": [
+        "#48812"
+      ],
+      "notes": "Requires native view animation and blur behavior, with platform-specific support and no-op behavior documented by tests."
+    },
+    {
+      "id": "web-contents-navigation-and-events",
+      "area": "main-process-api",
+      "api_group": "webContents",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "upstream",
+          "ref": "electron/docs/api/web-contents.md"
+        }
+      ],
+      "notes": "Inventory navigation, redirects, same-document navigation, frame events, load states, history, crash, audio, focus, and permission-request surfaces."
+    },
+    {
+      "id": "web-contents-devtools-target-id-electron-42",
+      "area": "electron-42-release-notes",
+      "api_group": "webContents.getOrCreateDevToolsTargetId",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "release-note",
+          "ref": "https://releases.electronjs.org/release/v42.0.0",
+          "note": "Electron 42 adds webContents.getOrCreateDevToolsTargetId()."
+        }
+      ],
+      "electron_refs": [
+        "#49733"
+      ],
+      "notes": "Requires stable DevTools protocol target identity creation and reuse for each WebContents."
+    },
+    {
+      "id": "web-contents-print-printer-default-page-size-electron-42",
+      "area": "electron-42-release-notes",
+      "api_group": "webContents.print",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "release-note",
+          "ref": "https://releases.electronjs.org/release/v42.0.0",
+          "note": "Electron 42 adds usePrinterDefaultPageSize to webContents.print()."
+        }
+      ],
+      "electron_refs": [
+        "#49523"
+      ],
+      "notes": "Requires print option plumbing and platform print-dialog behavior tests."
+    },
+    {
+      "id": "web-preferences-focus-on-navigation-electron-42",
+      "area": "electron-42-release-notes",
+      "api_group": "webPreferences.focusOnNavigation",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "release-note",
+          "ref": "https://releases.electronjs.org/release/v42.0.0",
+          "note": "Electron 42 includes focusOnNavigation behavior for disabling automatic WebContents focus during navigation."
+        }
+      ],
+      "electron_refs": [
+        "#49425"
+      ],
+      "notes": "Requires focus tests across BrowserWindow, WebContentsView, and navigation-initiated focus changes."
+    },
+    {
+      "id": "offscreen-device-scale-factor-electron-42",
+      "area": "electron-42-breaking-change",
+      "api_group": "webPreferences.offscreen",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "release-note",
+          "ref": "https://releases.electronjs.org/release/v42.0.0",
+          "note": "Electron 42 changes offscreen rendering default deviceScaleFactor to 1.0 and supports webPreferences.offscreen.deviceScaleFactor."
+        }
+      ],
+      "electron_refs": [
+        "#49683",
+        "#48730"
+      ],
+      "notes": "Must test default OSR output sizing and custom deviceScaleFactor behavior."
+    },
+    {
+      "id": "ipc-main-renderer-and-message-port",
       "area": "ipc",
+      "api_group": "ipcMain/ipcRenderer/MessagePortMain",
       "status": "partial",
       "evidence": [
-        "internal/ipc"
+        {
+          "kind": "implementation",
+          "ref": "internal/ipc",
+          "note": "Router exists."
+        },
+        {
+          "kind": "upstream",
+          "ref": "electron/docs/api/ipc-main.md"
+        },
+        {
+          "kind": "upstream",
+          "ref": "electron/docs/api/ipc-renderer.md"
+        }
       ],
-      "notes": "Router exists; JS binding, structured clone behavior, frame routing, and security constraints are pending."
+      "notes": "Requires JavaScript bindings, structured clone parity, invoke/handle error semantics, frame routing, transferables, MessagePortMain, and security constraints."
     },
     {
-      "id": "session-protocol",
-      "area": "networking",
-      "status": "unstarted",
-      "evidence": [],
-      "notes": "Must cover sessions, cookies, cache, permissions, protocol handlers, and network service behavior."
-    },
-    {
-      "id": "sandbox-context-isolation-preload",
+      "id": "context-bridge-preload-and-isolation",
       "area": "security",
+      "api_group": "contextBridge/preload",
       "status": "unstarted",
-      "evidence": [],
-      "notes": "Must match Electron 42 defaults and all supported combinations."
+      "evidence": [
+        {
+          "kind": "upstream",
+          "ref": "electron/docs/api/context-bridge.md"
+        },
+        {
+          "kind": "upstream",
+          "ref": "electron/docs/tutorial/tutorial-preload.md"
+        }
+      ],
+      "notes": "Requires isolated worlds, preload load ordering, contextBridge exposure rules, sandbox interaction, and error propagation."
     },
     {
-      "id": "native-modules-node-v8",
-      "area": "node",
+      "id": "session-partitions-cookies-cache-permissions",
+      "area": "networking",
+      "api_group": "session",
       "status": "unstarted",
-      "evidence": [],
-      "notes": "Requires embedded Node 24.15.0 and ABI compatibility."
+      "evidence": [
+        {
+          "kind": "upstream",
+          "ref": "electron/docs/api/session.md"
+        }
+      ],
+      "notes": "Inventory persistent/in-memory partitions, cookie store events, permissions, spellchecker, cache, proxy, preconnect, net log, and device permission handlers."
     },
     {
-      "id": "menus-dialogs-shell-notifications",
+      "id": "session-clear-storage-data-quotas-removal-electron-42",
+      "area": "electron-42-breaking-change",
+      "api_group": "session.clearStorageData",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "release-note",
+          "ref": "https://releases.electronjs.org/release/v42.0.0",
+          "note": "Electron 42 removes options.quotas from Session.clearStorageData(options)."
+        }
+      ],
+      "notes": "Must reject or ignore quotas exactly as Electron 42 does and keep tests for old option removal."
+    },
+    {
+      "id": "session-select-webauthn-account-electron-42",
+      "area": "electron-42-release-notes",
+      "api_group": "session",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "release-note",
+          "ref": "https://releases.electronjs.org/release/v42.0.0",
+          "note": "Electron 42 introduces select-webauthn-account for discoverable credential selection."
+        }
+      ],
+      "electron_refs": [
+        "#51411"
+      ],
+      "notes": "Requires WebAuthn session event dispatch and callback semantics."
+    },
+    {
+      "id": "protocol-registration-privileges-and-validation",
+      "area": "networking",
+      "api_group": "protocol",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "upstream",
+          "ref": "electron/docs/api/protocol.md"
+        },
+        {
+          "kind": "release-note",
+          "ref": "https://releases.electronjs.org/release/v42.0.0",
+          "note": "Electron 42 includes allowExtensions privilege and stricter protocol/client validation changes."
+        }
+      ],
+      "electron_refs": [
+        "#50530",
+        "#50141",
+        "#50123"
+      ],
+      "notes": "Inventory standard/secure/bypassCSP/supportFetchStream/CORS/fetch support, allowExtensions, RFC 3986 validation, and response header validation."
+    },
+    {
+      "id": "net-netlog-and-client-request",
+      "area": "networking",
+      "api_group": "net/netLog/ClientRequest",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "upstream",
+          "ref": "electron/docs/api/net.md"
+        },
+        {
+          "kind": "upstream",
+          "ref": "electron/docs/api/client-request.md"
+        }
+      ],
+      "notes": "Requires net.fetch, request streaming, upload bodies, session binding, redirects, auth, certificate errors, and netLog capture parity."
+    },
+    {
+      "id": "notifications-core-and-platform-behavior",
       "area": "desktop-integrations",
+      "api_group": "Notification",
       "status": "unstarted",
-      "evidence": [],
-      "notes": "Must cover platform-native desktop integrations."
+      "evidence": [
+        {
+          "kind": "upstream",
+          "ref": "electron/docs/api/notification.md"
+        }
+      ],
+      "notes": "Inventory constructor options, show/close events, actions, reply, silent/urgency, icons, click activation, and platform-specific notification center behavior."
     },
     {
-      "id": "packaging-updater-crash-reporter",
+      "id": "notifications-macos-unnotification-electron-42",
+      "area": "electron-42-breaking-change",
+      "api_group": "Notification",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "release-note",
+          "ref": "https://releases.electronjs.org/release/v42.0.0",
+          "note": "Electron 42 migrates macOS notifications to UNNotification and unsigned apps emit failed."
+        }
+      ],
+      "electron_refs": [
+        "#47817"
+      ],
+      "notes": "Requires macOS UNNotification implementation, code-signing failure behavior, and failed event tests."
+    },
+    {
+      "id": "notifications-macos-history-id-group-electron-42",
+      "area": "electron-42-release-notes",
+      "api_group": "Notification",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "release-note",
+          "ref": "https://releases.electronjs.org/release/v42.0.0",
+          "note": "Electron 42 adds Notification.getHistory() on macOS and id/groupId constructor options."
+        }
+      ],
+      "electron_refs": [
+        "#51123",
+        "#50304"
+      ],
+      "notes": "Requires notification history reads and grouping identifier behavior on macOS."
+    },
+    {
+      "id": "notifications-windows-activation-actions-reason-urgency-electron-42",
+      "area": "electron-42-release-notes",
+      "api_group": "Notification",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "release-note",
+          "ref": "https://releases.electronjs.org/release/v42.0.0",
+          "note": "Electron 42 adds handleActivation, closed reason, urgency, id/groupId/groupTitle, and expanded Windows action/reply support."
+        }
+      ],
+      "electron_refs": [
+        "#49919",
+        "#49913",
+        "#50383",
+        "#50895",
+        "#48132",
+        "#51330"
+      ],
+      "notes": "Requires Windows activation routing for cold starts, action buttons, dropdowns, replies, close reasons, urgency, and grouping."
+    },
+    {
+      "id": "global-shortcut-registration-and-wayland",
+      "area": "desktop-integrations",
+      "api_group": "globalShortcut",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "upstream",
+          "ref": "electron/docs/api/global-shortcut.md"
+        },
+        {
+          "kind": "release-note",
+          "ref": "https://releases.electronjs.org/release/v42.0.0",
+          "note": "Electron 42 includes Wayland GlobalShortcutsPortal reliability fixes."
+        }
+      ],
+      "electron_refs": [
+        "#49842",
+        "#49988"
+      ],
+      "notes": "Requires accelerator parsing, registration lifecycle, platform denial behavior, portal behavior, and unregister semantics."
+    },
+    {
+      "id": "global-shortcut-suspension-electron-42",
+      "area": "electron-42-release-notes",
+      "api_group": "globalShortcut",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "release-note",
+          "ref": "https://releases.electronjs.org/release/v42.0.0",
+          "note": "Electron 42 adds globalShortcut.setSuspended() and globalShortcut.isSuspended()."
+        }
+      ],
+      "electron_refs": [
+        "#50777"
+      ],
+      "notes": "Requires shortcut suspension state and callback suppression semantics without losing registrations."
+    },
+    {
+      "id": "menu-menuitem-tray-and-platform-menus",
+      "area": "desktop-integrations",
+      "api_group": "Menu/MenuItem/Tray",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "upstream",
+          "ref": "electron/docs/api/menu.md"
+        },
+        {
+          "kind": "upstream",
+          "ref": "electron/docs/api/tray.md"
+        },
+        {
+          "kind": "release-note",
+          "ref": "https://releases.electronjs.org/release/v42.0.0",
+          "note": "Electron 42 contains menu dynamic label/icon updates and platform menu fixes."
+        }
+      ],
+      "electron_refs": [
+        "#49678",
+        "#50504",
+        "#49783"
+      ],
+      "notes": "Inventory application/context menus, roles, accelerators, submenu events, dynamic item updates, tray behavior, and platform accessibility events."
+    },
+    {
+      "id": "dialog-shell-clipboard-and-desktop-capturer",
+      "area": "desktop-integrations",
+      "api_group": "dialog/shell/clipboard/desktopCapturer",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "upstream",
+          "ref": "electron/docs/api/dialog.md"
+        },
+        {
+          "kind": "upstream",
+          "ref": "electron/docs/api/shell.md"
+        },
+        {
+          "kind": "upstream",
+          "ref": "electron/docs/api/desktop-capturer.md"
+        }
+      ],
+      "notes": "Requires native dialogs, shell open/show/trash behavior, clipboard formats, desktopCapturer media source parity, and macOS CoreAudio Tap capture behavior."
+    },
+    {
+      "id": "native-theme-power-monitor-screen-and-system-preferences",
+      "area": "desktop-integrations",
+      "api_group": "nativeTheme/powerMonitor/screen/systemPreferences",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "upstream",
+          "ref": "electron/docs/api/native-theme.md"
+        },
+        {
+          "kind": "release-note",
+          "ref": "https://releases.electronjs.org/release/v42.0.0",
+          "note": "Electron 42 adds nativeTheme.shouldDifferentiateWithoutColor on macOS."
+        }
+      ],
+      "electron_refs": [
+        "#50409"
+      ],
+      "notes": "Inventory display changes, power events, color/theme state, accessibility flags, and system preference APIs."
+    },
+    {
+      "id": "safe-storage-async-backends-electron-42",
+      "area": "electron-42-release-notes",
+      "api_group": "safeStorage",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "release-note",
+          "ref": "https://releases.electronjs.org/release/v42.0.0",
+          "note": "Electron 42 adds support for additional safeStorage backends via new asynchronous functionality."
+        }
+      ],
+      "electron_refs": [
+        "#49054"
+      ],
+      "notes": "Requires synchronous and asynchronous safeStorage capability checks, encryption/decryption behavior, and backend selection parity."
+    },
+    {
+      "id": "utility-process-tcc-disclaim-electron-42",
+      "area": "electron-42-release-notes",
+      "api_group": "utilityProcess",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "release-note",
+          "ref": "https://releases.electronjs.org/release/v42.0.0",
+          "note": "Electron 42 includes the UtilityProcess disclaim option for macOS TCC disclaiming."
+        }
+      ],
+      "electron_refs": [
+        "#49128"
+      ],
+      "notes": "Requires utilityProcess fork lifecycle, stdio/message channels, sandboxing, and macOS TCC disclaim behavior."
+    },
+    {
+      "id": "node-v8-and-native-modules",
+      "area": "node",
+      "api_group": "Node/V8/native modules",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "upstream",
+          "ref": "https://releases.electronjs.org/release/v42.0.0",
+          "note": "Electron 42 targets Node.js 24.15.0 and V8 14.8.178.14."
+        }
+      ],
+      "notes": "Requires embedded Node, Electron module loader behavior, Node ABI compatibility, process.versions parity, ESM/CJS behavior, and native module loading."
+    },
+    {
+      "id": "node-experimental-transform-types-electron-42",
+      "area": "electron-42-release-notes",
+      "api_group": "Node",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "release-note",
+          "ref": "https://releases.electronjs.org/release/v42.0.0",
+          "note": "Electron 42 adds support for --experimental-transform-types."
+        }
+      ],
+      "electron_refs": [
+        "#49711"
+      ],
+      "notes": "Requires command-line switch propagation to the embedded Node runtime."
+    },
+    {
+      "id": "asar-filesystem-and-module-resolution",
       "area": "distribution",
+      "api_group": "asar",
       "status": "unstarted",
-      "evidence": [],
-      "notes": "Must cover ASAR, packaging, autoUpdater, crashReporter, signing/notarization expectations, and platform outputs."
+      "evidence": [
+        {
+          "kind": "upstream",
+          "ref": "electron/docs/tutorial/asar-archives.md"
+        },
+        {
+          "kind": "release-note",
+          "ref": "https://releases.electronjs.org/release/v42.0.0",
+          "note": "Electron 42 includes additional ASAR support for fs copy methods and fs.stat fixes."
+        }
+      ],
+      "electron_refs": [
+        "#50285",
+        "#50877"
+      ],
+      "notes": "Requires ASAR path handling, fs patch parity, module resolution, unpacked file behavior, and archive metadata results."
     },
     {
-      "id": "benchmarks",
-      "area": "performance",
+      "id": "binary-download-lazy-install-electron-42",
+      "area": "electron-42-breaking-change",
+      "api_group": "electron npm package",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "release-note",
+          "ref": "https://releases.electronjs.org/release/v42.0.0",
+          "note": "Electron 42 stops downloading via postinstall and downloads lazily on first bin execution."
+        }
+      ],
+      "electron_refs": [
+        "#49328"
+      ],
+      "notes": "If Electron-Go ships an npm-compatible package, install behavior must mirror lazy binary download and expose a manual install script equivalent."
+    },
+    {
+      "id": "binary-download-env-vars-electron-42",
+      "area": "electron-42-breaking-change",
+      "api_group": "electron npm package",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "release-note",
+          "ref": "https://releases.electronjs.org/release/v42.0.0",
+          "note": "Electron 42 removes ELECTRON_SKIP_BINARY_DOWNLOAD and adds ELECTRON_INSTALL_PLATFORM/ELECTRON_INSTALL_ARCH."
+        }
+      ],
+      "electron_refs": [
+        "#50459",
+        "#49981"
+      ],
+      "notes": "Requires installer behavior tests before any npm package parity claim."
+    },
+    {
+      "id": "auto-updater-msix-and-platform-updaters",
+      "area": "distribution",
+      "api_group": "autoUpdater",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "upstream",
+          "ref": "electron/docs/api/auto-updater.md"
+        },
+        {
+          "kind": "release-note",
+          "ref": "https://releases.electronjs.org/release/v42.0.0",
+          "note": "Electron 42 adds MSIX auto-updating support and includes several macOS/Windows updater fixes."
+        }
+      ],
+      "electron_refs": [
+        "#49230",
+        "#50210",
+        "#51111",
+        "#51212",
+        "#50517"
+      ],
+      "notes": "Requires Squirrel, NSIS/MSIX, feed URL, event, quitAndInstall, and platform updater behavior parity."
+    },
+    {
+      "id": "crash-reporter-content-tracing-and-diagnostics",
+      "area": "diagnostics",
+      "api_group": "crashReporter/contentTracing",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "upstream",
+          "ref": "electron/docs/api/crash-reporter.md"
+        },
+        {
+          "kind": "release-note",
+          "ref": "https://releases.electronjs.org/release/v42.0.0",
+          "note": "Electron 42 adds renderer OOM JS stack traces, heap profiling in contentTracing, and crash key fixes."
+        }
+      ],
+      "electron_refs": [
+        "#50911",
+        "#51162",
+        "#50839",
+        "#51205"
+      ],
+      "notes": "Requires crash upload, extra parameters, dynamic keys, renderer OOM diagnostics, contentTracing categories, and heap profile capture."
+    },
+    {
+      "id": "chromium-features-webgl-webgpu-media-and-pdf",
+      "area": "chromium-integration",
+      "api_group": "Chromium 148",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "upstream",
+          "ref": "https://releases.electronjs.org/release/v42.0.0",
+          "note": "Electron 42 targets Chromium 148.0.7778.96."
+        },
+        {
+          "kind": "release-note",
+          "ref": "https://releases.electronjs.org/release/v42.0.0",
+          "note": "Release notes include shared texture format additions, PDF fixes, LOAF attribution, and wasm trap handler fuse behavior."
+        }
+      ],
+      "electron_refs": [
+        "#51187",
+        "#49272",
+        "#51072",
+        "#49706",
+        "#48983"
+      ],
+      "notes": "Requires Chromium embedder integration for media capture, PDF, WebGL/WebGPU textures, feature flags, fuses, and renderer diagnostics."
+    },
+    {
+      "id": "packaging-signing-notarization-and-fuses",
+      "area": "distribution",
+      "api_group": "packaging/signing/fuses",
+      "status": "unstarted",
+      "evidence": [
+        {
+          "kind": "upstream",
+          "ref": "electron/docs/tutorial/fuses.md"
+        },
+        {
+          "kind": "upstream",
+          "ref": "electron/docs/tutorial/code-signing.md"
+        }
+      ],
+      "notes": "Inventory executable layout, helper apps, resources, fuses, code signing, notarization, MAS constraints, Linux packages, and Windows signing."
+    },
+    {
+      "id": "conformance-fixture-hello",
+      "area": "testing",
+      "api_group": "conformance",
       "status": "partial",
       "evidence": [
-        "docs/benchmarks.md",
-        "tools/benchmarks"
+        {
+          "kind": "test",
+          "ref": "compat/conformance_test.go"
+        },
+        {
+          "kind": "test",
+          "ref": "compat/fixtures/hello"
+        }
       ],
-      "notes": "Benchmark harness exists; no speed claims are valid until official Electron and Electron-Go runs are recorded."
+      "notes": "A hello-world fixture exists, but it does not yet prove Electron API parity. Expand with upstream Electron API fixtures as implementation lands."
+    },
+    {
+      "id": "compatibility-ledger-parity-gate",
+      "area": "testing",
+      "api_group": "compatibility ledger",
+      "status": "partial",
+      "evidence": [
+        {
+          "kind": "implementation",
+          "ref": "internal/compat"
+        },
+        {
+          "kind": "test",
+          "ref": "internal/compat/ledger_test.go"
+        }
+      ],
+      "notes": "Ledger loading and validation exist; every implementation item still needs conformance proof before it can become compatible."
+    },
+    {
+      "id": "benchmarks-and-performance-claims",
+      "area": "performance",
+      "api_group": "benchmarks",
+      "status": "partial",
+      "evidence": [
+        {
+          "kind": "implementation",
+          "ref": "tools/benchmarks"
+        },
+        {
+          "kind": "documentation",
+          "ref": "docs/benchmarks.md"
+        }
+      ],
+      "notes": "Benchmark harness exists; no speed claims are valid until official Electron and Electron-Go runs are recorded for the same fixtures and platforms."
     }
   ]
 }

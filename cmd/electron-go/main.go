@@ -66,7 +66,7 @@ func run(args []string) int {
 	rt := runtime.New(runtime.Options{
 		AppDir:          appDir,
 		ElectronVersion: ledger.Target.Electron,
-		Bridge:          native.StubBridge{},
+		Bridge:          native.NewBridge(),
 		Out:             os.Stdout,
 	})
 

@@ -54,6 +54,7 @@ See:
 - [Testing](docs/testing.md)
 - [Benchmarks](docs/benchmarks.md)
 - [Architecture](docs/architecture.md)
+- [Agent Workflow](docs/agent-workflow.md)
 
 ## Attribution
 

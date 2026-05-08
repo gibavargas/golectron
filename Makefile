@@ -14,3 +14,6 @@ run-hello:
 
 parity:
 	go run ./cmd/electron-go --check-parity
+
+workpackets:
+	go run ./tools/workpackets --status unstarted,stubbed,partial --limit 10

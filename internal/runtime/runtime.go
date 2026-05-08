@@ -65,13 +65,13 @@ func (r *Runtime) Run(ctx context.Context) error {
 	r.state = StateMetadataReady
 	fmt.Fprintf(r.out, "electron-go: loaded %s %s\n", meta.Name, meta.Version)
 
-	req := native.StartRequest{
+	req := native.NormalizeStartRequest(native.StartRequest{
 		AppDir:          meta.Dir,
 		MainPath:        meta.MainPath(),
 		AppName:         meta.Name,
 		AppVersion:      meta.Version,
 		ElectronVersion: r.electronVersion,
-	}
+	})
 	if err := native.ValidateStartRequest(req); err != nil {
 		return err
 	}
