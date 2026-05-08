@@ -71,3 +71,10 @@ Acceptance criteria:
 - renderer/GPU/network subprocesses do not remain as zombies;
 - Linux x86_64 passes first, with macOS and Windows allowed to remain stubs;
 - JavaScript execution, Electron IPC, and multi-window support stay out of scope.
+
+Before implementing the CEF calls, run:
+
+```sh
+go run ./tools/cefresolve --json
+go run ./tools/memaudit --root . --check-cef-layout ./bin
+```

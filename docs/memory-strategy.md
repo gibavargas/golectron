@@ -10,6 +10,7 @@ Run:
 ```sh
 go run ./tools/memaudit --root .
 go run ./tools/memaudit --root . --json
+go run ./tools/memaudit --root . --check-cef-layout ./bin
 ```
 
 The audit reports:
@@ -18,6 +19,7 @@ The audit reports:
 - `interface{}` uses;
 - `unsafe` imports;
 - `sync.Pool` uses.
+- CEF runtime layout when `--check-cef-layout` is provided.
 
 These are not automatically wrong. IPC payloads, native ABI boundaries, and
 measured allocation hot paths can justify them. The point is to force each one

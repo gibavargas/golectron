@@ -56,3 +56,40 @@ func TestShouldSkipDir(t *testing.T) {
 		t.Fatal("internal should not be skipped")
 	}
 }
+
+func TestCheckCEFLayoutReportsMissingFiles(t *testing.T) {
+	layout := checkCEFLayout(t.TempDir())
+	if layout.Valid {
+		t.Fatal("layout.Valid = true, want false")
+	}
+	if len(layout.Missing) == 0 {
+		t.Fatal("layout.Missing is empty")
+	}
+}
+
+func TestCheckCEFLayoutValid(t *testing.T) {
+	dir := t.TempDir()
+	for _, name := range []string{
+		"libcef.so",
+		"icudtl.dat",
+		"v8_context_snapshot.bin",
+		"chrome_100_percent.pak",
+		"resources.pak",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("x"), 0o644); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+	locales := filepath.Join(dir, "locales")
+	if err := os.Mkdir(locales, 0o755); err != nil {
+		t.Fatalf("mkdir locales: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(locales, "en-US.pak"), []byte("x"), 0o644); err != nil {
+		t.Fatalf("write locale: %v", err)
+	}
+
+	layout := checkCEFLayout(dir)
+	if !layout.Valid {
+		t.Fatalf("layout.Valid = false, missing %#v", layout.Missing)
+	}
+}

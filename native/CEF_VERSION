@@ -1,0 +1,14 @@
+# Electron-Go CEF bootstrap target.
+#
+# Electron 42.0.0 targets Chromium 148.0.7778.96. Do not use Chromium 130 CEF
+# binaries for this baseline; they validate the wrong engine.
+INDEX_URL=https://cef-builds.spotifycdn.com/index.json
+DOWNLOAD_BASE_URL=https://cef-builds.spotifycdn.com/
+PLATFORM=linux64
+DISTRIBUTION=minimal
+CHROMIUM_MAJOR=148
+CHROMIUM_VERSION=148.0.7778.96
+CEF_VERSION=UNRESOLVED
+ARCHIVE=UNRESOLVED
+SHA1=UNRESOLVED
+SIZE=0

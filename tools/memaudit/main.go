@@ -14,14 +14,15 @@ import (
 )
 
 type Report struct {
-	Root                 string    `json:"root"`
-	FilesScanned         int       `json:"files_scanned"`
-	AnyUses              int       `json:"any_uses"`
-	EmptyInterfaceUses   int       `json:"empty_interface_uses"`
-	UnsafeImports        int       `json:"unsafe_imports"`
-	SyncPoolUses         int       `json:"sync_pool_uses"`
-	Hotspots             []Hotspot `json:"hotspots,omitempty"`
-	UnsafeImportDetected bool      `json:"unsafe_import_detected"`
+	Root                 string           `json:"root"`
+	FilesScanned         int              `json:"files_scanned"`
+	AnyUses              int              `json:"any_uses"`
+	EmptyInterfaceUses   int              `json:"empty_interface_uses"`
+	UnsafeImports        int              `json:"unsafe_imports"`
+	SyncPoolUses         int              `json:"sync_pool_uses"`
+	Hotspots             []Hotspot        `json:"hotspots,omitempty"`
+	UnsafeImportDetected bool             `json:"unsafe_import_detected"`
+	CEFLayout            *CEFLayoutReport `json:"cef_layout,omitempty"`
 }
 
 type Hotspot struct {
@@ -31,8 +32,16 @@ type Hotspot struct {
 	Text string `json:"text"`
 }
 
+type CEFLayoutReport struct {
+	Root    string   `json:"root"`
+	Valid   bool     `json:"valid"`
+	Missing []string `json:"missing,omitempty"`
+	Notes   []string `json:"notes,omitempty"`
+}
+
 func main() {
 	root := flag.String("root", ".", "root directory to scan")
+	cefLayout := flag.String("check-cef-layout", "", "optional bin/runtime directory to validate for CEF runtime files")
 	jsonOut := flag.Bool("json", false, "emit JSON instead of markdown")
 	failOnUnsafe := flag.Bool("fail-on-unsafe", false, "exit nonzero when unsafe imports are found")
 	flag.Parse()
@@ -41,6 +50,10 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "memaudit: %v\n", err)
 		os.Exit(1)
+	}
+	if *cefLayout != "" {
+		layout := checkCEFLayout(*cefLayout)
+		report.CEFLayout = &layout
 	}
 
 	if *jsonOut {
@@ -56,6 +69,9 @@ func main() {
 
 	if *failOnUnsafe && report.UnsafeImportDetected {
 		os.Exit(3)
+	}
+	if report.CEFLayout != nil && !report.CEFLayout.Valid {
+		os.Exit(4)
 	}
 }
 
@@ -151,6 +167,60 @@ func shouldSkipDir(name string) bool {
 	}
 }
 
+func checkCEFLayout(root string) CEFLayoutReport {
+	report := CEFLayoutReport{Root: root}
+	requiredFiles := []string{
+		"libcef.so",
+		"icudtl.dat",
+		"chrome_100_percent.pak",
+		"resources.pak",
+	}
+	for _, name := range requiredFiles {
+		if !regularFile(filepath.Join(root, name)) {
+			report.Missing = append(report.Missing, name)
+		}
+	}
+	if !regularFile(filepath.Join(root, "v8_context_snapshot.bin")) &&
+		!regularFile(filepath.Join(root, "v8_context_snapshot_blob.bin")) &&
+		!regularFile(filepath.Join(root, "snapshot_blob.bin")) {
+		report.Missing = append(report.Missing, "v8_context_snapshot.bin or snapshot_blob.bin")
+	}
+	locales := filepath.Join(root, "locales")
+	if !directory(locales) {
+		report.Missing = append(report.Missing, "locales/")
+	} else if !hasPAKFile(locales) {
+		report.Missing = append(report.Missing, "locales/*.pak")
+	}
+	report.Valid = len(report.Missing) == 0
+	if report.Valid {
+		report.Notes = append(report.Notes, "CEF runtime layout is present")
+	}
+	return report
+}
+
+func regularFile(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.Mode().IsRegular()
+}
+
+func directory(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
+}
+
+func hasPAKFile(dir string) bool {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".pak") {
+			return true
+		}
+	}
+	return false
+}
+
 func printMarkdown(report Report) {
 	fmt.Printf("# Electron-Go Memory Audit\n\n")
 	fmt.Printf("- Root: `%s`\n", report.Root)
@@ -159,6 +229,15 @@ func printMarkdown(report Report) {
 	fmt.Printf("- `interface{}` uses: `%d`\n", report.EmptyInterfaceUses)
 	fmt.Printf("- `unsafe` imports: `%d`\n", report.UnsafeImports)
 	fmt.Printf("- `sync.Pool` uses: `%d`\n\n", report.SyncPoolUses)
+	if report.CEFLayout != nil {
+		fmt.Printf("## CEF Layout\n\n")
+		fmt.Printf("- Root: `%s`\n", report.CEFLayout.Root)
+		fmt.Printf("- Valid: `%t`\n", report.CEFLayout.Valid)
+		for _, missing := range report.CEFLayout.Missing {
+			fmt.Printf("- Missing: `%s`\n", missing)
+		}
+		fmt.Println()
+	}
 
 	if len(report.Hotspots) == 0 {
 		fmt.Println("No hotspots found.")

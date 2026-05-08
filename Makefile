@@ -1,4 +1,4 @@
-.PHONY: test bench build run-hello parity workpackets cef-packet memaudit releasecheck conformance
+.PHONY: test bench build run-hello parity workpackets cef-packet cefresolve ceffetch cef-layout memaudit releasecheck conformance
 
 test:
 	go test ./...
@@ -20,6 +20,15 @@ workpackets:
 
 cef-packet:
 	go run ./tools/workpackets --id cef_bootstrap
+
+cefresolve:
+	go run ./tools/cefresolve --json
+
+ceffetch:
+	go run ./tools/ceffetch --json
+
+cef-layout:
+	go run ./tools/memaudit --root . --check-cef-layout ./bin
 
 memaudit:
 	go run ./tools/memaudit --root .

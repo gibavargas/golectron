@@ -10,3 +10,6 @@ coverage.out
 node_modules/
 .electron-go/
 benchmark-results/
+native/cef/
+cef_binary_*/
+*.tar.bz2
