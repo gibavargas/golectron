@@ -132,12 +132,23 @@
       "id": "browser-window-close",
       "area": "chromium-integration",
       "api_group": "BrowserWindow close / CEF shutdown",
-      "status": "unstarted",
+      "status": "compatible",
+      "check": "xvfb-run -a bash -c 'timeout 20 bin/electron-go --hello && sleep 1 && test \"$(pgrep -a electron-go | wc -l)\" -eq 0'",
       "evidence": [
         {
-          "kind": "test-plan",
+          "kind": "implementation",
+          "ref": "native/cef_shim.c",
+          "note": "Requests CEF BrowserWindow close after hello load completion and quits the message loop from on_before_close instead of load completion."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/native/cef_linux.go",
+          "note": "Tracks BrowserWindow close completion through the Go callback bridge and reports lifecycle failure if close is not observed."
+        },
+        {
+          "kind": "test",
           "ref": ".github/workflows/cef_bootstrap.yml",
-          "note": "Headless bootstrap workflow includes timeout-bounded hello execution and zombie process checks."
+          "note": "Ubuntu 22.04 workflow runs the hello fixture under Xvfb and fails if any electron-go subprocess remains after exit."
         },
         {
           "kind": "test-plan",

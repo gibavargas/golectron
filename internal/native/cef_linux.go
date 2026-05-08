@@ -25,6 +25,7 @@ var cefContextInitialized atomic.Bool
 var cefLastBrowserID atomic.Int64
 var cefLastHTTPStatus atomic.Int32
 var cefLastLoadError atomic.Int32
+var cefBrowserClosed atomic.Bool
 
 var cefBrowserProcessSwitches = []string{
 	"--disable-gpu",
@@ -239,6 +240,10 @@ func createBrowserWindow(ctx context.Context, req BrowserWindowCreateRequest) er
 	if err := ValidateBrowserWindowCreateRequest(req); err != nil {
 		return err
 	}
+	cefLastBrowserID.Store(0)
+	cefLastHTTPStatus.Store(0)
+	cefLastLoadError.Store(0)
+	cefBrowserClosed.Store(false)
 
 	urlView := newCStringView(req.URL)
 	defer urlView.free()
@@ -273,7 +278,7 @@ func runMessageLoop(ctx context.Context) error {
 	}
 	status := C.eg_cef_shim_run_message_loop(nil)
 	if status == C.EG_BRIDGE_STATUS_FAILED {
-		return fmt.Errorf("CEF BrowserWindow load failed: browser_id=%d status=%d error=%d", cefLastBrowserID.Load(), cefLastHTTPStatus.Load(), cefLastLoadError.Load())
+		return fmt.Errorf("CEF BrowserWindow lifecycle failed: browser_id=%d status=%d error=%d closed=%t", cefLastBrowserID.Load(), cefLastHTTPStatus.Load(), cefLastLoadError.Load(), cefBrowserClosed.Load())
 	}
 	if status != C.EG_BRIDGE_STATUS_STOPPED {
 		return fmt.Errorf("CEF message loop failed: status=%s", bridgeStatusName(status))
@@ -456,4 +461,10 @@ func goOnBrowserLoadEnd(browserID C.int, httpStatusCode C.int) {
 func goOnBrowserLoadError(browserID C.int, errorCode C.int) {
 	cefLastBrowserID.Store(int64(browserID))
 	cefLastLoadError.Store(int32(errorCode))
+}
+
+//export goOnBrowserBeforeClose
+func goOnBrowserBeforeClose(browserID C.int) {
+	cefLastBrowserID.Store(int64(browserID))
+	cefBrowserClosed.Store(true)
 }

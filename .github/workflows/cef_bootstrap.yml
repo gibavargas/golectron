@@ -67,16 +67,14 @@ jobs:
       - name: Verify BrowserWindow opens hello fixture
         run: xvfb-run -a timeout 20 bin/electron-go --hello
 
-      - name: Run bootstrap acceptance test
-        continue-on-error: true
+      - name: Verify BrowserWindow closes without zombie subprocesses
         run: |
-          Xvfb :99 -screen 0 1024x768x24 &
-          xvfb_pid=$!
-          trap 'kill "${xvfb_pid}" || true' EXIT
-          DISPLAY=:99 timeout 10 bin/electron-go --hello
-          sleep 1
-          zombies="$(pgrep -a electron-go | wc -l)"
-          test "${zombies}" -eq 0
+          xvfb-run -a bash -c '
+            timeout 20 bin/electron-go --hello
+            sleep 1
+            zombies="$(pgrep -a electron-go | wc -l)"
+            test "${zombies}" -eq 0
+          '
 
       - name: Report parity gate
         run: bin/electron-go --check-parity || true

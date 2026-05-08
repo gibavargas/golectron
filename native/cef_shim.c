@@ -17,15 +17,19 @@ extern void goOnContextInitialized(void);
 extern void goOnBrowserAfterCreated(int browser_id);
 extern void goOnBrowserLoadEnd(int browser_id, int http_status_code);
 extern void goOnBrowserLoadError(int browser_id, int error_code);
+extern void goOnBrowserBeforeClose(int browser_id);
 
 static cef_browser_process_handler_t* g_browser_process_handler = NULL;
 static cef_life_span_handler_t* g_life_span_handler = NULL;
 static cef_load_handler_t* g_load_handler = NULL;
 static cef_client_t* g_client = NULL;
+static cef_browser_t* g_browser = NULL;
 static int g_cef_initialized = 0;
 static int g_browser_id = 0;
 static int g_load_complete = 0;
 static int g_load_failed = 0;
+static int g_close_requested = 0;
+static int g_browser_closed = 0;
 
 typedef struct eg_cef_argv_storage {
   int argc;
@@ -113,10 +117,50 @@ eg_cef_get_browser_process_handler(struct _cef_app_t* self) {
   return g_browser_process_handler;
 }
 
+static void eg_cef_release_browser_ref(void) {
+  if (!g_browser) {
+    return;
+  }
+  g_browser->base.release((cef_base_ref_counted_t*)g_browser);
+  g_browser = NULL;
+}
+
+static void eg_cef_store_browser_ref(struct _cef_browser_t* browser) {
+  if (!browser || browser == g_browser) {
+    return;
+  }
+  eg_cef_release_browser_ref();
+  browser->base.add_ref((cef_base_ref_counted_t*)browser);
+  g_browser = browser;
+}
+
+static void eg_cef_request_close_browser(struct _cef_browser_t* browser) {
+  if (g_close_requested) {
+    return;
+  }
+  if (!browser) {
+    browser = g_browser;
+  }
+  if (!browser || !browser->get_host) {
+    return;
+  }
+  cef_browser_host_t* host = browser->get_host(browser);
+  if (!host || !host->close_browser) {
+    return;
+  }
+  g_close_requested = 1;
+  host->close_browser(host, 1);
+}
+
+static void CEF_CALLBACK eg_cef_on_before_close(
+    struct _cef_life_span_handler_t* self,
+    struct _cef_browser_t* browser);
+
 static void CEF_CALLBACK eg_cef_on_after_created(
     struct _cef_life_span_handler_t* self,
     struct _cef_browser_t* browser) {
   (void)self;
+  eg_cef_store_browser_ref(browser);
   if (browser && browser->get_identifier) {
     g_browser_id = browser->get_identifier(browser);
     goOnBrowserAfterCreated(g_browser_id);
@@ -131,6 +175,7 @@ static cef_life_span_handler_t* eg_cef_make_life_span_handler(void) {
   }
   eg_cef_init_base(&handler->base, sizeof(cef_life_span_handler_t));
   handler->on_after_created = eg_cef_on_after_created;
+  handler->on_before_close = eg_cef_on_before_close;
   return handler;
 }
 
@@ -145,6 +190,17 @@ static int eg_cef_browser_id(struct _cef_browser_t* browser) {
   return g_browser_id;
 }
 
+static void CEF_CALLBACK eg_cef_on_before_close(
+    struct _cef_life_span_handler_t* self,
+    struct _cef_browser_t* browser) {
+  (void)self;
+  g_browser_id = eg_cef_browser_id(browser);
+  g_browser_closed = 1;
+  goOnBrowserBeforeClose(g_browser_id);
+  eg_cef_release_browser_ref();
+  cef_quit_message_loop();
+}
+
 static void CEF_CALLBACK eg_cef_on_load_end(
     struct _cef_load_handler_t* self,
     struct _cef_browser_t* browser,
@@ -157,7 +213,7 @@ static void CEF_CALLBACK eg_cef_on_load_end(
   g_load_complete = 1;
   g_browser_id = eg_cef_browser_id(browser);
   goOnBrowserLoadEnd(g_browser_id, httpStatusCode);
-  cef_quit_message_loop();
+  eg_cef_request_close_browser(browser);
 }
 
 static void CEF_CALLBACK eg_cef_on_load_error(
@@ -179,6 +235,7 @@ static void CEF_CALLBACK eg_cef_on_load_error(
   g_load_failed = 1;
   g_browser_id = eg_cef_browser_id(browser);
   goOnBrowserLoadError(g_browser_id, (int)errorCode);
+  eg_cef_request_close_browser(browser);
   cef_quit_message_loop();
 }
 
@@ -197,7 +254,7 @@ static void CEF_CALLBACK eg_cef_on_loading_state_change(
   g_load_complete = 1;
   g_browser_id = eg_cef_browser_id(browser);
   goOnBrowserLoadEnd(g_browser_id, 0);
-  cef_quit_message_loop();
+  eg_cef_request_close_browser(browser);
 }
 
 static cef_load_handler_t* eg_cef_make_load_handler(void) {
@@ -373,6 +430,9 @@ static void eg_cef_reset_browser_state(void) {
   g_browser_id = 0;
   g_load_complete = 0;
   g_load_failed = 0;
+  g_close_requested = 0;
+  g_browser_closed = 0;
+  eg_cef_release_browser_ref();
 }
 
 eg_bridge_status eg_cef_shim_execute_process(
@@ -544,7 +604,7 @@ eg_bridge_status eg_cef_shim_run_message_loop(eg_bridge_handle bridge) {
     return EG_BRIDGE_STATUS_INVALID_REQUEST;
   }
   cef_run_message_loop();
-  if (g_load_failed || !g_load_complete) {
+  if (g_load_failed || !g_load_complete || !g_browser_closed) {
     return EG_BRIDGE_STATUS_FAILED;
   }
   return EG_BRIDGE_STATUS_STOPPED;
@@ -552,6 +612,7 @@ eg_bridge_status eg_cef_shim_run_message_loop(eg_bridge_handle bridge) {
 
 eg_bridge_status eg_cef_shim_shutdown(eg_bridge_handle bridge) {
   (void)bridge;
+  eg_cef_release_browser_ref();
   if (g_cef_initialized) {
     cef_shutdown();
     g_cef_initialized = 0;
