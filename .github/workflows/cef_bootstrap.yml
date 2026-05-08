@@ -64,6 +64,9 @@ jobs:
       - name: Verify CEF initialize
         run: xvfb-run -a bin/electron-go --cef-init-check
 
+      - name: Verify BrowserWindow opens hello fixture
+        run: xvfb-run -a timeout 20 bin/electron-go --hello
+
       - name: Run bootstrap acceptance test
         continue-on-error: true
         run: |

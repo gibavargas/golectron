@@ -13,13 +13,27 @@ import "C"
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync/atomic"
 	"unsafe"
 )
 
 var cefContextInitialized atomic.Bool
+var cefLastBrowserID atomic.Int64
+var cefLastHTTPStatus atomic.Int32
+var cefLastLoadError atomic.Int32
+
+var cefBrowserProcessSwitches = []string{
+	"--disable-gpu",
+	"--disable-gpu-compositing",
+	"--disable-gpu-sandbox",
+	"--disable-dev-shm-usage",
+	"--in-process-gpu",
+	"--no-sandbox",
+}
 
 type CEFBridge struct{}
 
@@ -44,17 +58,43 @@ func (b CEFBridge) Start(ctx context.Context, req StartRequest) (*StartResult, e
 	if err := initializeCEF(ctx, initReq); err != nil {
 		return nil, err
 	}
+	loadURL, err := appIndexFileURL(req.AppDir)
+	if err != nil {
+		_ = shutdownCEF(ctx)
+		return nil, err
+	}
+	if err := createBrowserWindow(ctx, BrowserWindowCreateRequest{
+		ABIRevision: CurrentABIRevision,
+		URL:         loadURL,
+		Width:       800,
+		Height:      600,
+		Show:        true,
+	}); err != nil {
+		_ = shutdownCEF(ctx)
+		return nil, err
+	}
+	if err := runMessageLoop(ctx); err != nil {
+		_ = shutdownCEF(ctx)
+		return nil, err
+	}
 	if err := shutdownCEF(ctx); err != nil {
 		return nil, err
 	}
-	return nil, ErrCEFBrowserWindowNotImplemented
+	return &StartResult{
+		PID:            os.Getpid(),
+		WindowCount:    1,
+		Status:         StatusStopped,
+		BridgeRevision: fmt.Sprintf("abi-%d-cef", CurrentABIRevision),
+		Platform:       runtime.GOOS,
+	}, nil
 }
 
 func ExecuteCEFSubprocess(ctx context.Context, args []string) (SubprocessExecutionResult, bool, error) {
 	if err := ctx.Err(); err != nil {
 		return SubprocessExecutionResult{}, false, err
 	}
-	argv, err := newCStringViews(args)
+	cefArgs := appendCEFBrowserProcessSwitches(args)
+	argv, err := newCStringViews(cefArgs)
 	if err != nil {
 		return SubprocessExecutionResult{}, false, err
 	}
@@ -66,7 +106,7 @@ func ExecuteCEFSubprocess(ctx context.Context, args []string) (SubprocessExecuti
 	}
 	defer C.free(unsafe.Pointer(req))
 	req.abi_revision = C.uint32_t(CurrentABIRevision)
-	req.argc = C.uint64_t(len(args))
+	req.argc = C.uint64_t(len(cefArgs))
 	req.argv = argv.ptr()
 
 	out := (*C.eg_cef_subprocess_result)(C.calloc(1, C.size_t(unsafe.Sizeof(C.eg_cef_subprocess_result{}))))
@@ -115,13 +155,30 @@ func NewCEFInitializeRequest(appDir string, args []string) (CEFInitializeRequest
 	}
 	return NormalizeCEFInitializeRequest(CEFInitializeRequest{
 		AppDir: absAppDir,
-		Args:   append([]string(nil), args...),
+		Args:   appendCEFBrowserProcessSwitches(args),
 		Settings: CEFSettings{
 			NoSandbox:   true,
 			CachePath:   cachePath,
 			LogSeverity: CEFLogSeverityWarning,
 		},
 	}), nil
+}
+
+func appendCEFBrowserProcessSwitches(args []string) []string {
+	out := append([]string(nil), args...)
+	if IsCEFSubprocessArgs(out) {
+		return out
+	}
+	seen := make(map[string]struct{}, len(out))
+	for _, arg := range out {
+		seen[arg] = struct{}{}
+	}
+	for _, flag := range cefBrowserProcessSwitches {
+		if _, ok := seen[flag]; !ok {
+			out = append(out, flag)
+		}
+	}
+	return out
 }
 
 func initializeCEF(ctx context.Context, req CEFInitializeRequest) error {
@@ -172,6 +229,68 @@ func shutdownCEF(ctx context.Context) error {
 		return fmt.Errorf("cef_shutdown failed: status=%s", bridgeStatusName(status))
 	}
 	return nil
+}
+
+func createBrowserWindow(ctx context.Context, req BrowserWindowCreateRequest) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	req = NormalizeBrowserWindowCreateRequest(req)
+	if err := ValidateBrowserWindowCreateRequest(req); err != nil {
+		return err
+	}
+
+	urlView := newCStringView(req.URL)
+	defer urlView.free()
+
+	cReq := (*C.eg_browser_window_create_request)(C.calloc(1, C.size_t(unsafe.Sizeof(C.eg_browser_window_create_request{}))))
+	if cReq == nil {
+		return fmt.Errorf("allocate browser window create request")
+	}
+	defer C.free(unsafe.Pointer(cReq))
+	cReq.abi_revision = C.uint32_t(req.ABIRevision)
+	cReq.url = urlView.view
+	cReq.width = C.int32_t(req.Width)
+	cReq.height = C.int32_t(req.Height)
+	cReq.show = boolToCUint8(req.Show)
+
+	out := (*C.eg_browser_window_result)(C.calloc(1, C.size_t(unsafe.Sizeof(C.eg_browser_window_result{}))))
+	if out == nil {
+		return fmt.Errorf("allocate browser window create result")
+	}
+	defer C.free(unsafe.Pointer(out))
+
+	status := C.eg_cef_shim_create_browser_sync(nil, cReq, out)
+	if status != C.EG_BRIDGE_STATUS_RUNNING {
+		return fmt.Errorf("CEF BrowserWindow create failed: status=%s", bridgeStatusName(status))
+	}
+	return nil
+}
+
+func runMessageLoop(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	status := C.eg_cef_shim_run_message_loop(nil)
+	if status == C.EG_BRIDGE_STATUS_FAILED {
+		return fmt.Errorf("CEF BrowserWindow load failed: browser_id=%d status=%d error=%d", cefLastBrowserID.Load(), cefLastHTTPStatus.Load(), cefLastLoadError.Load())
+	}
+	if status != C.EG_BRIDGE_STATUS_STOPPED {
+		return fmt.Errorf("CEF message loop failed: status=%s", bridgeStatusName(status))
+	}
+	return nil
+}
+
+func appIndexFileURL(appDir string) (string, error) {
+	indexPath := filepath.Join(appDir, "index.html")
+	if _, err := os.Stat(indexPath); err != nil {
+		return "", fmt.Errorf("locate BrowserWindow fixture: %w", err)
+	}
+	abs, err := filepath.Abs(indexPath)
+	if err != nil {
+		return "", err
+	}
+	return (&url.URL{Scheme: "file", Path: filepath.ToSlash(abs)}).String(), nil
 }
 
 type cStringView struct {
@@ -319,4 +438,22 @@ func bridgeStatusName(status C.eg_bridge_status) string {
 //export goOnContextInitialized
 func goOnContextInitialized() {
 	cefContextInitialized.Store(true)
+}
+
+//export goOnBrowserAfterCreated
+func goOnBrowserAfterCreated(browserID C.int) {
+	cefLastBrowserID.Store(int64(browserID))
+}
+
+//export goOnBrowserLoadEnd
+func goOnBrowserLoadEnd(browserID C.int, httpStatusCode C.int) {
+	cefLastBrowserID.Store(int64(browserID))
+	cefLastHTTPStatus.Store(int32(httpStatusCode))
+	cefLastLoadError.Store(0)
+}
+
+//export goOnBrowserLoadError
+func goOnBrowserLoadError(browserID C.int, errorCode C.int) {
+	cefLastBrowserID.Store(int64(browserID))
+	cefLastLoadError.Store(int32(errorCode))
 }

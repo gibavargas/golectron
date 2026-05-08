@@ -102,7 +102,8 @@
       "id": "browser-window-open",
       "area": "chromium-integration",
       "api_group": "BrowserWindow.loadURL",
-      "status": "unstarted",
+      "status": "compatible",
+      "check": "xvfb-run -a timeout 20 bin/electron-go --hello",
       "evidence": [
         {
           "kind": "fixture",
@@ -110,9 +111,19 @@
           "note": "Hello fixture is the first file URL target for the CEF BrowserWindow path."
         },
         {
-          "kind": "test-plan",
-          "ref": "docs/agent-workflow.md",
-          "note": "Requires a single visible BrowserWindow loading file:// content from the hello fixture."
+          "kind": "implementation",
+          "ref": "native/cef_shim.c",
+          "note": "Creates a CEF BrowserWindow with a load handler and quits the CEF message loop after the main frame load completes."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/native/cef_linux.go",
+          "note": "Maps the hello app directory to a file:// index.html URL and runs the CEF message loop until load completion."
+        },
+        {
+          "kind": "test",
+          "ref": ".github/workflows/cef_bootstrap.yml",
+          "note": "Ubuntu 22.04 workflow runs xvfb-run -a timeout 20 bin/electron-go --hello against the real CEF-linked binary."
         }
       ],
       "notes": "Atomic dependency for runtime-process-model. Acceptance: bin/electron-go --hello under Xvfb creates one BrowserWindow, loads the hello fixture file URL, observes CEF load completion, and exits nonzero only on a real load/open failure. JavaScript IPC and multi-window behavior are out of scope."
