@@ -9,6 +9,7 @@ import (
 )
 
 var ErrBridgeUnavailable = errors.New("native Chromium/Node/V8 bridge unavailable")
+var ErrCEFInitializeNotImplemented = errors.New("CEF initialize not implemented")
 
 const CurrentABIRevision uint32 = 1
 

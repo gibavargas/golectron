@@ -18,6 +18,8 @@ extern "C" {
  */
 #if defined(ELECTRON_GO_HAS_CEF)
 cef_app_t* eg_cef_make_app(void);
+cef_app_t* make_cef_app(void);
+const char* eg_cef_shim_link_proof(void);
 #endif
 
 eg_bridge_status eg_cef_shim_execute_process(

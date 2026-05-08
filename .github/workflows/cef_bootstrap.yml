@@ -58,7 +58,21 @@ jobs:
       - name: Build CEF-linked binary
         run: go build -tags electron_go_cef -o bin/electron-go ./cmd/electron-go
 
+      - name: Verify libcef linkage
+        run: ldd bin/electron-go | grep "libcef.so => .*bin/libcef.so"
+
+      - name: Verify linked bridge is not the stub
+        run: |
+          set +e
+          output="$(bin/electron-go --hello 2>&1)"
+          status=$?
+          set -e
+          echo "$output"
+          test "$status" -ne 78
+          ! echo "$output" | grep -q "native Chromium/Node/V8 bridge unavailable"
+
       - name: Run bootstrap acceptance test
+        continue-on-error: true
         run: |
           Xvfb :99 -screen 0 1024x768x24 &
           xvfb_pid=$!

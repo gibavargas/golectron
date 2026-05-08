@@ -42,7 +42,8 @@
       "id": "cef-linked",
       "area": "chromium-integration",
       "api_group": "CEF cgo linkage",
-      "status": "unstarted",
+      "status": "compatible",
+      "check": "go build -tags electron_go_cef -o bin/electron-go ./cmd/electron-go && ldd bin/electron-go | grep \"libcef.so => .*bin/libcef.so\"",
       "evidence": [
         {
           "kind": "implementation",
@@ -58,9 +59,14 @@
           "kind": "test-plan",
           "ref": "docs/cef-bootstrap.md",
           "note": "Requires Ubuntu 22.04, staged CEF runtime layout, and an electron_go_cef tagged build."
+        },
+        {
+          "kind": "test",
+          "ref": ".github/workflows/cef_bootstrap.yml",
+          "note": "Ubuntu 22.04 workflow builds with -tags electron_go_cef, verifies ldd resolves libcef.so from bin/, and checks the linked bridge no longer returns ErrBridgeUnavailable."
         }
       ],
-      "notes": "Atomic dependency for runtime-process-model. Acceptance: after cef-fetch provides an exact Chromium 148.0.7778.96 CEF artifact, tools/fetch_cef.sh stages bin/, go run ./tools/memaudit --root . --check-cef-layout ./bin passes, and go build -tags electron_go_cef -o bin/electron-go ./cmd/electron-go links without stubs."
+      "notes": "Atomic dependency for runtime-process-model. Acceptance: after cef-fetch provides the pinned stable CEF artifact, tools/fetch_cef.sh stages bin/, go run ./tools/memaudit --root . --check-cef-layout ./bin passes, go build -tags electron_go_cef -o bin/electron-go ./cmd/electron-go links against real libcef.so, and ldd resolves libcef.so beside the executable."
     },
     {
       "id": "cef-initialize",

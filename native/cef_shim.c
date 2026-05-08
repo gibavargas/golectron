@@ -1,6 +1,7 @@
 #include "cef_shim.h"
 
 #if defined(ELECTRON_GO_HAS_CEF)
+#include "include/cef_api_hash.h"
 #include "include/capi/cef_browser_capi.h"
 #include "include/capi/cef_client_capi.h"
 #include <stdlib.h>
@@ -74,6 +75,14 @@ cef_app_t* eg_cef_make_app(void) {
   g_browser_process_handler = eg_cef_make_browser_process_handler();
   app->get_browser_process_handler = eg_cef_get_browser_process_handler;
   return app;
+}
+
+cef_app_t* make_cef_app(void) {
+  return eg_cef_make_app();
+}
+
+const char* eg_cef_shim_link_proof(void) {
+  return cef_api_hash(CEF_API_VERSION, 0);
 }
 
 eg_bridge_status eg_cef_shim_execute_process(

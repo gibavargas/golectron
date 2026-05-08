@@ -11,6 +11,7 @@ import "C"
 
 import (
 	"context"
+	"fmt"
 	"sync/atomic"
 )
 
@@ -29,7 +30,14 @@ func (b CEFBridge) Start(ctx context.Context, req StartRequest) (*StartResult, e
 	if err := ValidateStartRequest(req); err != nil {
 		return nil, err
 	}
-	return nil, ErrBridgeUnavailable
+	if hash := C.eg_cef_shim_link_proof(); hash == nil {
+		return nil, fmt.Errorf("CEF link proof failed")
+	}
+	app := C.make_cef_app()
+	if app == nil {
+		return nil, fmt.Errorf("create CEF app: nil")
+	}
+	return nil, ErrCEFInitializeNotImplemented
 }
 
 //export goOnContextInitialized
