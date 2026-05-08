@@ -103,7 +103,7 @@ func filterSet(raw string) map[string]bool {
 
 func promptFor(item compat.Item) string {
 	if item.ID == "cef_bootstrap" {
-		return "Implement Electron-Go CEF bootstrap parity. Preserve process-original OS main-thread ownership with runtime.LockOSThread at executable entry, route CEF subprocesses before normal app initialization, initialize CEF through the native C ABI, create one visible BrowserWindow, load the hello fixture file URL, run the CEF message loop, exit cleanly on window close with no zombie renderer processes, and keep JavaScript execution and IPC out of scope until this packet is proven."
+		return "Implement Electron-Go CEF bootstrap parity. Preserve process-original OS main-thread ownership with runtime.LockOSThread at executable entry, route CEF subprocesses before normal app initialization, initialize CEF through the native C ABI, route callbacks through internal/native.Dispatcher, create one visible BrowserWindow, load the hello fixture file URL, run the CEF message loop, exit cleanly on window close with no zombie renderer processes, and keep JavaScript execution and IPC out of scope until this packet is proven."
 	}
 	return fmt.Sprintf("Implement Electron-Go parity for ledger item %q in area %q. Preserve Electron 42.0.0 behavior, add conformance tests against official Electron fixtures, update evidence only after tests prove compatibility, and keep the ledger honest.", item.ID, item.Area)
 }

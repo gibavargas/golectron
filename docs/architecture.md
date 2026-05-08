@@ -27,6 +27,37 @@ prove the non-negotiable ownership model before API parity work builds on it:
 - CEF initialization and message-loop ownership stay behind the native ABI;
 - callbacks into Go copy data immediately and never store Go heap pointers in C.
 
+## Dispatcher Kernel
+
+`internal/native.Dispatcher` is the safety boundary for future CEF/V8 callbacks.
+CEF UI-thread callbacks must enqueue a small byte-oriented request and return
+quickly; application work runs on Go-owned goroutines behind the dispatcher.
+
+Each request carries:
+
+- request id;
+- browser id;
+- frame id;
+- origin;
+- capability;
+- method;
+- payload bytes;
+- timeout.
+
+The dispatcher owns:
+
+- handler registration by capability/method;
+- payload and response size limits;
+- backpressure through a bounded queue;
+- cancellation and default timeouts;
+- panic recovery into structured errors;
+- policy hooks for origin and capability authorization;
+- shutdown rejection for queued and future work.
+
+It deliberately does not expose raw Electron IPC, JSON objects, or Node-style
+dynamic values. The later V8 bridge should translate renderer calls into this
+typed envelope before crossing into Go.
+
 ## JS Compatibility Layer
 
 The JS layer must expose Electron-compatible modules to application code. The

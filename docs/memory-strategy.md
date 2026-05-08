@@ -31,6 +31,8 @@ to be intentional.
 - Keep `unsafe` at native ABI boundaries unless a benchmark proves otherwise.
 - Use `sync.Pool` only after a benchmark identifies allocation churn.
 - Prefer slices and views over copying byte buffers when lifetimes are clear.
+- Copy borrowed native callback buffers before they outlive the CEF callback;
+  use dispatcher `BorrowPayload` only when ownership is proven by tests.
 - Review hot structs for padding after a benchmark shows they matter.
 
 ## Release Claims

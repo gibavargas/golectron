@@ -56,6 +56,21 @@ Every real porting packet should follow the same loop:
 
 Benchmarks are attached after correctness, not before.
 
+## Runtime Safety Kernel
+
+Bridge work must use `internal/native.Dispatcher` for CEF-to-Go handoff. New V8
+or CEF callbacks should:
+
+- copy borrowed CEF data before leaving the callback;
+- enqueue a bounded dispatcher request;
+- include browser id, frame id, origin, capability, method, and timeout;
+- avoid blocking the CEF UI thread while Go handlers run;
+- convert panics and policy failures into structured errors.
+
+Do not expose raw IPC or dynamic payloads as the first bridge surface. The first
+renderer bridge should prove one narrow capability call through the dispatcher
+before wider Electron-shaped APIs are added.
+
 ## First Boss: `cef_bootstrap`
 
 The first real browser packet is `cef_bootstrap`, not a broad Electron API.
