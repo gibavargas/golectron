@@ -68,22 +68,76 @@ func TestComputeComparisons(t *testing.T) {
 	results := []CommandResult{
 		{
 			Name:    "electron",
-			Summary: Summary{DurationMedianMS: 200, MaxRSSMedianKB: 1000},
+			Summary: Summary{DurationMedianMS: 200, MaxRSSMedianKB: 1000, ProcessTreeRSSPeakMedianKB: 5000},
 		},
 		{
 			Name:    "electron-go",
-			Summary: Summary{DurationMedianMS: 50, MaxRSSMedianKB: 250},
+			Summary: Summary{DurationMedianMS: 50, MaxRSSMedianKB: 250, ProcessTreeRSSPeakMedianKB: 2000},
 		},
 	}
 
 	got := computeComparisons(results)
-	if len(got) != 2 {
-		t.Fatalf("len(comparisons) = %d, want 2", len(got))
+	if len(got) != 3 {
+		t.Fatalf("len(comparisons) = %d, want 3", len(got))
 	}
 	if got[0].Metric != "duration_median_ms" || got[0].ElectronOverElectronGo != 4 {
 		t.Fatalf("duration comparison = %#v, want 4x ElectronOverElectronGo", got[0])
 	}
 	if got[1].Metric != "max_rss_median_kb" || got[1].ElectronGoOverElectron != 0.25 {
 		t.Fatalf("rss comparison = %#v, want 0.25 ElectronGoOverElectron", got[1])
+	}
+	if got[2].Metric != "process_tree_rss_peak_median_kb" || got[2].ElectronGoOverElectron != 0.4 {
+		t.Fatalf("process tree rss comparison = %#v, want 0.4 ElectronGoOverElectron", got[2])
+	}
+}
+
+func TestValidateRequiredFaster(t *testing.T) {
+	report := Report{
+		Iterations: 3,
+		Results: []CommandResult{
+			{Name: "electron", Summary: Summary{Successes: 3}},
+			{Name: "electron-go", Summary: Summary{Successes: 3}},
+		},
+		Comparisons: []Comparison{
+			{Metric: "duration_median_ms", Electron: 200, ElectronGo: 100, ElectronGoFasterOrLighter: true},
+		},
+	}
+
+	if err := validateRequiredFaster(report, []string{"duration_median_ms"}); err != nil {
+		t.Fatalf("validateRequiredFaster returned error: %v", err)
+	}
+}
+
+func TestValidateRequiredFasterRejectsSlowElectronGo(t *testing.T) {
+	report := Report{
+		Iterations: 1,
+		Results: []CommandResult{
+			{Name: "electron", Summary: Summary{Successes: 1}},
+			{Name: "electron-go", Summary: Summary{Successes: 1}},
+		},
+		Comparisons: []Comparison{
+			{Metric: "duration_median_ms", Electron: 100, ElectronGo: 200, ElectronGoFasterOrLighter: false},
+		},
+	}
+
+	if err := validateRequiredFaster(report, []string{"duration_median_ms"}); err == nil {
+		t.Fatal("validateRequiredFaster returned nil error for slower Electron-Go")
+	}
+}
+
+func TestValidateRequiredFasterRejectsFailures(t *testing.T) {
+	report := Report{
+		Iterations: 2,
+		Results: []CommandResult{
+			{Name: "electron", Summary: Summary{Successes: 2}},
+			{Name: "electron-go", Summary: Summary{Successes: 1, Failures: 1}},
+		},
+		Comparisons: []Comparison{
+			{Metric: "duration_median_ms", ElectronGoFasterOrLighter: true},
+		},
+	}
+
+	if err := validateRequiredFaster(report, []string{"duration_median_ms"}); err == nil {
+		t.Fatal("validateRequiredFaster returned nil error for failed samples")
 	}
 }

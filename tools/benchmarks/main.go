@@ -36,30 +36,41 @@ type CommandResult struct {
 }
 
 type Sample struct {
-	Iteration    int    `json:"iteration"`
-	StartedAt    string `json:"started_at"`
-	DurationMS   int64  `json:"duration_ms"`
-	ExitCode     int    `json:"exit_code"`
-	MaxRSSKB     int64  `json:"max_rss_kb,omitempty"`
-	Error        string `json:"error,omitempty"`
-	TimedOut     bool   `json:"timed_out,omitempty"`
-	TimeToolUsed string `json:"time_tool_used,omitempty"`
+	Iteration              int    `json:"iteration"`
+	StartedAt              string `json:"started_at"`
+	DurationMS             int64  `json:"duration_ms"`
+	ExitCode               int    `json:"exit_code"`
+	MaxRSSKB               int64  `json:"max_rss_kb,omitempty"`
+	ProcessTreeRSSPeakKB   int64  `json:"process_tree_rss_peak_kb,omitempty"`
+	Error                  string `json:"error,omitempty"`
+	TimedOut               bool   `json:"timed_out,omitempty"`
+	TimeToolUsed           string `json:"time_tool_used,omitempty"`
+	ProcessTreeRSSProbe    string `json:"process_tree_rss_probe,omitempty"`
+	ProcessTreeRSSProbeErr string `json:"process_tree_rss_probe_error,omitempty"`
 }
 
 type Summary struct {
-	Successes           int     `json:"successes"`
-	Failures            int     `json:"failures"`
-	DurationMinMS       int64   `json:"duration_min_ms,omitempty"`
-	DurationMedianMS    int64   `json:"duration_median_ms,omitempty"`
-	DurationMeanMS      float64 `json:"duration_mean_ms,omitempty"`
-	DurationMaxMS       int64   `json:"duration_max_ms,omitempty"`
-	MaxRSSMinKB         int64   `json:"max_rss_min_kb,omitempty"`
-	MaxRSSMedianKB      int64   `json:"max_rss_median_kb,omitempty"`
-	MaxRSSMeanKB        float64 `json:"max_rss_mean_kb,omitempty"`
-	MaxRSSMaxKB         int64   `json:"max_rss_max_kb,omitempty"`
-	MaxRSSSamples       int     `json:"max_rss_samples,omitempty"`
-	MaxRSSAvailable     bool    `json:"max_rss_available"`
-	MaxRSSUnsupportedOS bool    `json:"max_rss_unsupported_os,omitempty"`
+	Successes                         int     `json:"successes"`
+	Failures                          int     `json:"failures"`
+	DurationMinMS                     int64   `json:"duration_min_ms,omitempty"`
+	DurationMedianMS                  int64   `json:"duration_median_ms,omitempty"`
+	DurationMeanMS                    float64 `json:"duration_mean_ms,omitempty"`
+	DurationMaxMS                     int64   `json:"duration_max_ms,omitempty"`
+	MaxRSSMinKB                       int64   `json:"max_rss_min_kb,omitempty"`
+	MaxRSSMedianKB                    int64   `json:"max_rss_median_kb,omitempty"`
+	MaxRSSMeanKB                      float64 `json:"max_rss_mean_kb,omitempty"`
+	MaxRSSMaxKB                       int64   `json:"max_rss_max_kb,omitempty"`
+	MaxRSSSamples                     int     `json:"max_rss_samples,omitempty"`
+	MaxRSSAvailable                   bool    `json:"max_rss_available"`
+	MaxRSSUnsupportedOS               bool    `json:"max_rss_unsupported_os,omitempty"`
+	ProcessTreeRSSPeakMinKB           int64   `json:"process_tree_rss_peak_min_kb,omitempty"`
+	ProcessTreeRSSPeakMedianKB        int64   `json:"process_tree_rss_peak_median_kb,omitempty"`
+	ProcessTreeRSSPeakMeanKB          float64 `json:"process_tree_rss_peak_mean_kb,omitempty"`
+	ProcessTreeRSSPeakMaxKB           int64   `json:"process_tree_rss_peak_max_kb,omitempty"`
+	ProcessTreeRSSPeakSamples         int     `json:"process_tree_rss_peak_samples,omitempty"`
+	ProcessTreeRSSPeakAvailable       bool    `json:"process_tree_rss_peak_available"`
+	ProcessTreeRSSPeakUnsupportedOS   bool    `json:"process_tree_rss_peak_unsupported_os,omitempty"`
+	ProcessTreeRSSPeakPollingInterval string  `json:"process_tree_rss_peak_polling_interval,omitempty"`
 }
 
 type Comparison struct {
@@ -79,7 +90,9 @@ func main() {
 	timeout := flag.Duration("timeout", 30*time.Second, "per-command timeout")
 	iterations := flag.Int("iterations", 1, "number of times to run each command")
 	measureRSS := flag.Bool("measure-rss", false, "collect max RSS with /usr/bin/time on macOS/Linux")
+	measureProcessTreeRSS := flag.Bool("measure-process-tree-rss", false, "sample peak process-tree RSS on Linux")
 	output := flag.String("output", "", "optional JSON output file; stdout is used when empty")
+	requireFaster := flag.String("require-faster", "", "comma-separated lower-is-better comparison metrics that Electron-Go must beat")
 	flag.Parse()
 
 	if *iterations < 1 {
@@ -92,16 +105,17 @@ func main() {
 		OS:         runtime.GOOS,
 		Arch:       runtime.GOARCH,
 		Iterations: *iterations,
-		MeasureRSS: *measureRSS,
+		MeasureRSS: *measureRSS || *measureProcessTreeRSS,
 		StartedAt:  time.Now().UTC().Format(time.RFC3339Nano),
 	}
 	if *electron != "" {
-		report.Results = append(report.Results, runCommand("electron", *electron, *fixture, *timeout, *iterations, *measureRSS))
+		report.Results = append(report.Results, runCommand("electron", *electron, *fixture, *timeout, *iterations, *measureRSS, *measureProcessTreeRSS))
 	}
 	if *electronGo != "" {
-		report.Results = append(report.Results, runCommand("electron-go", *electronGo, *fixture, *timeout, *iterations, *measureRSS))
+		report.Results = append(report.Results, runCommand("electron-go", *electronGo, *fixture, *timeout, *iterations, *measureRSS, *measureProcessTreeRSS))
 	}
 	report.Comparisons = computeComparisons(report.Results)
+	requireErr := validateRequiredFaster(report, requiredMetrics(*requireFaster))
 
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
@@ -112,6 +126,10 @@ func main() {
 	}
 	if *output == "" {
 		_, _ = os.Stdout.Write(buf.Bytes())
+		if requireErr != nil {
+			fmt.Fprintf(os.Stderr, "%v\n", requireErr)
+			os.Exit(1)
+		}
 		return
 	}
 	if err := os.WriteFile(*output, buf.Bytes(), 0o644); err != nil {
@@ -119,9 +137,13 @@ func main() {
 		os.Exit(1)
 	}
 	fmt.Fprintf(os.Stderr, "wrote benchmark report to %s\n", *output)
+	if requireErr != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", requireErr)
+		os.Exit(1)
+	}
 }
 
-func runCommand(name, command, fixture string, timeout time.Duration, iterations int, measureRSS bool) CommandResult {
+func runCommand(name, command, fixture string, timeout time.Duration, iterations int, measureRSS, measureProcessTreeRSS bool) CommandResult {
 	args, err := splitCommand(command)
 	result := CommandResult{Name: name, Command: command}
 	if err != nil {
@@ -137,13 +159,13 @@ func runCommand(name, command, fixture string, timeout time.Duration, iterations
 	}
 
 	for i := 1; i <= iterations; i++ {
-		result.Samples = append(result.Samples, runSample(args, fixture, timeout, i, measureRSS))
+		result.Samples = append(result.Samples, runSample(args, fixture, timeout, i, measureRSS, measureProcessTreeRSS))
 	}
-	result.Summary = summarize(result.Samples, measureRSS)
+	result.Summary = summarize(result.Samples, measureRSS, measureProcessTreeRSS)
 	return result
 }
 
-func runSample(args []string, fixture string, timeout time.Duration, iteration int, measureRSS bool) Sample {
+func runSample(args []string, fixture string, timeout time.Duration, iteration int, measureRSS, measureProcessTreeRSS bool) Sample {
 	started := time.Now()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -164,7 +186,37 @@ func runSample(args []string, fixture string, timeout time.Duration, iteration i
 	}
 
 	cmd := exec.CommandContext(ctx, name, cmdArgs...)
-	output, err := cmd.CombinedOutput()
+	var output bytes.Buffer
+	cmd.Stdout = &output
+	cmd.Stderr = &output
+	if err := cmd.Start(); err != nil {
+		sample.DurationMS = time.Since(started).Milliseconds()
+		sample.ExitCode = -1
+		sample.Error = err.Error()
+		return sample
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		done <- cmd.Wait()
+	}()
+
+	var err error
+	if measureProcessTreeRSS {
+		sample.ProcessTreeRSSProbe = "linux-procfs"
+		if runtime.GOOS == "linux" {
+			var rssErr error
+			sample.ProcessTreeRSSPeakKB, err, rssErr = sampleProcessTreeRSSPeakKB(ctx, cmd.Process.Pid, 10*time.Millisecond, done)
+			if rssErr != nil {
+				sample.ProcessTreeRSSProbeErr = rssErr.Error()
+			}
+		} else {
+			sample.ProcessTreeRSSProbe = ""
+			err = <-done
+		}
+	} else {
+		err = <-done
+	}
 	sample.DurationMS = time.Since(started).Milliseconds()
 	if ctx.Err() == context.DeadlineExceeded {
 		sample.TimedOut = true
@@ -175,10 +227,10 @@ func runSample(args []string, fixture string, timeout time.Duration, iteration i
 		sample.ExitCode = -1
 	}
 	if sample.TimeToolUsed != "" {
-		sample.MaxRSSKB = parseMaxRSSKB(string(output), runtime.GOOS)
+		sample.MaxRSSKB = parseMaxRSSKB(output.String(), runtime.GOOS)
 	}
 	if err != nil {
-		sample.Error = strings.TrimSpace(string(output))
+		sample.Error = strings.TrimSpace(output.String())
 		if sample.Error == "" {
 			sample.Error = err.Error()
 		}
@@ -199,16 +251,20 @@ func timeCommandArgs(name string, args []string) ([]string, string) {
 	}
 }
 
-func summarize(samples []Sample, measureRSS bool) Summary {
+func summarize(samples []Sample, measureRSS, measureProcessTreeRSS bool) Summary {
 	var summary Summary
 	var durations []int64
 	var rss []int64
+	var processTreeRSS []int64
 	for _, sample := range samples {
 		if sample.ExitCode == 0 && sample.Error == "" && !sample.TimedOut {
 			summary.Successes++
 			durations = append(durations, sample.DurationMS)
 			if sample.MaxRSSKB > 0 {
 				rss = append(rss, sample.MaxRSSKB)
+			}
+			if sample.ProcessTreeRSSPeakKB > 0 {
+				processTreeRSS = append(processTreeRSS, sample.ProcessTreeRSSPeakKB)
 			}
 			continue
 		}
@@ -230,6 +286,18 @@ func summarize(samples []Sample, measureRSS bool) Summary {
 		summary.MaxRSSMedianKB = medianInt64(rss)
 		summary.MaxRSSMeanKB = meanInt64(rss)
 		summary.MaxRSSMaxKB = maxInt64(rss)
+	}
+	if measureProcessTreeRSS && runtime.GOOS != "linux" {
+		summary.ProcessTreeRSSPeakUnsupportedOS = true
+	}
+	if len(processTreeRSS) > 0 {
+		summary.ProcessTreeRSSPeakAvailable = true
+		summary.ProcessTreeRSSPeakSamples = len(processTreeRSS)
+		summary.ProcessTreeRSSPeakMinKB = minInt64(processTreeRSS)
+		summary.ProcessTreeRSSPeakMedianKB = medianInt64(processTreeRSS)
+		summary.ProcessTreeRSSPeakMeanKB = meanInt64(processTreeRSS)
+		summary.ProcessTreeRSSPeakMaxKB = maxInt64(processTreeRSS)
+		summary.ProcessTreeRSSPeakPollingInterval = (10 * time.Millisecond).String()
 	}
 	return summary
 }
@@ -265,7 +333,153 @@ func computeComparisons(results []CommandResult) []Comparison {
 	}
 	add("duration_median_ms", float64(electron.Summary.DurationMedianMS), float64(electronGo.Summary.DurationMedianMS))
 	add("max_rss_median_kb", float64(electron.Summary.MaxRSSMedianKB), float64(electronGo.Summary.MaxRSSMedianKB))
+	add("process_tree_rss_peak_median_kb", float64(electron.Summary.ProcessTreeRSSPeakMedianKB), float64(electronGo.Summary.ProcessTreeRSSPeakMedianKB))
 	return comparisons
+}
+
+func sampleProcessTreeRSSPeakKB(ctx context.Context, rootPID int, interval time.Duration, done <-chan error) (int64, error, error) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	var peak int64
+	var lastErr error
+	for {
+		rss, err := processTreeRSSKB(rootPID)
+		if err == nil && rss > peak {
+			peak = rss
+		} else if err != nil {
+			lastErr = err
+		}
+		select {
+		case <-ctx.Done():
+			return peak, ctx.Err(), lastErr
+		case waitErr := <-done:
+			if peak > 0 {
+				return peak, waitErr, nil
+			}
+			return peak, waitErr, lastErr
+		case <-ticker.C:
+		}
+	}
+}
+
+func processTreeRSSKB(rootPID int) (int64, error) {
+	pids := processTreePIDs(rootPID)
+	if len(pids) == 0 {
+		return 0, fmt.Errorf("process %d not found", rootPID)
+	}
+	var total int64
+	for _, pid := range pids {
+		rss, err := processRSSKB(pid)
+		if err == nil {
+			total += rss
+		}
+	}
+	return total, nil
+}
+
+func processTreePIDs(rootPID int) []int {
+	var out []int
+	seen := map[int]struct{}{}
+	queue := []int{rootPID}
+	for len(queue) > 0 {
+		pid := queue[0]
+		queue = queue[1:]
+		if _, ok := seen[pid]; ok {
+			continue
+		}
+		if !processExists(pid) {
+			continue
+		}
+		seen[pid] = struct{}{}
+		out = append(out, pid)
+		for _, child := range processChildren(pid) {
+			if _, ok := seen[child]; !ok {
+				queue = append(queue, child)
+			}
+		}
+	}
+	return out
+}
+
+func processChildren(pid int) []int {
+	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/task/%d/children", pid, pid))
+	if err != nil {
+		return nil
+	}
+	fields := strings.Fields(string(data))
+	out := make([]int, 0, len(fields))
+	for _, field := range fields {
+		child, err := strconv.Atoi(field)
+		if err == nil {
+			out = append(out, child)
+		}
+	}
+	return out
+}
+
+func processRSSKB(pid int) (int64, error) {
+	data, err := os.ReadFile(fmt.Sprintf("/proc/%d/status", pid))
+	if err != nil {
+		return 0, err
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		if !strings.HasPrefix(line, "VmRSS:") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			return 0, fmt.Errorf("invalid VmRSS line for pid %d", pid)
+		}
+		return strconv.ParseInt(fields[1], 10, 64)
+	}
+	return 0, nil
+}
+
+func processExists(pid int) bool {
+	_, err := os.Stat(fmt.Sprintf("/proc/%d", pid))
+	return err == nil
+}
+
+func requiredMetrics(input string) []string {
+	if strings.TrimSpace(input) == "" {
+		return nil
+	}
+	var out []string
+	for _, metric := range strings.Split(input, ",") {
+		metric = strings.TrimSpace(metric)
+		if metric != "" {
+			out = append(out, metric)
+		}
+	}
+	return out
+}
+
+func validateRequiredFaster(report Report, metrics []string) error {
+	if len(metrics) == 0 {
+		return nil
+	}
+	for _, result := range report.Results {
+		if result.Summary.Failures > 0 || result.Summary.Successes != report.Iterations {
+			return fmt.Errorf("%s benchmark had %d successes and %d failures; refusing speed claim", result.Name, result.Summary.Successes, result.Summary.Failures)
+		}
+	}
+	for _, metric := range metrics {
+		var found *Comparison
+		for i := range report.Comparisons {
+			if report.Comparisons[i].Metric == metric {
+				found = &report.Comparisons[i]
+				break
+			}
+		}
+		if found == nil {
+			return fmt.Errorf("required benchmark metric %q was not produced", metric)
+		}
+		if !found.ElectronGoFasterOrLighter {
+			return fmt.Errorf("Electron-Go did not beat Electron for %s: electron=%.2f electron-go=%.2f ratio=%.4f", metric, found.Electron, found.ElectronGo, found.ElectronGoOverElectron)
+		}
+	}
+	return nil
 }
 
 func parseMaxRSSKB(output, goos string) int64 {

@@ -931,7 +931,8 @@
       "id": "benchmarks-and-performance-claims",
       "area": "performance",
       "api_group": "benchmarks",
-      "status": "partial",
+      "status": "compatible",
+      "check": "xvfb-run -a go run ./tools/benchmarks --fixture ./compat/fixtures/benchmark-hello --iterations 5 --timeout 30s --measure-rss --measure-process-tree-rss --electron /tmp/electron-go-bench/node_modules/.bin/electron --electron-go ./bin/electron-go --require-faster process_tree_rss_peak_median_kb",
       "evidence": [
         {
           "kind": "implementation",
@@ -940,9 +941,19 @@
         {
           "kind": "documentation",
           "ref": "docs/benchmarks.md"
+        },
+        {
+          "kind": "fixture",
+          "ref": "compat/fixtures/benchmark-hello",
+          "note": "Deterministic hello app exits after first load so official Electron and Electron-Go measure the same startup-to-load lifecycle."
+        },
+        {
+          "kind": "test",
+          "ref": ".github/workflows/benchmarks.yml",
+          "note": "Ubuntu 22.04 workflow installs official Electron 42.0.0, builds the CEF-linked Electron-Go binary, warms both commands, and fails unless Electron-Go median hello process-tree peak RSS is lower."
         }
       ],
-      "notes": "Benchmark harness exists; no speed claims are valid until official Electron and Electron-Go runs are recorded for the same fixtures and platforms."
+      "notes": "Benchmark harness and CI gate exist for the hello process-tree RSS claim. Broader speed or memory claims still require separate official Electron and Electron-Go benchmark reports for the same fixture and platform. Startup duration is explicitly not claimed until a benchmark proves it."
     }
   ]
 }

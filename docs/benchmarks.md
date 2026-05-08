@@ -34,6 +34,27 @@ go run ./tools/benchmarks \
   --electron-go "go run ./cmd/electron-go"
 ```
 
+Run the CI-enforced hello comparison locally on Linux after staging CEF and
+installing official Electron:
+
+```sh
+go run ./tools/benchmarks \
+  --fixture ./compat/fixtures/benchmark-hello \
+  --iterations 5 \
+  --timeout 30s \
+  --measure-rss \
+  --measure-process-tree-rss \
+  --output ./hello-linux.json \
+  --electron /tmp/electron-go-bench/node_modules/.bin/electron \
+  --electron-go ./bin/electron-go \
+  --require-faster process_tree_rss_peak_median_kb
+```
+
+The `--require-faster` flag fails the run if any sample fails or if
+Electron-Go does not beat official Electron for the named lower-is-better
+metric. The GitHub Actions benchmark workflow uses this for the hello
+process-tree RSS gate and uploads the raw JSON report.
+
 Use quoted commands when a command argument contains spaces:
 
 ```sh
@@ -57,7 +78,10 @@ The runner currently records:
 - min, median, mean, and max duration for successful runs;
 - optional max resident set size on macOS via `/usr/bin/time -l`;
 - optional max resident set size on Linux via `/usr/bin/time -v`;
+- optional Linux process-tree peak RSS sampling through `/proc`;
 - duration and RSS ratios when both `--electron` and `--electron-go` are present.
+- optional CI gating with `--require-faster` for specific lower-is-better
+  metrics.
 
 It does not yet measure time to first window, IPC latency, window creation time,
 navigation/load time, idle CPU, package size, binary size, or build/package time.

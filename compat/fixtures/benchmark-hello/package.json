@@ -1,0 +1,6 @@
+{
+  "name": "electron-go-benchmark-hello",
+  "version": "1.0.0",
+  "main": "main.js",
+  "description": "Deterministic hello fixture for Electron versus Electron-Go benchmarks"
+}
