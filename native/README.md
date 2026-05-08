@@ -12,7 +12,8 @@ unavailable error until a real Chromium/Node/V8 integration is linked.
 - Go contract: `internal/native`
 - Implemented engines: none
 - Expected status today: `EG_BRIDGE_STATUS_UNAVAILABLE`
-- CEF bootstrap status: ABI skeleton only; no linked CEF runtime is booted.
+- CEF bootstrap status: deterministic fetch/link scaffolding only; no linked CEF
+  runtime is booted by default.
 
 ## Launch contract
 
@@ -83,10 +84,13 @@ Linux CEF embedding has extra process and sandbox constraints:
 ## Platform skeleton
 
 `internal/native` exposes `NewBridge()` behind build tags for Darwin, Linux,
-Windows, and other platforms. Every implementation currently returns
-`StubBridge`, which validates requests and then reports
-`ErrBridgeUnavailable`. This is deliberate: parity must not be claimed until
-the bundled Chromium/Node/V8 boot path is present.
+Windows, and other platforms. The default implementations return `StubBridge`,
+which validates requests and then reports `ErrBridgeUnavailable`. Linux x86_64
+also has an opt-in `electron_go_cef` cgo build that links against `bin/libcef.so`
+and includes headers from `native/cef/current`; it still reports unavailable
+until the real CEF initialize/create-window/message-loop calls are implemented.
+This is deliberate: parity must not be claimed until the bundled
+Chromium/Node/V8 boot path is present.
 
 The first bridge target is macOS Apple Silicon. Linux and Windows must be added
 before full parity can be claimed.

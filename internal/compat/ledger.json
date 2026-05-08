@@ -715,6 +715,11 @@
           "kind": "test-plan",
           "ref": "docs/agent-workflow.md",
           "note": "Acceptance is a single visible BrowserWindow loading a file URL, clean exit on close, no zombie renderer processes, and Linux x86_64 validation before any compatible claim."
+        },
+        {
+          "kind": "bootstrap-plan",
+          "ref": "docs/cef-bootstrap.md",
+          "note": "Linux bootstrap uses Ubuntu 22.04, deterministic CEF artifact resolution, staged bin runtime layout, explicit electron_go_cef cgo linkage, and records no_sandbox as a temporary bootstrap-only gap."
         }
       ],
       "notes": "First boss packet. Implement CEF initialize, cef_execute_process subprocess routing, process-original main-thread ownership, one BrowserWindow file load, message loop shutdown, and C-to-Go callback lifetime discipline. No JavaScript, Electron IPC, or multi-window parity is in scope for this packet."

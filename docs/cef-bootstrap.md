@@ -35,14 +35,16 @@ go run ./tools/cefresolve --json --allow-major
 Do not mark `cef_bootstrap` compatible from a same-major fallback. Compatibility
 evidence must record the exact Chromium/Electron baseline used.
 
-Once resolution succeeds, fetch and extract the archive deterministically:
+Once resolution succeeds, fetch, verify, extract, and stage the runtime layout
+deterministically:
 
 ```sh
-go run ./tools/ceffetch --json --output native/cef
+tools/fetch_cef.sh
 ```
 
 `ceffetch` verifies the CEF archive SHA-1 from the Spotify build index before it
-extracts.
+extracts, and can also enforce a `SHA256` value recorded in `native/CEF_VERSION`
+when the build page publishes one for the exact tarball.
 
 ## Runtime Layout
 
@@ -66,17 +68,45 @@ Validate before running:
 go run ./tools/memaudit --root . --check-cef-layout ./bin
 ```
 
+The fetcher stages all Linux runtime `.so` companions, resource packs, snapshot
+files, and locale packs it finds. It also creates `native/cef/current` so the
+Linux cgo build can include headers from a stable path without vendoring CEF.
+
 ## cgo Linkage
 
-The Linux CEF build must provide:
+The Linux CEF-linked build is enabled explicitly with the `electron_go_cef` tag:
 
 ```sh
-CGO_CFLAGS="-I${CEF_ROOT}/include"
-CGO_LDFLAGS="-L${CEF_ROOT}/Release -lcef -Wl,-rpath,\$ORIGIN"
+go build -tags electron_go_cef -o bin/electron-go ./cmd/electron-go
+```
+
+The Linux cgo directives live in `internal/native/cef_linux.go` and bake in:
+
+```text
+-I${SRCDIR}/../../native/cef/current
+-L${SRCDIR}/../../bin -lcef -Wl,-rpath,$ORIGIN
 ```
 
 The `$ORIGIN` rpath is required so `libcef.so` can be resolved beside
-`bin/electron-go` in CI and packaged builds.
+`bin/electron-go` in CI and packaged builds. The default Linux build remains the
+stub bridge until the tag is provided.
+
+## Ubuntu 22.04 CI
+
+The bootstrap workflow runs on Ubuntu 22.04 Jammy, not Alpine. The prebuilt CEF
+artifacts expect glibc and X11/GTK libraries, and the headless acceptance run
+uses Xvfb:
+
+```sh
+sudo apt-get install -y libgtk-3-0 libgdk-pixbuf2.0-0 libglib2.0-0 \
+  libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
+  libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 \
+  libgbm1 libasound2 xvfb
+```
+
+`no_sandbox = 1` is acceptable only for this bootstrap packet and must remain
+visible as a compatibility gap until sandboxed renderer behavior has parity
+evidence.
 
 ## Shim Rule
 

@@ -3,6 +3,10 @@
 
 #include "electron_go_bridge.h"
 
+#if defined(ELECTRON_GO_HAS_CEF)
+#include "include/capi/cef_app_capi.h"
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -12,6 +16,10 @@ extern "C" {
  * Go. The real CEF implementation is compiled only when the native build sets
  * ELECTRON_GO_HAS_CEF and provides CEF headers/libraries.
  */
+#if defined(ELECTRON_GO_HAS_CEF)
+cef_app_t* eg_cef_make_app(void);
+#endif
+
 eg_bridge_status eg_cef_shim_execute_process(
     const eg_cef_execute_process_request* request,
     eg_cef_subprocess_result* out_result);

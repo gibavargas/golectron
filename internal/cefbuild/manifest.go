@@ -27,6 +27,7 @@ type Manifest struct {
 	CEFVersion      string `json:"cef_version"`
 	Archive         string `json:"archive"`
 	SHA1            string `json:"sha1"`
+	SHA256          string `json:"sha256,omitempty"`
 	Size            int64  `json:"size"`
 }
 
@@ -38,6 +39,7 @@ type Artifact struct {
 	CEFVersion      string `json:"cef_version"`
 	Archive         string `json:"archive"`
 	SHA1            string `json:"sha1"`
+	SHA256          string `json:"sha256,omitempty"`
 	Size            int64  `json:"size"`
 	URL             string `json:"url"`
 	ExactChromium   bool   `json:"exact_chromium"`
@@ -60,6 +62,7 @@ type buildFile struct {
 	LastModified string `json:"last_modified"`
 	Name         string `json:"name"`
 	SHA1         string `json:"sha1"`
+	SHA256       string `json:"sha256"`
 	Size         int64  `json:"size"`
 	Type         string `json:"type"`
 }
@@ -113,6 +116,8 @@ func ParseManifest(data []byte) (Manifest, error) {
 			m.Archive = value
 		case "SHA1":
 			m.SHA1 = value
+		case "SHA256":
+			m.SHA256 = value
 		case "SIZE":
 			n, err := strconv.ParseInt(value, 10, 64)
 			if err != nil {
@@ -191,6 +196,7 @@ func ResolveArtifact(indexData []byte, target Manifest, allowMajor bool) (Artifa
 				CEFVersion:      build.CEFVersion,
 				Archive:         file.Name,
 				SHA1:            file.SHA1,
+				SHA256:          file.SHA256,
 				Size:            file.Size,
 				URL:             artifactURL(target.DownloadBaseURL, file.Name),
 				ExactChromium:   exact,

@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	goruntime "runtime"
 
 	"github.com/gibavargas/electron-go/internal/compat"
@@ -15,6 +16,7 @@ import (
 )
 
 const version = "0.1.0"
+const helloFixtureDir = "compat/fixtures/hello"
 
 func main() {
 	goruntime.LockOSThread()
@@ -44,6 +46,7 @@ func run(argv []string, env []string) int {
 	showVersion := fs.Bool("version", false, "print the Electron-Go version")
 	showLedger := fs.Bool("compat-json", false, "print the compatibility ledger as JSON")
 	checkParity := fs.Bool("check-parity", false, "exit successfully only when every ledger item is compatible")
+	runHello := fs.Bool("hello", false, "run the bundled hello conformance fixture")
 
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -76,7 +79,9 @@ func run(argv []string, env []string) int {
 	}
 
 	appDir := "."
-	if fs.NArg() > 0 {
+	if *runHello {
+		appDir = findHelloFixtureDir()
+	} else if fs.NArg() > 0 {
 		appDir = fs.Arg(0)
 	}
 
@@ -103,4 +108,22 @@ func run(argv []string, env []string) int {
 	}
 
 	return 0
+}
+
+func findHelloFixtureDir() string {
+	wd, err := os.Getwd()
+	if err != nil {
+		return helloFixtureDir
+	}
+	for {
+		candidate := filepath.Join(wd, helloFixtureDir)
+		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+			return candidate
+		}
+		parent := filepath.Dir(wd)
+		if parent == wd {
+			return helloFixtureDir
+		}
+		wd = parent
+	}
 }

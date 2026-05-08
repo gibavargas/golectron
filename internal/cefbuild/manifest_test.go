@@ -16,6 +16,7 @@ CHROMIUM_VERSION=148.0.7778.96
 CEF_VERSION=UNRESOLVED
 ARCHIVE=UNRESOLVED
 SHA1=UNRESOLVED
+SHA256=UNRESOLVED
 SIZE=0
 `))
 	if err != nil {
@@ -26,6 +27,9 @@ SIZE=0
 	}
 	if manifest.Platform != "linux64" {
 		t.Fatalf("Platform = %q, want linux64", manifest.Platform)
+	}
+	if manifest.SHA256 != "UNRESOLVED" {
+		t.Fatalf("SHA256 = %q, want UNRESOLVED", manifest.SHA256)
 	}
 }
 
@@ -50,7 +54,7 @@ func TestResolveArtifactExactChromium(t *testing.T) {
         "channel": "stable",
         "chromium_version": "148.0.7778.96",
         "files": [
-          {"name": "cef_binary_148.0.1+gabc1234+chromium-148.0.7778.96_linux64_minimal.tar.bz2", "sha1": "abc", "size": 42, "type": "minimal"}
+          {"name": "cef_binary_148.0.1+gabc1234+chromium-148.0.7778.96_linux64_minimal.tar.bz2", "sha1": "abc", "sha256": "def", "size": 42, "type": "minimal"}
         ]
       }
     ]
@@ -74,6 +78,9 @@ func TestResolveArtifactExactChromium(t *testing.T) {
 	}
 	if !strings.Contains(artifact.URL, "%2B") {
 		t.Fatalf("URL = %q, want escaped plus signs", artifact.URL)
+	}
+	if artifact.SHA256 != "def" {
+		t.Fatalf("SHA256 = %q, want def", artifact.SHA256)
 	}
 }
 

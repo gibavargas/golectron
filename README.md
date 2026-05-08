@@ -23,6 +23,7 @@ This repository is the first implementation scaffold. It includes:
 - a runtime lifecycle with a controlled native-bridge boundary;
 - an IPC router used by future JS bindings;
 - a compatibility ledger for the parity gate;
+- deterministic CEF fetch/link/layout tooling for the first Linux bootstrap;
 - conformance fixtures and benchmark documentation.
 
 The native Chromium/Node/V8 bridge is intentionally unavailable in this first
@@ -33,7 +34,7 @@ Electron app.
 
 ```sh
 go test ./...
-go run ./cmd/electron-go ./compat/fixtures/hello
+go run ./cmd/electron-go --hello
 ```
 
 The second command should exit with a native bridge unavailable message until

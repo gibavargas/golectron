@@ -76,5 +76,6 @@ Before implementing the CEF calls, run:
 
 ```sh
 go run ./tools/cefresolve --json
-go run ./tools/memaudit --root . --check-cef-layout ./bin
+tools/fetch_cef.sh
+go build -tags electron_go_cef -o bin/electron-go ./cmd/electron-go
 ```

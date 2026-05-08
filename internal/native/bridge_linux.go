@@ -1,4 +1,4 @@
-//go:build linux
+//go:build linux && !electron_go_cef
 
 package native
 

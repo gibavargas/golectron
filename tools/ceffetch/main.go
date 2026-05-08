@@ -5,6 +5,7 @@ import (
 	"compress/bzip2"
 	"context"
 	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"flag"
@@ -24,7 +25,15 @@ type fetchReport struct {
 	Output    string            `json:"output"`
 	Archive   string            `json:"archive"`
 	SHA1      string            `json:"sha1"`
+	SHA256    string            `json:"sha256"`
 	Extracted bool              `json:"extracted"`
+	Current   string            `json:"current,omitempty"`
+	StageBin  string            `json:"stage_bin,omitempty"`
+}
+
+type downloadSums struct {
+	SHA1   string
+	SHA256 string
 }
 
 func main() {
@@ -32,13 +41,15 @@ func main() {
 	indexURL := flag.String("index-url", "", "override CEF index URL")
 	indexFile := flag.String("index-file", "", "read CEF index JSON from a local file instead of the network")
 	outputDir := flag.String("output", "native/cef", "directory where CEF should be extracted")
+	stageBin := flag.String("stage-bin", "", "optional bin/runtime directory to populate from the extracted CEF distribution")
 	timeout := flag.Duration("timeout", 30*time.Minute, "HTTP timeout")
 	allowMajor := flag.Bool("allow-major", false, "allow a matching Chromium major when exact Chromium version is unavailable")
 	keepArchive := flag.Bool("keep-archive", false, "keep the downloaded archive after extraction")
+	linkCurrent := flag.Bool("link-current", true, "create or update output/current to point at the extracted CEF distribution")
 	jsonOut := flag.Bool("json", false, "emit JSON output")
 	flag.Parse()
 
-	report, err := run(*manifestPath, *indexURL, *indexFile, *outputDir, *timeout, *allowMajor, *keepArchive)
+	report, err := run(*manifestPath, *indexURL, *indexFile, *outputDir, *stageBin, *timeout, *allowMajor, *keepArchive, *linkCurrent)
 	if *jsonOut {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
@@ -55,7 +66,7 @@ func main() {
 	}
 }
 
-func run(manifestPath, indexURL, indexFile, outputDir string, timeout time.Duration, allowMajor, keepArchive bool) (*fetchReport, error) {
+func run(manifestPath, indexURL, indexFile, outputDir, stageBin string, timeout time.Duration, allowMajor, keepArchive, linkCurrent bool) (*fetchReport, error) {
 	target, err := cefbuild.LoadManifest(manifestPath)
 	if err != nil {
 		return nil, err
@@ -76,15 +87,34 @@ func run(manifestPath, indexURL, indexFile, outputDir string, timeout time.Durat
 		return nil, fmt.Errorf("create output dir: %w", err)
 	}
 	archivePath := filepath.Join(outputDir, artifact.Archive)
-	sum, err := downloadFile(artifact.URL, archivePath, timeout)
+	sums, err := downloadFile(artifact.URL, archivePath, timeout)
 	if err != nil {
 		return nil, err
 	}
-	if artifact.SHA1 != "" && sum != artifact.SHA1 {
-		return nil, fmt.Errorf("CEF archive sha1 mismatch: got %s want %s", sum, artifact.SHA1)
+	if knownChecksum(artifact.SHA1) && sums.SHA1 != artifact.SHA1 {
+		return nil, fmt.Errorf("CEF archive sha1 mismatch: got %s want %s", sums.SHA1, artifact.SHA1)
+	}
+	if knownChecksum(artifact.SHA256) && sums.SHA256 != artifact.SHA256 {
+		return nil, fmt.Errorf("CEF archive sha256 mismatch: got %s want %s", sums.SHA256, artifact.SHA256)
+	}
+	if knownChecksum(target.SHA256) && sums.SHA256 != target.SHA256 {
+		return nil, fmt.Errorf("CEF archive sha256 mismatch: got %s want %s", sums.SHA256, target.SHA256)
 	}
 	if err := extractTarBzip2(archivePath, outputDir); err != nil {
 		return nil, err
+	}
+	extractedDir := filepath.Join(outputDir, extractedDirName(artifact.Archive))
+	current := ""
+	if linkCurrent {
+		current = filepath.Join(outputDir, "current")
+		if err := replaceSymlink(extractedDirName(artifact.Archive), current); err != nil {
+			return nil, err
+		}
+	}
+	if stageBin != "" {
+		if err := stageCEFLayout(extractedDir, stageBin); err != nil {
+			return nil, err
+		}
 	}
 	if !keepArchive {
 		_ = os.Remove(archivePath)
@@ -94,8 +124,11 @@ func run(manifestPath, indexURL, indexFile, outputDir string, timeout time.Durat
 		Artifact:  artifact,
 		Output:    outputDir,
 		Archive:   archivePath,
-		SHA1:      sum,
+		SHA1:      sums.SHA1,
+		SHA256:    sums.SHA256,
 		Extracted: true,
+		Current:   current,
+		StageBin:  stageBin,
 	}, nil
 }
 
@@ -131,31 +164,35 @@ func readIndex(indexURL, indexFile string, timeout time.Duration) ([]byte, error
 	return data, nil
 }
 
-func downloadFile(rawURL, path string, timeout time.Duration) (string, error) {
+func downloadFile(rawURL, path string, timeout time.Duration) (downloadSums, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
-		return "", fmt.Errorf("build CEF download request: %w", err)
+		return downloadSums{}, fmt.Errorf("build CEF download request: %w", err)
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("download CEF archive: %w", err)
+		return downloadSums{}, fmt.Errorf("download CEF archive: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return "", fmt.Errorf("download CEF archive: status %s", resp.Status)
+		return downloadSums{}, fmt.Errorf("download CEF archive: status %s", resp.Status)
 	}
 	out, err := os.Create(path)
 	if err != nil {
-		return "", fmt.Errorf("create CEF archive: %w", err)
+		return downloadSums{}, fmt.Errorf("create CEF archive: %w", err)
 	}
 	defer out.Close()
-	hash := sha1.New()
-	if _, err := io.Copy(out, io.TeeReader(resp.Body, hash)); err != nil {
-		return "", fmt.Errorf("write CEF archive: %w", err)
+	sha1Hash := sha1.New()
+	sha256Hash := sha256.New()
+	if _, err := io.Copy(io.MultiWriter(out, sha1Hash, sha256Hash), resp.Body); err != nil {
+		return downloadSums{}, fmt.Errorf("write CEF archive: %w", err)
 	}
-	return hex.EncodeToString(hash.Sum(nil)), nil
+	return downloadSums{
+		SHA1:   hex.EncodeToString(sha1Hash.Sum(nil)),
+		SHA256: hex.EncodeToString(sha256Hash.Sum(nil)),
+	}, nil
 }
 
 func extractTarBzip2(path, outputDir string) error {
@@ -232,4 +269,121 @@ func validateLinkTarget(name string) error {
 		return fmt.Errorf("archive symlink escapes output dir: %s", name)
 	}
 	return nil
+}
+
+func knownChecksum(value string) bool {
+	value = strings.TrimSpace(value)
+	return value != "" && value != "UNRESOLVED"
+}
+
+func extractedDirName(archive string) string {
+	name := strings.TrimSuffix(archive, ".tar.bz2")
+	return strings.TrimSuffix(name, ".tbz2")
+}
+
+func replaceSymlink(target, link string) error {
+	if err := os.MkdirAll(filepath.Dir(link), 0o755); err != nil {
+		return fmt.Errorf("create symlink parent: %w", err)
+	}
+	_ = os.Remove(link)
+	if err := os.Symlink(target, link); err != nil {
+		return fmt.Errorf("create current symlink: %w", err)
+	}
+	return nil
+}
+
+func stageCEFLayout(cefDir, binDir string) error {
+	releaseDir := filepath.Join(cefDir, "Release")
+	resourcesDir := filepath.Join(cefDir, "Resources")
+	if !directoryExists(releaseDir) {
+		return fmt.Errorf("CEF Release directory missing: %s", releaseDir)
+	}
+	if !directoryExists(resourcesDir) {
+		return fmt.Errorf("CEF Resources directory missing: %s", resourcesDir)
+	}
+	if err := os.MkdirAll(filepath.Join(binDir, "locales"), 0o755); err != nil {
+		return fmt.Errorf("create bin locales: %w", err)
+	}
+	for _, pattern := range []string{
+		filepath.Join(releaseDir, "lib*.so"),
+		filepath.Join(releaseDir, "*.bin"),
+		filepath.Join(releaseDir, "*.json"),
+		filepath.Join(resourcesDir, "*.pak"),
+	} {
+		if err := copyGlob(pattern, binDir); err != nil {
+			return err
+		}
+	}
+	for _, name := range []string{"chrome-sandbox"} {
+		src := filepath.Join(releaseDir, name)
+		if regularFile(src) {
+			if err := copyFile(src, filepath.Join(binDir, name)); err != nil {
+				return err
+			}
+		}
+	}
+	for _, name := range []string{"icudtl.dat", "v8_context_snapshot.bin", "v8_context_snapshot_blob.bin", "snapshot_blob.bin"} {
+		src := filepath.Join(resourcesDir, name)
+		if regularFile(src) {
+			if err := copyFile(src, filepath.Join(binDir, name)); err != nil {
+				return err
+			}
+		}
+	}
+	if err := copyGlob(filepath.Join(resourcesDir, "locales", "*.pak"), filepath.Join(binDir, "locales")); err != nil {
+		return err
+	}
+	return nil
+}
+
+func copyGlob(pattern, dstDir string) error {
+	matches, err := filepath.Glob(pattern)
+	if err != nil {
+		return fmt.Errorf("glob %s: %w", pattern, err)
+	}
+	for _, src := range matches {
+		if regularFile(src) {
+			if err := copyFile(src, filepath.Join(dstDir, filepath.Base(src))); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func copyFile(src, dst string) error {
+	info, err := os.Stat(src)
+	if err != nil {
+		return fmt.Errorf("stat %s: %w", src, err)
+	}
+	in, err := os.Open(src)
+	if err != nil {
+		return fmt.Errorf("open %s: %w", src, err)
+	}
+	defer in.Close()
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return fmt.Errorf("create parent for %s: %w", dst, err)
+	}
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, info.Mode())
+	if err != nil {
+		return fmt.Errorf("create %s: %w", dst, err)
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		_ = out.Close()
+		return fmt.Errorf("copy %s to %s: %w", src, dst, err)
+	}
+	if err := out.Close(); err != nil {
+		return fmt.Errorf("close %s: %w", dst, err)
+	}
+	return nil
+}
+
+func regularFile(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.Mode().IsRegular()
+}
+
+func directoryExists(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
 }
