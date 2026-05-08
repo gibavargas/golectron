@@ -94,9 +94,6 @@ func (r *Runtime) requireFrom(parentDir, name string) (goja.Value, error) {
 	case "path":
 		return r.pathModule(), nil
 	}
-	if !isRelativeRequire(name) && !filepath.IsAbs(name) {
-		return nil, fmt.Errorf("golectron: unsupported require(%s)", name)
-	}
 	resolved, err := r.resolveModule(parentDir, name)
 	if err != nil {
 		return nil, err
@@ -121,21 +118,66 @@ func (r *Runtime) requireFrom(parentDir, name string) (goja.Value, error) {
 }
 
 func (r *Runtime) resolveModule(parentDir, name string) (string, error) {
-	candidate := name
-	if !filepath.IsAbs(candidate) {
-		candidate = filepath.Join(parentDir, name)
+	if isRelativeRequire(name) || filepath.IsAbs(name) {
+		candidate := name
+		if !filepath.IsAbs(candidate) {
+			candidate = filepath.Join(parentDir, name)
+		}
+		if resolved, ok := r.resolveAsFileOrDirectory(candidate); ok {
+			return resolved, nil
+		}
+		return "", fmt.Errorf("golectron: cannot find module %q from %s", name, parentDir)
 	}
+
+	if resolved, ok := r.resolveNodeModule(parentDir, name); ok {
+		return resolved, nil
+	}
+	return "", fmt.Errorf("golectron: cannot find module %q from %s", name, parentDir)
+}
+
+func (r *Runtime) resolveNodeModule(parentDir, name string) (string, bool) {
+	for dir := parentDir; ; dir = filepath.Dir(dir) {
+		candidate := filepath.Join(dir, "node_modules", name)
+		if resolved, ok := r.resolveAsFileOrDirectory(candidate); ok {
+			return resolved, true
+		}
+		if dir == filepath.Dir(dir) {
+			break
+		}
+	}
+	return "", false
+}
+
+func (r *Runtime) resolveAsFileOrDirectory(candidate string) (string, bool) {
+	if resolved, ok := resolveAsFile(candidate); ok {
+		return resolved, true
+	}
+	if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+		if main, err := MainFileFromPackage(candidate); err == nil {
+			if resolved, ok := r.resolveAsFileOrDirectory(filepath.Join(candidate, main)); ok {
+				return resolved, true
+			}
+		}
+		if resolved, ok := resolveAsFile(filepath.Join(candidate, "index")); ok {
+			return resolved, true
+		}
+	}
+	return "", false
+}
+
+func resolveAsFile(candidate string) (string, bool) {
 	candidates := []string{candidate}
 	if filepath.Ext(candidate) == "" {
-		candidates = append(candidates, candidate+".js", candidate+".json", filepath.Join(candidate, "index.js"), filepath.Join(candidate, "index.json"))
+		candidates = append(candidates, candidate+".js", candidate+".json")
 	}
 	for _, path := range candidates {
 		info, err := os.Stat(path)
 		if err == nil && !info.IsDir() {
-			return filepath.Abs(path)
+			resolved, err := filepath.Abs(path)
+			return resolved, err == nil
 		}
 	}
-	return "", fmt.Errorf("golectron: cannot find module %q from %s", name, parentDir)
+	return "", false
 }
 
 func (r *Runtime) runCommonJS(path string) (goja.Value, error) {

@@ -80,6 +80,65 @@ app.on('ready', () => {
 	}
 }
 
+func TestRequiresNodeModulesPackageMain(t *testing.T) {
+	dir := t.TempDir()
+	writeTestFile(t, dir, "node_modules/window-kit/package.json", `{"main":"lib/main.js"}`)
+	writeTestFile(t, dir, "node_modules/window-kit/lib/main.js", `
+exports.createURL = function() {
+  return 'https://example.test/from-node-modules-package-main'
+}
+`)
+	writeTestFile(t, dir, "main.js", `
+const { app, BrowserWindow } = require('electron')
+const kit = require('window-kit')
+app.on('ready', () => {
+  const win = new BrowserWindow()
+  win.loadURL(kit.createURL())
+})
+`)
+
+	r := New(dir)
+	if err := r.RunFile("main.js"); err != nil {
+		t.Fatalf("run main.js: %v", err)
+	}
+
+	windows := r.Windows()
+	if len(windows) != 1 {
+		t.Fatalf("expected 1 BrowserWindow, got %d", len(windows))
+	}
+	if windows[0].URL != "https://example.test/from-node-modules-package-main" {
+		t.Fatalf("url = %q", windows[0].URL)
+	}
+}
+
+func TestRequiresNodeModulesIndexFallback(t *testing.T) {
+	dir := t.TempDir()
+	writeTestFile(t, dir, "node_modules/window-kit/index.js", `
+exports.url = 'https://example.test/from-node-modules-index'
+`)
+	writeTestFile(t, dir, "main.js", `
+const { app, BrowserWindow } = require('electron')
+const kit = require('window-kit')
+app.on('ready', () => {
+  const win = new BrowserWindow()
+  win.loadURL(kit.url)
+})
+`)
+
+	r := New(dir)
+	if err := r.RunFile("main.js"); err != nil {
+		t.Fatalf("run main.js: %v", err)
+	}
+
+	windows := r.Windows()
+	if len(windows) != 1 {
+		t.Fatalf("expected 1 BrowserWindow, got %d", len(windows))
+	}
+	if windows[0].URL != "https://example.test/from-node-modules-index" {
+		t.Fatalf("url = %q", windows[0].URL)
+	}
+}
+
 func TestBrowserWindowLoadFileStoresFileURL(t *testing.T) {
 	dir := t.TempDir()
 	writeTestFile(t, dir, "index.html", `<h1>Hello</h1>`)
