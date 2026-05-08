@@ -22,7 +22,8 @@ This commit is the seed, not the finish line:
 - Pure-Go JS runtime via `goja`
 - Electron-like `require('electron')`
 - Minimal CommonJS resolver for relative `.js`, `.json`, and directory `index.*` modules
-- Minimal `app`, `BrowserWindow`, `ipcMain`, `dialog`
+- Minimal `app`, `BrowserWindow`, `ipcMain`, `ipcRenderer`, `dialog`
+- `ipcMain.handle()` / `ipcRenderer.invoke()` preload bridge for request/response IPC
 - `BrowserWindow.loadURL()` and `BrowserWindow.loadFile()` URL tracking
 - Tests proving a basic Electron main process runs
 
@@ -37,6 +38,7 @@ Expected output:
 
 ```text
 hello from an Electron-shaped app
+hello from preload IPC, Golectron
 window[1] url=file:///path/to/golectron/examples/hello/renderer/index.html shown=true
 ```
 

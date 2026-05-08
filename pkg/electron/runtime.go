@@ -19,6 +19,7 @@ type Runtime struct {
 	vm      *goja.Runtime
 	cwd     string
 	app     *App
+	ipcMain *IPCMain
 	windows []*BrowserWindow
 	modules map[string]goja.Value
 	mu      sync.Mutex
@@ -38,6 +39,7 @@ func New(cwd string, opts ...Option) *Runtime {
 	}
 	r.vm = goja.New()
 	r.app = newApp(r)
+	r.ipcMain = newIPCMain(r)
 	r.installGlobals()
 	return r
 }
@@ -187,7 +189,8 @@ func (r *Runtime) electronModule() goja.Value {
 		r.mu.Unlock()
 		return bw.object()
 	})
-	_ = mod.Set("ipcMain", newEventEmitter(r).object())
+	_ = mod.Set("ipcMain", r.ipcMain.object())
+	_ = mod.Set("ipcRenderer", r.ipcMain.rendererObject())
 	_ = mod.Set("dialog", map[string]any{
 		"showErrorBox": func(title, content string) { r.stdout("ERROR: " + title + ": " + content) },
 	})
@@ -287,6 +290,65 @@ func (e *EventEmitter) object() *goja.Object {
 	return obj
 }
 
+type IPCMain struct {
+	*EventEmitter
+	handlers map[string]goja.Callable
+}
+
+func newIPCMain(r *Runtime) *IPCMain {
+	return &IPCMain{EventEmitter: newEventEmitter(r), handlers: map[string]goja.Callable{}}
+}
+
+func (i *IPCMain) object() *goja.Object {
+	obj := i.EventEmitter.object()
+	_ = obj.Set("handle", func(call goja.FunctionCall) goja.Value {
+		if len(call.Arguments) < 2 {
+			panic(i.r.vm.ToValue("ipcMain.handle(channel, listener) requires a listener"))
+		}
+		fn, ok := goja.AssertFunction(call.Argument(1))
+		if !ok {
+			panic(i.r.vm.ToValue("ipcMain.handle listener must be a function"))
+		}
+		i.handlers[call.Argument(0).String()] = fn
+		return goja.Undefined()
+	})
+	_ = obj.Set("removeHandler", func(channel string) { delete(i.handlers, channel) })
+	return obj
+}
+
+func (i *IPCMain) rendererObject() *goja.Object {
+	obj := i.EventEmitter.object()
+	_ = obj.Set("invoke", func(call goja.FunctionCall) goja.Value {
+		if len(call.Arguments) == 0 {
+			panic(i.r.vm.ToValue("ipcRenderer.invoke(channel, ...args) needs a channel"))
+		}
+		channel := call.Argument(0).String()
+		handler, ok := i.handlers[channel]
+		if !ok {
+			panic(i.r.vm.ToValue("golectron: no ipcMain handler registered for " + channel))
+		}
+		event := i.r.vm.NewObject()
+		_ = event.Set("sender", goja.Null())
+		args := append([]goja.Value{event}, call.Arguments[1:]...)
+		value, err := handler(goja.Undefined(), args...)
+		if err != nil {
+			panic(err)
+		}
+		return i.r.promiseResolved(value)
+	})
+	_ = obj.Set("send", func(call goja.FunctionCall) goja.Value {
+		if len(call.Arguments) == 0 {
+			panic(i.r.vm.ToValue("ipcRenderer.send(channel, ...args) needs a channel"))
+		}
+		args := call.Arguments[1:]
+		if err := i.emit(call.Argument(0).String(), args...); err != nil {
+			panic(err)
+		}
+		return goja.Undefined()
+	})
+	return obj
+}
+
 type App struct {
 	*EventEmitter
 	ready bool
@@ -315,13 +377,14 @@ type BrowserWindow struct {
 	ID      int       `json:"id"`
 	Options any       `json:"options,omitempty"`
 	URL     string    `json:"url,omitempty"`
+	Preload string    `json:"preload,omitempty"`
 	Shown   bool      `json:"shown"`
 	Created time.Time `json:"created"`
 	events  *EventEmitter
 }
 
 func newBrowserWindow(r *Runtime, opts goja.Value) *BrowserWindow {
-	return &BrowserWindow{r: r, ID: len(r.windows) + 1, Options: opts.Export(), Created: time.Now(), events: newEventEmitter(r)}
+	return &BrowserWindow{r: r, ID: len(r.windows) + 1, Options: opts.Export(), Preload: preloadPathFromOptions(opts.Export()), Created: time.Now(), events: newEventEmitter(r)}
 }
 
 func (w *BrowserWindow) object() *goja.Object {
@@ -329,6 +392,9 @@ func (w *BrowserWindow) object() *goja.Object {
 	_ = obj.Set("id", w.ID)
 	_ = obj.Set("loadURL", func(url string) goja.Value {
 		w.URL = url
+		if err := w.runPreload(); err != nil {
+			panic(w.r.vm.ToValue(err.Error()))
+		}
 		return w.r.promiseResolved(goja.Undefined())
 	})
 	_ = obj.Set("loadFile", func(path string) goja.Value {
@@ -337,6 +403,9 @@ func (w *BrowserWindow) object() *goja.Object {
 			abs = filepath.Join(w.r.cwd, path)
 		}
 		w.URL = "file://" + filepath.ToSlash(abs)
+		if err := w.runPreload(); err != nil {
+			panic(w.r.vm.ToValue(err.Error()))
+		}
 		return w.r.promiseResolved(goja.Undefined())
 	})
 	_ = obj.Set("show", func() { w.Shown = true })
@@ -345,6 +414,27 @@ func (w *BrowserWindow) object() *goja.Object {
 		"send": func(channel string, args ...any) { _ = w.events.emit(channel) },
 	})
 	return obj
+}
+
+func (w *BrowserWindow) runPreload() error {
+	if w.Preload == "" {
+		return nil
+	}
+	_, err := w.r.requireFrom(w.r.cwd, w.Preload)
+	return err
+}
+
+func preloadPathFromOptions(opts any) string {
+	root, ok := opts.(map[string]any)
+	if !ok {
+		return ""
+	}
+	webPreferences, ok := root["webPreferences"].(map[string]any)
+	if !ok {
+		return ""
+	}
+	preload, _ := webPreferences["preload"].(string)
+	return preload
 }
 
 const Version = "0.1.0-compat-spike"

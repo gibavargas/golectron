@@ -106,6 +106,42 @@ app.on('ready', () => {
 	}
 }
 
+func TestPreloadCanInvokeIpcMainHandler(t *testing.T) {
+	dir := t.TempDir()
+	writeTestFile(t, dir, "index.html", `<h1>IPC</h1>`)
+	writeTestFile(t, dir, "preload.js", `
+const { ipcRenderer } = require('electron')
+ipcRenderer.invoke('double', 21).then(value => console.log('ipc:' + value))
+`)
+	writeTestFile(t, dir, "main.js", `
+const { app, BrowserWindow, ipcMain } = require('electron')
+ipcMain.handle('double', (_event, value) => value * 2)
+app.on('ready', () => {
+  const win = new BrowserWindow({ webPreferences: { preload: './preload.js' } })
+  win.loadFile('index.html')
+})
+`)
+
+	var lines []string
+	r := New(dir, WithStdout(func(s string) { lines = append(lines, s) }))
+	if err := r.RunFile("main.js"); err != nil {
+		t.Fatalf("run main.js: %v", err)
+	}
+
+	if !containsLine(lines, "ipc:42") {
+		t.Fatalf("expected preload IPC output, got %#v", lines)
+	}
+}
+
+func containsLine(lines []string, want string) bool {
+	for _, line := range lines {
+		if line == want {
+			return true
+		}
+	}
+	return false
+}
+
 func writeTestFile(t *testing.T, dir, name, content string) {
 	t.Helper()
 	path := filepath.Join(dir, name)
