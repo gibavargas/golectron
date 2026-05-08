@@ -12,7 +12,8 @@
       "id": "cef-fetch",
       "area": "chromium-integration",
       "api_group": "CEF artifact fetch",
-      "status": "unstarted",
+      "status": "compatible",
+      "check": "tools/fetch_cef.sh && test -f bin/libcef.so",
       "evidence": [
         {
           "kind": "implementation",
@@ -28,9 +29,14 @@
           "kind": "implementation",
           "ref": "tools/ceffetch",
           "note": "Fetches, checksum-verifies, extracts, and stages CEF runtime files without vendoring the archive."
+        },
+        {
+          "kind": "test",
+          "ref": "tools/fetch_cef.sh",
+          "note": "Fetched stable linux64 minimal CEF 147.0.10+gd58e84d+chromium-147.0.7727.118, verified SHA256 087ccfa1f0438429e20d91293b15cae08ee9e7b4988cc018d47568dd59dad1ef, staged bin/libcef.so, and passed the CEF runtime layout audit."
         }
       ],
-      "notes": "Atomic dependency for runtime-process-model. Acceptance: deterministic CEF target/fetch tooling tests pass with go test ./internal/cefbuild ./tools/cefresolve ./tools/ceffetch, and exact-artifact absence remains an explicit blocker for cef-linked rather than a reason to use the wrong Chromium."
+      "notes": "Atomic dependency for runtime-process-model. Acceptance: tools/fetch_cef.sh exits 0, verifies the pinned CEF tarball checksum, stages bin/libcef.so, and passes the CEF runtime layout audit."
     },
     {
       "id": "cef-linked",

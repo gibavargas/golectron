@@ -52,6 +52,9 @@ jobs:
       - name: Fetch and stage CEF
         run: tools/fetch_cef.sh
 
+      - name: Verify staged CEF library
+        run: test -f bin/libcef.so
+
       - name: Build CEF-linked binary
         run: go build -tags electron_go_cef -o bin/electron-go ./cmd/electron-go
 
