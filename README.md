@@ -21,7 +21,9 @@ This commit is the seed, not the finish line:
 - Go CLI: `golectron run --dir examples/hello`
 - Pure-Go JS runtime via `goja`
 - Electron-like `require('electron')`
+- Minimal CommonJS resolver for relative `.js`, `.json`, and directory `index.*` modules
 - Minimal `app`, `BrowserWindow`, `ipcMain`, `dialog`
+- `BrowserWindow.loadURL()` and `BrowserWindow.loadFile()` URL tracking
 - Tests proving a basic Electron main process runs
 
 ## Quick start
@@ -35,7 +37,7 @@ Expected output:
 
 ```text
 hello from an Electron-shaped app
-window[1] url=https://example.com shown=true
+window[1] url=file:///path/to/golectron/examples/hello/renderer/index.html shown=true
 ```
 
 ## Compatibility contract
@@ -69,7 +71,7 @@ So the path is not a slogan. The path is a compatibility suite and a runtime tha
 
 ### P1 — real app compatibility
 
-- CommonJS resolver for local files and `node_modules`
+- CommonJS resolver for local files, JSON modules, directory indexes, and later `node_modules`
 - `preload` support
 - `webContents` events
 - menu/tray/globalShortcut subset

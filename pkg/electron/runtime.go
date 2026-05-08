@@ -20,6 +20,7 @@ type Runtime struct {
 	cwd     string
 	app     *App
 	windows []*BrowserWindow
+	modules map[string]goja.Value
 	mu      sync.Mutex
 	stdout  func(string)
 }
@@ -31,7 +32,7 @@ func WithStdout(fn func(string)) Option {
 }
 
 func New(cwd string, opts ...Option) *Runtime {
-	r := &Runtime{cwd: cwd, stdout: func(s string) { fmt.Println(s) }}
+	r := &Runtime{cwd: cwd, modules: map[string]goja.Value{}, stdout: func(s string) { fmt.Println(s) }}
 	for _, opt := range opts {
 		opt(r)
 	}
@@ -54,12 +55,7 @@ func (r *Runtime) RunFile(path string) error {
 	if !filepath.IsAbs(abs) {
 		abs = filepath.Join(r.cwd, path)
 	}
-	data, err := os.ReadFile(abs)
-	if err != nil {
-		return err
-	}
-	_, err = r.vm.RunScript(abs, string(data))
-	if err != nil {
+	if _, err := r.requireFrom(r.cwd, abs); err != nil {
 		return err
 	}
 	return r.app.emit("ready")
@@ -81,16 +77,104 @@ func (r *Runtime) installGlobals() {
 		if len(call.Arguments) == 0 {
 			panic(r.vm.ToValue("require() needs a module name"))
 		}
-		name := call.Arguments[0].String()
-		switch name {
-		case "electron":
-			return r.electronModule()
-		case "path":
-			return r.pathModule()
-		default:
-			panic(r.vm.ToValue("golectron: unsupported require(" + name + ")"))
+		value, err := r.requireFrom(r.cwd, call.Arguments[0].String())
+		if err != nil {
+			panic(r.vm.ToValue(err.Error()))
 		}
+		return value
 	})
+}
+
+func (r *Runtime) requireFrom(parentDir, name string) (goja.Value, error) {
+	switch name {
+	case "electron":
+		return r.electronModule(), nil
+	case "path":
+		return r.pathModule(), nil
+	}
+	if !isRelativeRequire(name) && !filepath.IsAbs(name) {
+		return nil, fmt.Errorf("golectron: unsupported require(%s)", name)
+	}
+	resolved, err := r.resolveModule(parentDir, name)
+	if err != nil {
+		return nil, err
+	}
+	if cached, ok := r.modules[resolved]; ok {
+		return cached, nil
+	}
+	if filepath.Ext(resolved) == ".json" {
+		data, err := os.ReadFile(resolved)
+		if err != nil {
+			return nil, err
+		}
+		var v any
+		if err := json.Unmarshal(data, &v); err != nil {
+			return nil, err
+		}
+		value := r.vm.ToValue(v)
+		r.modules[resolved] = value
+		return value, nil
+	}
+	return r.runCommonJS(resolved)
+}
+
+func (r *Runtime) resolveModule(parentDir, name string) (string, error) {
+	candidate := name
+	if !filepath.IsAbs(candidate) {
+		candidate = filepath.Join(parentDir, name)
+	}
+	candidates := []string{candidate}
+	if filepath.Ext(candidate) == "" {
+		candidates = append(candidates, candidate+".js", candidate+".json", filepath.Join(candidate, "index.js"), filepath.Join(candidate, "index.json"))
+	}
+	for _, path := range candidates {
+		info, err := os.Stat(path)
+		if err == nil && !info.IsDir() {
+			return filepath.Abs(path)
+		}
+	}
+	return "", fmt.Errorf("golectron: cannot find module %q from %s", name, parentDir)
+}
+
+func (r *Runtime) runCommonJS(path string) (goja.Value, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	exports := r.vm.NewObject()
+	module := r.vm.NewObject()
+	_ = module.Set("exports", exports)
+	r.modules[path] = exports
+	wrapperSource := "(function(exports, module, require, __filename, __dirname) {\n" + string(data) + "\n})"
+	wrapperValue, err := r.vm.RunScript(path, wrapperSource)
+	if err != nil {
+		return nil, err
+	}
+	wrapper, ok := goja.AssertFunction(wrapperValue)
+	if !ok {
+		return nil, fmt.Errorf("golectron: failed to compile module %s", path)
+	}
+	dir := filepath.Dir(path)
+	require := func(call goja.FunctionCall) goja.Value {
+		if len(call.Arguments) == 0 {
+			panic(r.vm.ToValue("require() needs a module name"))
+		}
+		value, err := r.requireFrom(dir, call.Arguments[0].String())
+		if err != nil {
+			panic(r.vm.ToValue(err.Error()))
+		}
+		return value
+	}
+	if _, err := wrapper(goja.Undefined(), exports, module, r.vm.ToValue(require), r.vm.ToValue(path), r.vm.ToValue(dir)); err != nil {
+		return nil, err
+	}
+	moduleExports := module.Get("exports")
+	r.modules[path] = moduleExports
+	return moduleExports, nil
+}
+
+func isRelativeRequire(name string) bool {
+	return name == "." || name == ".." || len(name) >= 2 && (name[:2] == "./" || name[:2] == "..")
 }
 
 func (r *Runtime) electronModule() goja.Value {
@@ -245,6 +329,14 @@ func (w *BrowserWindow) object() *goja.Object {
 	_ = obj.Set("id", w.ID)
 	_ = obj.Set("loadURL", func(url string) goja.Value {
 		w.URL = url
+		return w.r.promiseResolved(goja.Undefined())
+	})
+	_ = obj.Set("loadFile", func(path string) goja.Value {
+		abs := path
+		if !filepath.IsAbs(abs) {
+			abs = filepath.Join(w.r.cwd, path)
+		}
+		w.URL = "file://" + filepath.ToSlash(abs)
 		return w.r.promiseResolved(goja.Undefined())
 	})
 	_ = obj.Set("show", func() { w.Shown = true })
