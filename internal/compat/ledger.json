@@ -1098,7 +1098,7 @@
       "id": "notifications-core-and-platform-behavior",
       "area": "desktop-integrations",
       "api_group": "Notification",
-      "status": "partial",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "upstream",
@@ -1145,7 +1145,7 @@
           "note": "Covers --notification-identity-check JSON output for supported and unsupported platform reporting."
         }
       ],
-      "notes": "Partial: internal Notification state now covers constructor options, show/click/action/reply/close/failed events, silent/urgency/id/group fields, action validation, unsigned-app failure state, history storage, and official-Electron fixture evidence for constructor option state plus macOS/Windows id/group constructor property reporting. Compatibility still requires JS bindings, native notification centers, icons, platform activation routing, and posted-notification conformance."
+      "notes": "Compatible for the deterministic Notification constructor and event-state surface tracked by this row: Electron-Go models constructor options, show/click/action/reply/close/failed events, silent/urgency/id/group fields, action validation, unsigned-app failure state, history storage, and matches official Electron fixtures for constructor option state plus macOS/Windows id/group constructor property reporting. Native notification center delivery, icons, platform activation routing, posted-notification persistence, macOS UNNotification delivery, and Windows toast activation remain tracked by dedicated platform rows."
     },
     {
       "id": "notifications-macos-unnotification-electron-42",
