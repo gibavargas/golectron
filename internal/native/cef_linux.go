@@ -48,6 +48,7 @@ var cefBrowserProcessSwitches = []string{
 	"--no-default-browser-check",
 	"--no-first-run",
 	"--no-sandbox",
+	"--no-zygote",
 }
 
 type CEFBridge struct{}

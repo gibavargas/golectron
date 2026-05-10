@@ -107,6 +107,7 @@ static void CEF_CALLBACK eg_cef_on_before_command_line_processing(
   eg_cef_append_ascii_switch(command_line, "metrics-recording-only");
   eg_cef_append_ascii_switch(command_line, "no-default-browser-check");
   eg_cef_append_ascii_switch(command_line, "no-first-run");
+  eg_cef_append_ascii_switch(command_line, "no-zygote");
 }
 
 static cef_browser_process_handler_t* eg_cef_make_browser_process_handler(void) {
