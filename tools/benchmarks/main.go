@@ -36,17 +36,18 @@ type CommandResult struct {
 }
 
 type Sample struct {
-	Iteration              int    `json:"iteration"`
-	StartedAt              string `json:"started_at"`
-	DurationMS             int64  `json:"duration_ms"`
-	ExitCode               int    `json:"exit_code"`
-	MaxRSSKB               int64  `json:"max_rss_kb,omitempty"`
-	ProcessTreeRSSPeakKB   int64  `json:"process_tree_rss_peak_kb,omitempty"`
-	Error                  string `json:"error,omitempty"`
-	TimedOut               bool   `json:"timed_out,omitempty"`
-	TimeToolUsed           string `json:"time_tool_used,omitempty"`
-	ProcessTreeRSSProbe    string `json:"process_tree_rss_probe,omitempty"`
-	ProcessTreeRSSProbeErr string `json:"process_tree_rss_probe_error,omitempty"`
+	Iteration              int              `json:"iteration"`
+	StartedAt              string           `json:"started_at"`
+	DurationMS             int64            `json:"duration_ms"`
+	ExitCode               int              `json:"exit_code"`
+	MaxRSSKB               int64            `json:"max_rss_kb,omitempty"`
+	ProcessTreeRSSPeakKB   int64            `json:"process_tree_rss_peak_kb,omitempty"`
+	StartupTraceMS         map[string]int64 `json:"startup_trace_ms,omitempty"`
+	Error                  string           `json:"error,omitempty"`
+	TimedOut               bool             `json:"timed_out,omitempty"`
+	TimeToolUsed           string           `json:"time_tool_used,omitempty"`
+	ProcessTreeRSSProbe    string           `json:"process_tree_rss_probe,omitempty"`
+	ProcessTreeRSSProbeErr string           `json:"process_tree_rss_probe_error,omitempty"`
 }
 
 type Summary struct {
@@ -229,6 +230,7 @@ func runSample(args []string, fixture string, timeout time.Duration, iteration i
 	if sample.TimeToolUsed != "" {
 		sample.MaxRSSKB = parseMaxRSSKB(output.String(), runtime.GOOS)
 	}
+	sample.StartupTraceMS = parseStartupTraceMS(output.String())
 	if err != nil {
 		sample.Error = strings.TrimSpace(output.String())
 		if sample.Error == "" {
@@ -236,6 +238,21 @@ func runSample(args []string, fixture string, timeout time.Duration, iteration i
 		}
 	}
 	return sample
+}
+
+func parseStartupTraceMS(output string) map[string]int64 {
+	const marker = "electron-go-startup-trace:"
+	for _, line := range strings.Split(output, "\n") {
+		_, payload, ok := strings.Cut(line, marker)
+		if !ok {
+			continue
+		}
+		var trace map[string]int64
+		if err := json.Unmarshal([]byte(strings.TrimSpace(payload)), &trace); err == nil && len(trace) > 0 {
+			return trace
+		}
+	}
+	return nil
 }
 
 func timeCommandArgs(name string, args []string) ([]string, string) {

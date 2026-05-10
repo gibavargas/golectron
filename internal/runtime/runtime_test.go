@@ -82,6 +82,18 @@ func TestExtractNodeOptions(t *testing.T) {
 	}
 }
 
+func TestEnvEnabled(t *testing.T) {
+	if !envEnabled([]string{"ELECTRON_GO_STARTUP_TRACE=1"}, StartupTraceEnv) {
+		t.Fatal("envEnabled() = false, want true")
+	}
+	if envEnabled([]string{"ELECTRON_GO_STARTUP_TRACE=0"}, StartupTraceEnv) {
+		t.Fatal("envEnabled() = true for 0, want false")
+	}
+	if envEnabled([]string{"ELECTRON_GO_STARTUP_TRACE=false"}, StartupTraceEnv) {
+		t.Fatal("envEnabled() = true for false, want false")
+	}
+}
+
 func TestRuntimeSubprocessHookShortCircuitsBeforeAppInit(t *testing.T) {
 	args := []string{"electron-go", "--type=renderer"}
 	env := []string{"CEF_SUBPROCESS=1"}

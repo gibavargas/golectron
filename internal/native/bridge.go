@@ -106,6 +106,7 @@ type StartResult struct {
 	Compatibility  string
 	BridgeRevision string
 	Platform       string
+	StartupTraceMS map[string]int64
 }
 
 type Bridge interface {

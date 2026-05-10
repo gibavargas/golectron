@@ -80,6 +80,8 @@ jobs:
           xvfb-run -a timeout 30 bin/electron-go compat/fixtures/benchmark-hello
 
       - name: Compare hello startup against official Electron
+        env:
+          ELECTRON_GO_STARTUP_TRACE: "1"
         run: |
           mkdir -p benchmark-artifacts
           xvfb-run -a go run ./tools/benchmarks \

@@ -2,9 +2,11 @@ package runtime
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/gibavargas/electron-go/internal/appmeta"
 	"github.com/gibavargas/electron-go/internal/native"
@@ -42,6 +44,8 @@ type Runtime struct {
 	out             io.Writer
 	state           State
 }
+
+const StartupTraceEnv = "ELECTRON_GO_STARTUP_TRACE"
 
 type SubprocessRequest struct {
 	Args        []string
@@ -159,8 +163,25 @@ func (r *Runtime) Run(ctx context.Context) error {
 
 	r.state = StateRunning
 	fmt.Fprintf(r.out, "electron-go: running pid=%d windows=%d chromium=%s node=%s v8=%s\n", result.PID, result.WindowCount, result.Chromium, result.Node, result.V8)
+	if envEnabled(r.environment, StartupTraceEnv) && len(result.StartupTraceMS) > 0 {
+		payload, err := json.Marshal(result.StartupTraceMS)
+		if err == nil {
+			fmt.Fprintf(r.out, "electron-go-startup-trace: %s\n", payload)
+		}
+	}
 	r.state = StateStopped
 	return nil
+}
+
+func envEnabled(env []string, key string) bool {
+	prefix := key + "="
+	for _, entry := range env {
+		if strings.HasPrefix(entry, prefix) {
+			value := strings.TrimSpace(strings.TrimPrefix(entry, prefix))
+			return value != "" && value != "0" && !strings.EqualFold(value, "false")
+		}
+	}
+	return false
 }
 
 func AppDirFromArgs(args []string) string {

@@ -64,6 +64,15 @@ func TestParseMaxRSSKB(t *testing.T) {
 	}
 }
 
+func TestParseStartupTraceMS(t *testing.T) {
+	output := "electron-go: loaded app 1.0.0\n" +
+		"electron-go-startup-trace: {\"cef_initialize\":123,\"create_browser\":45}\n"
+	got := parseStartupTraceMS(output)
+	if got["cef_initialize"] != 123 || got["create_browser"] != 45 {
+		t.Fatalf("parseStartupTraceMS() = %#v", got)
+	}
+}
+
 func TestComputeComparisons(t *testing.T) {
 	results := []CommandResult{
 		{

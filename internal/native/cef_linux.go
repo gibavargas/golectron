@@ -54,6 +54,11 @@ func NewBridge() Bridge {
 }
 
 func (b CEFBridge) Start(ctx context.Context, req StartRequest) (*StartResult, error) {
+	traceStart := time.Now()
+	trace := map[string]int64{}
+	mark := func(stage string, started time.Time) {
+		trace[stage] = time.Since(started).Milliseconds()
+	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -67,14 +72,19 @@ func (b CEFBridge) Start(ctx context.Context, req StartRequest) (*StartResult, e
 	if err != nil {
 		return nil, err
 	}
+	stageStart := time.Now()
 	if err := initializeCEF(ctx, initReq); err != nil {
 		return nil, err
 	}
+	mark("cef_initialize", stageStart)
+	stageStart = time.Now()
 	loadURL, err := appIndexFileURL(req.AppDir)
 	if err != nil {
 		_ = shutdownCEF(ctx)
 		return nil, err
 	}
+	mark("resolve_app_url", stageStart)
+	stageStart = time.Now()
 	if err := createBrowserWindow(ctx, BrowserWindowCreateRequest{
 		ABIRevision: CurrentABIRevision,
 		URL:         loadURL,
@@ -85,19 +95,26 @@ func (b CEFBridge) Start(ctx context.Context, req StartRequest) (*StartResult, e
 		_ = shutdownCEF(ctx)
 		return nil, err
 	}
+	mark("create_browser", stageStart)
+	stageStart = time.Now()
 	if err := runMessageLoop(ctx); err != nil {
 		_ = shutdownCEF(ctx)
 		return nil, err
 	}
+	mark("message_loop", stageStart)
+	stageStart = time.Now()
 	if err := shutdownCEF(ctx); err != nil {
 		return nil, err
 	}
+	mark("cef_shutdown", stageStart)
+	trace["total_native_start"] = time.Since(traceStart).Milliseconds()
 	return &StartResult{
 		PID:            os.Getpid(),
 		WindowCount:    1,
 		Status:         StatusStopped,
 		BridgeRevision: fmt.Sprintf("abi-%d-cef", CurrentABIRevision),
 		Platform:       runtime.GOOS,
+		StartupTraceMS: trace,
 	}, nil
 }
 
