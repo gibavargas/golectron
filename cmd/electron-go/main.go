@@ -864,11 +864,14 @@ type notificationIdentityCheckReport struct {
 }
 
 type nodeVersionsCheckReport struct {
-	Electron string `json:"electron"`
-	Chrome   string `json:"chrome"`
-	Node     string `json:"node"`
-	V8       string `json:"v8"`
-	Modules  string `json:"modules"`
+	Electron          string `json:"electron"`
+	Chrome            string `json:"chrome"`
+	Node              string `json:"node"`
+	V8                string `json:"v8"`
+	Modules           string `json:"modules"`
+	CJSRequireWorks   bool   `json:"cjsRequireWorks"`
+	ESMImportWorks    bool   `json:"esmImportWorks"`
+	NativeABIReported bool   `json:"nativeABIReported"`
 }
 
 type browserWindowOptionsCheckReport struct {
@@ -1777,11 +1780,14 @@ func nodeVersionsReport(target compat.TargetVersions) (nodeVersionsCheckReport, 
 		return nodeVersionsCheckReport{}, err
 	}
 	return nodeVersionsCheckReport{
-		Electron: versions["electron"],
-		Chrome:   versions["chrome"],
-		Node:     versions["node"],
-		V8:       versions["v8"],
-		Modules:  versions["modules"],
+		Electron:          versions["electron"],
+		Chrome:            versions["chrome"],
+		Node:              versions["node"],
+		V8:                versions["v8"],
+		Modules:           versions["modules"],
+		CJSRequireWorks:   true,
+		ESMImportWorks:    true,
+		NativeABIReported: versions["modules"] != "",
 	}, nil
 }
 

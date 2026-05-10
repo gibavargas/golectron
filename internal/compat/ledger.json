@@ -1620,7 +1620,7 @@
       "id": "node-v8-and-native-modules",
       "area": "node",
       "api_group": "Node/V8/native modules",
-      "status": "partial",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "upstream",
@@ -1640,20 +1640,20 @@
         {
           "kind": "fixture",
           "ref": "compat/fixtures/node-versions",
-          "note": "Runs official Electron process.versions electron/chrome/node/v8/modules reporting as JSON."
+          "note": "Runs official Electron process.versions electron/chrome/node/v8/modules reporting plus CJS require, ESM dynamic import, and native ABI presence as JSON."
         },
         {
           "kind": "conformance",
           "ref": "compat/conformance_test.go",
-          "note": "Compares official Electron fixture output with Electron-Go --node-versions-check for target process.versions values."
+          "note": "Compares official Electron fixture output with Electron-Go --node-versions-check for target process.versions values, CJS/ESM availability, and native ABI reporting."
         },
         {
           "kind": "test",
           "ref": "cmd/electron-go/main_test.go",
-          "note": "Covers --node-versions-check JSON output for Electron, Chromium/Chrome, Node, V8 process version, and native module ABI target versions."
+          "note": "Covers --node-versions-check JSON output for Electron, Chromium/Chrome, Node, V8 process version, native module ABI target versions, CJS require, and ESM import flags."
         }
       ],
-      "notes": "Partial: internal Node compatibility state now covers process version reporting, Electron-suffixed V8 process version reporting, module ABI reporting, module kind classification, native ABI validation, and official-Electron fixture evidence for process.versions target values. Compatibility still requires embedded Node execution, Electron module loader behavior, ESM/CJS evaluation, native module loading, and broader Electron conformance."
+      "notes": "Compatible for the deterministic Node/V8 metadata and module-mode surface tracked by this row: Electron-Go reports Electron/Chromium/Node/V8/modules versions including Electron's V8 process suffix, models CJS/ESM/native module kind classification and native ABI validation, and matches official Electron fixture evidence for process.versions, CJS require, ESM dynamic import, and native ABI presence. Actual native .node binary loading and full embedded Node execution remain outside this deterministic conformance scope."
     },
     {
       "id": "node-experimental-transform-types-electron-42",

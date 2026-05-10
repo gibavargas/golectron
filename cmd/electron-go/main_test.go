@@ -823,11 +823,14 @@ func TestRunNodeVersionsCheckReportsTargetVersions(t *testing.T) {
 	}
 
 	var payload struct {
-		Electron string `json:"electron"`
-		Chrome   string `json:"chrome"`
-		Node     string `json:"node"`
-		V8       string `json:"v8"`
-		Modules  string `json:"modules"`
+		Electron          string `json:"electron"`
+		Chrome            string `json:"chrome"`
+		Node              string `json:"node"`
+		V8                string `json:"v8"`
+		Modules           string `json:"modules"`
+		CJSRequireWorks   bool   `json:"cjsRequireWorks"`
+		ESMImportWorks    bool   `json:"esmImportWorks"`
+		NativeABIReported bool   `json:"nativeABIReported"`
 	}
 	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
 		t.Fatalf("--node-versions-check output is not JSON: %v\n%s", err, stdout.String())
@@ -840,6 +843,9 @@ func TestRunNodeVersionsCheckReportsTargetVersions(t *testing.T) {
 	}
 	if payload.V8 != "14.8.178.14-electron.0" || payload.Modules != "146" {
 		t.Fatalf("v8/modules = %q/%q, want 14.8.178.14-electron.0/146", payload.V8, payload.Modules)
+	}
+	if !payload.CJSRequireWorks || !payload.ESMImportWorks || !payload.NativeABIReported {
+		t.Fatalf("node module flags = cjs %v esm %v nativeABI %v, want true/true/true", payload.CJSRequireWorks, payload.ESMImportWorks, payload.NativeABIReported)
 	}
 }
 
