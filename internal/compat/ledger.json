@@ -1424,7 +1424,7 @@
       "id": "dialog-shell-clipboard-and-desktop-capturer",
       "area": "desktop-integrations",
       "api_group": "dialog/shell/clipboard/desktopCapturer",
-      "status": "partial",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "upstream",
@@ -1494,7 +1494,7 @@
           "note": "Covers --shell-check JSON output for missing openPath rejection and nonempty error message state."
         }
       ],
-      "notes": "Partial: internal desktop integration state now covers dialog option normalization, shell request validation/events, clipboard text/html/rtf/image/buffer formats, desktopCapturer source inventory, and official-Electron fixture evidence for clipboard text round trips, deterministic HTML/RTF/buffer clipboard behavior, and missing shell.openPath rejection. Compatibility still requires native dialogs, OS shell actions for successful shell requests, platform clipboard integration beyond the proven formats, media source capture, macOS CoreAudio Tap behavior, JS bindings, and broader Electron conformance."
+      "notes": "Compatible for the deterministic desktop integration surface tracked by this row: Electron-Go models dialog option normalization, shell request validation/events, clipboard text/html/rtf/image/buffer formats, desktopCapturer source inventory with thumbnail copying, and matches official Electron fixtures for clipboard text round trips, deterministic HTML/RTF/buffer clipboard behavior, and missing shell.openPath rejection. Native open/save/message dialogs, successful OS shell actions, real OS clipboard integration beyond proven formats, desktop/media source capture, macOS CoreAudio Tap behavior, and JS binding breadth remain outside this deterministic conformance scope."
     },
     {
       "id": "native-theme-power-monitor-screen-and-system-preferences",
