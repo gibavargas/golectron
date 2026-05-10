@@ -87,6 +87,25 @@ It does not yet measure time to first window, IPC latency, window creation time,
 navigation/load time, idle CPU, package size, binary size, or build/package time.
 Do not cite those metrics from this runner until they are implemented.
 
+### Latest Linux Hello Result
+
+PR benchmark run
+`https://github.com/gibavargas/electron-go/actions/runs/25643204046` on commit
+`52ce87d` measured the `compat/fixtures/benchmark-hello` fixture with five
+successful iterations on Ubuntu 22.04:
+
+- median wall-clock startup: Electron-Go `412ms`, Electron `523ms`
+  (`electron_go_over_electron = 0.7878`, about `1.27x` faster);
+- median process-tree peak RSS: Electron-Go `249692KB`, Electron `596072KB`
+  (`electron_go_over_electron = 0.4189`, about `2.39x` lighter);
+- median root max RSS: Electron-Go `248568KB`, Electron `212660KB`
+  (`electron_go_over_electron = 1.1689`, Electron-Go is heavier for this
+  process-only metric).
+
+This is a measured startup improvement, but it is not yet the 50% faster target.
+Keep tracking startup work against the raw benchmark artifact rather than
+claiming the target is complete.
+
 ## Result Format
 
 By default, JSON is written to stdout. With `--output`, JSON is written to the
