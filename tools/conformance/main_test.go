@@ -2,6 +2,7 @@ package main
 
 import (
 	"reflect"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -147,5 +148,66 @@ func TestCompareResultsReportsDifferences(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got.Differences, want) {
 		t.Fatalf("differences = %#v, want %#v", got.Differences, want)
+	}
+}
+
+func TestCompareResultsTreatsSkippedAsNoComparison(t *testing.T) {
+	electron := CommandResult{
+		ExitCode: -1,
+		Skipped:  true,
+		Error:    "official Electron GUI launch is skipped under the macOS seatbelt sandbox",
+	}
+	electronGo := CommandResult{
+		ExitCode: 0,
+		Stdout:   "ready\n",
+	}
+
+	got := compareResults(electron, electronGo)
+	if !got.Match || !got.Skipped {
+		t.Fatalf("comparison = %#v, want skipped match", got)
+	}
+	if len(got.Differences) != 0 {
+		t.Fatalf("differences = %#v, want empty for skipped comparison", got.Differences)
+	}
+}
+
+func TestShouldSkipSandboxedDarwinElectron(t *testing.T) {
+	t.Setenv("CODEX_SANDBOX", "seatbelt")
+	t.Setenv("ELECTRON_GO_ALLOW_SANDBOXED_DARWIN_CONFORMANCE", "")
+
+	if runtime.GOOS != "darwin" {
+		if shouldSkipSandboxedDarwinElectron([]string{"/tmp/node_modules/.bin/electron"}) {
+			t.Fatal("skip = true on non-darwin, want false")
+		}
+		return
+	}
+
+	if !shouldSkipSandboxedDarwinElectron([]string{"/tmp/node_modules/.bin/electron"}) {
+		t.Fatal("skip = false for official Electron in macOS sandbox")
+	}
+	if shouldSkipSandboxedDarwinElectron([]string{"/tmp/electron-go-current"}) {
+		t.Fatal("skip = true for Electron-Go command, want false")
+	}
+	t.Setenv("ELECTRON_GO_ALLOW_SANDBOXED_DARWIN_CONFORMANCE", "1")
+	if shouldSkipSandboxedDarwinElectron([]string{"/tmp/node_modules/.bin/electron"}) {
+		t.Fatal("skip = true with override, want false")
+	}
+}
+
+func TestRunFixtureCommandTimesOut(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("/bin/sh is not available on Windows")
+	}
+	args, err := splitCommand(`/bin/sh -c "sleep 5"`)
+	if err != nil {
+		t.Fatalf("splitCommand() error = %v", err)
+	}
+
+	result := runFixtureCommand("/bin/sh", args, "ignored", 10*time.Millisecond)
+	if !result.TimedOut {
+		t.Fatalf("TimedOut = false, result = %#v", result)
+	}
+	if result.Error == "" {
+		t.Fatalf("Error is empty for timed-out command: %#v", result)
 	}
 }

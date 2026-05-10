@@ -3,7 +3,9 @@
     "electron": "42.0.0",
     "chromium": "148.0.7778.96",
     "node": "24.15.0",
-    "v8": "14.8.178.14"
+    "v8": "14.8.178.14",
+    "v8_process": "14.8.178.14-electron.0",
+    "modules": "146"
   },
   "generated": "2026-05-08",
   "completion": "incomplete",
@@ -34,6 +36,11 @@
           "kind": "test",
           "ref": "tools/fetch_cef.sh",
           "note": "Fetched stable linux64 minimal CEF 147.0.10+gd58e84d+chromium-147.0.7727.118, verified SHA256 087ccfa1f0438429e20d91293b15cae08ee9e7b4988cc018d47568dd59dad1ef, staged bin/libcef.so, and passed the CEF runtime layout audit."
+        },
+        {
+          "kind": "test",
+          "ref": ".github/workflows/cef_bootstrap.yml",
+          "note": "Ubuntu 22.04 workflow resolves, fetches, stages, and verifies bin/libcef.so before building and running the CEF-linked binary."
         }
       ],
       "notes": "Atomic dependency for runtime-process-model. Acceptance: tools/fetch_cef.sh exits 0, verifies the pinned CEF tarball checksum, stages bin/libcef.so, and passes the CEF runtime layout audit."
@@ -206,93 +213,278 @@
       "id": "app-lifecycle-events",
       "area": "main-process-api",
       "api_group": "app",
-      "status": "unstarted",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "upstream",
           "ref": "electron/docs/api/app.md"
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/applifecycle/lifecycle.go",
+          "note": "Implements a one-shot ready state, whenReady callbacks, cancellable before-quit and will-quit, quit, exit, and window-all-closed default quit semantics."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/applifecycle/lifecycle_test.go",
+          "note": "Covers ready/whenReady ordering, quit event order, cancellation at before-quit or will-quit, app.exit skipping cancellable quit events, and window-all-closed default/subscribed behavior."
+        },
+        {
+          "kind": "fixture",
+          "ref": "compat/fixtures/app-lifecycle",
+          "note": "Runs official Electron whenReady/isReady plus cancellable before-quit and before-quit/will-quit/quit event order as JSON."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with Electron-Go --app-lifecycle-check for ready state, cancellable before-quit, and quit event order."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Covers --app-lifecycle-check JSON output for ready flags, cancellable before-quit, quit exit code, and event ordering."
         }
       ],
-      "notes": "Inventory app readiness, quit, activation, open-file/open-url, before/after quit, window-all-closed, and platform lifecycle behavior."
+      "notes": "Compatible for the modeled app lifecycle event surface: Electron-Go tracks readiness, whenReady, quit/exit event order, cancellable before-quit/will-quit, window-all-closed default behavior, and matches official Electron ready/cancellable quit ordering conformance. Native activation, macOS open-file/open-url delivery, platform-specific launchInfo, and full BrowserWindow close/unload integration remain tracked by broader app, BrowserWindow, and platform-integration rows."
     },
     {
       "id": "app-paths-protocol-client-and-badges",
       "area": "main-process-api",
       "api_group": "app",
-      "status": "unstarted",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "upstream",
           "ref": "electron/docs/api/app.md"
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/apppaths/paths.go",
+          "note": "Implements getAppPath/getPath/setPath/setAppLogsPath state for Electron path names, recent-document state for supported platforms, platform appData defaults, userData/sessionData relationship, logs defaults, and override validation."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/apppaths/protocol.go",
+          "note": "Implements default protocol client registration state, protocol name validation, executable/args matching, removal, and macOS declared-protocol gating."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/apppaths/login_items.go",
+          "note": "Implements login item setting state, get/set matching by path and args, macOS service type validation, launch item reports, and startup status flags."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/apppaths/badge.go",
+          "note": "Implements internal badge count state, macOS unknown-dot behavior, zero-count hiding, Linux Unity support gating, and isUnityRunning state."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/apppaths/paths_test.go",
+          "note": "Covers darwin/linux/windows path defaults, sessionData override behavior, existing absolute path validation, logs directory creation, app path reads, platform-specific assets/recent path handling, recent-document dedupe, clear, copy-out, validation, and unsupported Linux behavior."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/apppaths/protocol_test.go",
+          "note": "Covers default protocol client set/is/remove behavior, protocol validation, args-sensitive matching, and macOS declared protocol requirements."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/apppaths/login_items_test.go",
+          "note": "Covers login item set/get/remove behavior, Windows args-sensitive matching, executableWillLaunchAtLogin, launch item reports, macOS service validation, startup status flags, and validation failures."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/apppaths/badge_test.go",
+          "note": "Covers badge counts on macOS, unknown-dot behavior, zero-count hiding, Linux Unity gating, isUnityRunning, unsupported Linux behavior, and negative count rejection."
+        },
+        {
+          "kind": "fixture",
+          "ref": "compat/fixtures/app-paths",
+          "note": "Runs official Electron app path availability for core path names plus sessionData and logs override relationships as JSON."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with Electron-Go --app-paths-check for app path availability and relationship behavior."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Covers --app-paths-check JSON output for expanded nonempty path coverage, default sessionData relationship, sessionData override, and logs override."
         }
       ],
-      "notes": "Inventory app path lookup, path overrides, default protocol client APIs, recent documents, login item settings, dock/taskbar badges, and user tasks."
+      "notes": "Compatible for the modeled app path and app-owned state surface: Electron-Go matches official Electron app path availability, userData/sessionData defaults, sessionData overrides, logs overrides, and includes tested internal state for recent documents, default protocol clients, login items, and badge counts. OS-backed recent document/protocol/login-item registration, native dock/taskbar badge updates, user tasks, and exact per-desktop integration remain tracked by broader platform-integration and distribution rows."
     },
     {
       "id": "app-webauthn-touch-id-electron-42",
       "area": "electron-42-release-notes",
       "api_group": "app.configureWebAuthn",
-      "status": "unstarted",
+      "status": "partial",
       "evidence": [
         {
           "kind": "release-note",
           "ref": "https://releases.electronjs.org/release/v42.0.0",
           "note": "Electron 42 adds app.configureWebAuthn({ touchID: { keychainAccessGroup } }) and the select-webauthn-account session event."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/webauthn/config.go",
+          "note": "Adds app.configureWebAuthn Touch ID keychain access group normalization, copy-out config state, and macOS support gating."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/session/webauthn.go",
+          "note": "Adds select-webauthn-account request normalization, event handler dispatch, and selected credential validation."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/webauthn/config_test.go",
+          "note": "Covers Touch ID keychain access group normalization, invalid config rejection, copy-out state, and macOS-only support gating."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/session/webauthn_test.go",
+          "note": "Covers select-webauthn-account dispatch, invalid selections, missing handler, duplicate credential IDs, and unknown selected credential IDs."
         }
       ],
       "electron_refs": [
         "#51411"
       ],
-      "notes": "Requires macOS Touch ID WebAuthn wiring and session event parity before any compatibility claim."
+      "notes": "Partial: internal WebAuthn state now covers app.configureWebAuthn Touch ID keychain access group config and select-webauthn-account event dispatch semantics. Compatibility still requires macOS Touch ID/keychain integration, Chromium WebAuthn wiring, JS app/session bindings, cancellation behavior, and Electron e2e conformance."
     },
     {
       "id": "app-is-active-electron-42",
       "area": "electron-42-release-notes",
       "api_group": "app.isActive",
-      "status": "unstarted",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "release-note",
           "ref": "https://releases.electronjs.org/release/v42.0.0",
           "note": "Electron 42 adds app.isActive() on macOS."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/native/app_active.go",
+          "note": "Defines the app.isActive compatibility report and returns supported=false active=false on platforms where Electron does not expose the macOS-only API."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/native/app_active_darwin.m",
+          "note": "Queries NSApplication.isActive through AppKit for Electron 42's macOS foreground application state."
+        },
+        {
+          "kind": "implementation",
+          "ref": "cmd/electron-go/main.go",
+          "note": "Exposes --app-is-active-check to emit the native app.isActive compatibility report as JSON."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/native/bridge_test.go",
+          "note": "Covers platform support reporting and rejects impossible active=true results on unsupported platforms."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/fixtures/app-is-active",
+          "note": "Official Electron fixture emits platform/support/active JSON for app.isActive when the API exists."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron and Electron-Go platform/support semantics for app.isActive while treating the live active boolean as launch-context dependent."
+        },
+        {
+          "kind": "conformance",
+          "ref": ".github/workflows/conformance.yml",
+          "note": "Runs the app.isActive conformance test under the same official Electron 42.0.0 and Electron-Go binary setup as other conformance fixtures."
         }
       ],
       "electron_refs": [
         "#49622"
       ],
-      "notes": "Requires foreground application state parity on macOS."
+      "notes": "Compatible for Electron 42's macOS-only app.isActive() surface: darwin+cgo queries AppKit NSApplication.isActive, other platforms report the API as unsupported with active=false, and the CLI emits a JSON report for conformance capture."
     },
     {
       "id": "browser-window-constructor-options",
       "area": "main-process-api",
       "api_group": "BrowserWindow",
-      "status": "unstarted",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "upstream",
           "ref": "electron/docs/api/browser-window.md"
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/browserwindow/options.go",
+          "note": "Normalizes BrowserWindow constructor defaults for size, visibility, parent/modal relationship, title, and key webPreferences defaults."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/browserwindow/options_test.go",
+          "note": "Covers Electron defaults, explicit option preservation, invalid bounds, x/y pairing, modal parent requirements, absolute preload validation, and defensive coordinate copying."
+        },
+        {
+          "kind": "e2e-fixture",
+          "ref": "compat/fixtures/browser-window-options",
+          "note": "Creates hidden official Electron BrowserWindow instances and reports constructor-observable bounds, visibility, title, default devTools/contextIsolation, explicit contextIsolation/nodeIntegration, and modal construction."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with electron-go --browser-window-options-check for the constructor option subset currently modeled."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Asserts the Electron-Go BrowserWindow constructor-options probe emits the hidden 640x480 Fixture window state, default devTools/contextIsolation, explicit webPreferences, and modal construction state."
         }
       ],
-      "notes": "Inventory BrowserWindow option parsing, platform defaults, parent/modal behavior, webPreferences, visibility, focus, traffic light, and bounds behavior."
+      "notes": "Compatible for the modeled BrowserWindow constructor option surface: Electron-Go normalizes core bounds, show/title, modal parent state, default devTools/contextIsolation, explicit devTools/contextIsolation/nodeIntegration, and matches official Electron constructor conformance. Native platform realization for every constructor option, traffic lights, focus/visibility quirks, and broader bounds/method/event behavior remain tracked by browser-window-events-and-methods and the broader BrowserWindow/webContents rows."
     },
     {
       "id": "browser-window-events-and-methods",
       "area": "main-process-api",
       "api_group": "BrowserWindow",
-      "status": "unstarted",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "upstream",
           "ref": "electron/docs/api/browser-window.md"
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/browserwindow/window.go",
+          "note": "Models BrowserWindow bounds, normal bounds, show/hide, minimize/restore, maximize/unmaximize, fullscreen transitions, enabled state, and cancellable close/closed events."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/browserwindow/window_test.go",
+          "note": "Covers bounds and size events, visibility/state event order, close cancellation, closed-state mutation rejection, repeated close behavior, and invalid bounds."
+        },
+        {
+          "kind": "e2e-fixture",
+          "ref": "compat/fixtures/browser-window-methods",
+          "note": "Exercises official Electron BrowserWindow method outcomes for setBounds, setSize, show/hide visibility, getNormalBounds, setEnabled/isEnabled, minimize/restore, maximize/unmaximize, cancellable close, usable-after-prevented-close, and close/closed events."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with electron-go --browser-window-methods-check for the stable BrowserWindow method subset currently modeled."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Asserts the Electron-Go BrowserWindow methods probe emits matching bounds, visibility transitions, normal bounds, enabled transitions, minimize/restore, maximize/unmaximize, close cancellation, usable-after-prevented-close, and close/closed state."
         }
       ],
-      "notes": "Inventory window lifecycle events, size/position/fullscreen/minimize/maximize methods, represented file, sheets, thumbnails, progress bar, and platform quirks."
+      "notes": "Compatible for the modeled BrowserWindow methods and event surface: Electron-Go matches official Electron for setBounds, setSize, show/hide visibility, getNormalBounds dimensions, setEnabled/isEnabled, minimize/restore, maximize/unmaximize, cancellable close, usable-after-prevented-close, and close/closed outcomes. Native platform window integration beyond this stable state surface, webContents ownership, represented files, sheets, thumbnails, progress bars, traffic lights, and deeper platform quirks remain tracked by broader BrowserWindow/webContents/platform rows."
     },
     {
       "id": "base-window-view-and-webcontentsview",
       "area": "main-process-api",
       "api_group": "BaseWindow/View/WebContentsView",
-      "status": "unstarted",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "upstream",
@@ -301,108 +493,283 @@
         {
           "kind": "upstream",
           "ref": "electron/docs/api/web-contents-view.md"
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/view/view.go",
+          "note": "Models View bounds, visibility, background color, border radius, child view ordering, removal, reparenting, bounds-changed events, and WebContentsView ownership of a WebContents instance."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/view/view_test.go",
+          "note": "Covers bounds-changed events, child insertion/reorder/reparent behavior, immutable child snapshots, visibility, background color, border radius, and invalid child/bounds inputs."
+        },
+        {
+          "kind": "e2e-fixture",
+          "ref": "compat/fixtures/view-tree",
+          "note": "Exercises official Electron BaseWindow.contentView with WebContentsView child insertion, indexed ordering, removal, reparenting, bounds, bounds-changed events, live webContents.loadURL, and child detach behavior."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with electron-go --view-tree-check for the stable View tree subset currently modeled."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Asserts the Electron-Go View tree probe emits matching child ordering, removal, reparenting, probe bounds, bounds-changed state, live WebContentsView load state, and detach state."
         }
       ],
-      "notes": "Inventory the newer view tree APIs, resize behavior, visibility propagation, child view ordering, and WebContentsView ownership semantics."
+      "notes": "Compatible for the modeled BaseWindow/View/WebContentsView surface: Electron-Go covers View bounds, visibility, styling state, child ordering, removal, reparenting, bounds-changed events, WebContentsView ownership of a WebContents instance, and matches official Electron conformance for BaseWindow.contentView insertion/removal/reparenting/bounds plus live WebContentsView load/detach behavior. Native layout/rendering, resize propagation, and deeper platform-specific view behavior remain tracked by Chromium and platform-integration rows."
     },
     {
       "id": "view-bounds-animation-and-background-blur-electron-42",
       "area": "electron-42-release-notes",
       "api_group": "View",
-      "status": "unstarted",
+      "status": "partial",
       "evidence": [
         {
           "kind": "release-note",
           "ref": "https://releases.electronjs.org/release/v42.0.0",
           "note": "Electron 42 adds animation support to view.setBounds and adds view.setBackgroundBlur."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/view/view.go",
+          "note": "Stores setBounds animation metadata and background blur state for View instances."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/view/view_test.go",
+          "note": "Covers animated bounds metadata, bounds-changed events, background blur normalization, and invalid animation duration rejection."
+        },
+        {
+          "kind": "e2e-fixture",
+          "ref": "compat/fixtures/view-animation",
+          "note": "Exercises official Electron View.setBounds(bounds, { animate: { duration, easing } }) and reports the final bounds after the animation delay; also records observed View.setBackgroundBlur availability."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with electron-go --view-animation-check for animated bounds acceptance, bounds-changed emission, final bounds, and observed background-blur method availability."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Asserts the Electron-Go View animation probe records animated bounds metadata, the final 300x200 bounds, and the observed absence of View.setBackgroundBlur in the current official Electron fixture."
         }
       ],
       "electron_refs": [
         "#48812"
       ],
-      "notes": "Requires native view animation and blur behavior, with platform-specific support and no-op behavior documented by tests."
+      "notes": "Partial: internal View state now records setBounds animation options and background blur settings, with official-Electron fixture evidence for View.setBounds(bounds, { animate: { duration, easing } }) final bounds behavior plus observed View.setBackgroundBlur API availability. The current official Electron 42 macOS fixture reports View.setBackgroundBlur unavailable, so compatibility still requires resolving the release-note/API mismatch before any background-blur parity claim, plus native animation execution timing, JS bindings, and platform blur behavior."
     },
     {
       "id": "web-contents-navigation-and-events",
       "area": "main-process-api",
       "api_group": "webContents",
-      "status": "unstarted",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "upstream",
           "ref": "electron/docs/api/web-contents.md"
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/webcontents/webcontents.go",
+          "note": "Models WebContents loadURL, cancellable will-navigate, document navigation event order, in-page navigation, loading state, load failure, and back/forward history."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/webcontents/webcontents_test.go",
+          "note": "Covers document navigation event order, cancellation, same-document navigation events, history back/forward/truncation, invalid URL rejection, fail-load events, and copy-out history."
+        },
+        {
+          "kind": "e2e-fixture",
+          "ref": "compat/fixtures/webcontents-navigation",
+          "note": "Exercises official Electron BrowserWindow.webContents loadURL, did-start-navigation, did-navigate, did-finish-load, same-document hash navigation, loading state, and navigationHistory."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with electron-go --webcontents-navigation-check for the stable navigation outcome subset currently modeled."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Asserts the Electron-Go webContents navigation probe emits core navigation event flags, hash navigation state, loading state, and history length."
         }
       ],
-      "notes": "Inventory navigation, redirects, same-document navigation, frame events, load states, history, crash, audio, focus, and permission-request surfaces."
+      "notes": "Compatible for the modeled webContents navigation and event surface: Electron-Go covers document and in-page navigation events, cancellable main-frame navigation, load/fail load state, back/forward history, and matches official Electron fixture evidence for programmatic loadURL, finish-load, hash navigation state, loading state, and navigationHistory outcomes. Chromium-backed rendering, redirects, WebFrameMain object identity, crash/audio/focus/permission events, and broader webContents API behavior remain tracked by dedicated Chromium, session, and webContents rows."
     },
     {
       "id": "web-contents-devtools-target-id-electron-42",
       "area": "electron-42-release-notes",
       "api_group": "webContents.getOrCreateDevToolsTargetId",
-      "status": "unstarted",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "release-note",
           "ref": "https://releases.electronjs.org/release/v42.0.0",
           "note": "Electron 42 adds webContents.getOrCreateDevToolsTargetId()."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/webcontents/webcontents.go",
+          "note": "Adds stable per-WebContents DevTools target IDs and reverse lookup by target ID."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/webcontents/webcontents_test.go",
+          "note": "Covers stable target ID reuse, reverse lookup, and missing-target behavior."
+        },
+        {
+          "kind": "e2e-fixture",
+          "ref": "compat/fixtures/webcontents-devtools-target",
+          "note": "Exercises official Electron webContents.getOrCreateDevToolsTargetId() availability, nonempty id creation, repeated-call stability, and distinct ids across WebContents."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with electron-go --webcontents-devtools-target-check for the stable target-id contract currently modeled."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Asserts the Electron-Go DevTools target probe emits method availability, nonempty/stable/distinct ids, and reverse lookup state."
         }
       ],
       "electron_refs": [
         "#49733"
       ],
-      "notes": "Requires stable DevTools protocol target identity creation and reuse for each WebContents."
+      "notes": "Compatible for the Electron 42 webContents.getOrCreateDevToolsTargetId() method-level contract: Electron-Go creates nonempty stable target IDs, keeps them distinct across WebContents instances, provides reverse lookup, and matches the official Electron fixture. Real Chrome DevTools Protocol identity, debugger integration, lifecycle cleanup, JS bindings, and broader webContents behavior remain tracked by the main webContents/browser integration rows."
     },
     {
       "id": "web-contents-print-printer-default-page-size-electron-42",
       "area": "electron-42-release-notes",
       "api_group": "webContents.print",
-      "status": "unstarted",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "release-note",
           "ref": "https://releases.electronjs.org/release/v42.0.0",
           "note": "Electron 42 adds usePrinterDefaultPageSize to webContents.print()."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/webcontents/print.go",
+          "note": "Adds print option normalization, copies/page-size validation, recorded print jobs, and distinct usePrinterDefaultPageSize state."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/webcontents/webcontents_test.go",
+          "note": "Covers normalized print jobs, defensive page-size copying, printer-default page-size requests, and invalid option rejection."
+        },
+        {
+          "kind": "e2e-fixture",
+          "ref": "compat/fixtures/webcontents-print",
+          "note": "Exercises official Electron webContents.print usePrinterDefaultPageSize acceptance and pageSize conflict rejection without requiring a successful physical print job."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with electron-go --webcontents-print-check for the printer-default page size option contract currently modeled."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Asserts the Electron-Go print probe accepts usePrinterDefaultPageSize, omits explicit pageSize, defaults copies to one, and rejects pageSize conflicts."
         }
       ],
       "electron_refs": [
         "#49523"
       ],
-      "notes": "Requires print option plumbing and platform print-dialog behavior tests."
+      "notes": "Compatible for the Electron 42 webContents.print({ usePrinterDefaultPageSize }) option contract: Electron-Go models the option separately from explicit page sizes, rejects pageSize conflicts, records the normalized print job, and matches the official Electron fixture. Platform print backend integration, printer discovery/default-page-size resolution, complete callback behavior, and broader Electron print behavior remain tracked by the main webContents/browser integration rows."
     },
     {
       "id": "web-preferences-focus-on-navigation-electron-42",
       "area": "electron-42-release-notes",
       "api_group": "webPreferences.focusOnNavigation",
-      "status": "unstarted",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "release-note",
           "ref": "https://releases.electronjs.org/release/v42.0.0",
           "note": "Electron 42 includes focusOnNavigation behavior for disabling automatic WebContents focus during navigation."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/browserwindow/options.go",
+          "note": "Adds BrowserWindow webPreferences.focusOnNavigation normalization with default true and explicit false preservation."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/browserwindow/options_test.go",
+          "note": "Covers default focusOnNavigation=true and explicit focusOnNavigation=false in normalized webPreferences."
+        },
+        {
+          "kind": "e2e-fixture",
+          "ref": "compat/fixtures/focus-on-navigation",
+          "note": "Exercises official Electron BrowserWindow construction with default webPreferences and explicit focusOnNavigation:false."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with electron-go --focus-on-navigation-check for the constructor option surface currently modeled."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Asserts the Electron-Go focusOnNavigation probe reports default true and explicit false normalization."
         }
       ],
       "electron_refs": [
         "#49425"
       ],
-      "notes": "Requires focus tests across BrowserWindow, WebContentsView, and navigation-initiated focus changes."
+      "notes": "Compatible for the Electron 42 webPreferences.focusOnNavigation constructor option surface: Electron-Go preserves the default true value and explicit false value through BrowserWindow webPreferences normalization, and matches the official Electron construction fixture. Native focus ownership, WebContentsView focus behavior, navigation-triggered focus/no-focus effects, and complete JS bindings remain tracked by the broader BrowserWindow/webContents rows."
     },
     {
       "id": "offscreen-device-scale-factor-electron-42",
       "area": "electron-42-breaking-change",
       "api_group": "webPreferences.offscreen",
-      "status": "unstarted",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "release-note",
           "ref": "https://releases.electronjs.org/release/v42.0.0",
           "note": "Electron 42 changes offscreen rendering default deviceScaleFactor to 1.0 and supports webPreferences.offscreen.deviceScaleFactor."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/browserwindow/options.go",
+          "note": "Adds normalized offscreen preferences with disabled default, Electron 42 deviceScaleFactor default of 1.0 when enabled, custom positive scale support, and invalid scale rejection."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/browserwindow/options_test.go",
+          "note": "Covers disabled offscreen defaults, explicit custom deviceScaleFactor, default 1.0 when offscreen is enabled, and invalid disabled/zero/NaN scale cases."
+        },
+        {
+          "kind": "e2e-fixture",
+          "ref": "compat/fixtures/offscreen-device-scale",
+          "note": "Exercises official Electron BrowserWindow construction with offscreen enabled by default and with explicit offscreen.deviceScaleFactor."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with electron-go --offscreen-device-scale-check for the offscreen device-scale constructor option surface currently modeled."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Asserts the Electron-Go offscreen device-scale probe reports accepted default scale 1.0 and custom scale 2.0."
         }
       ],
       "electron_refs": [
         "#49683",
         "#48730"
       ],
-      "notes": "Must test default OSR output sizing and custom deviceScaleFactor behavior."
+      "notes": "Compatible for the Electron 42 webPreferences.offscreen.deviceScaleFactor constructor option surface: Electron-Go applies the default 1.0 scale when offscreen rendering is enabled, preserves explicit positive scale factors, rejects invalid values, and matches the official Electron construction fixture. Chromium offscreen rendering, real output sizing, JS bindings, and broader offscreen rendering behavior remain tracked by the broader BrowserWindow/Chromium rows."
     },
     {
       "id": "ipc-main-renderer-and-message-port",
@@ -413,7 +780,27 @@
         {
           "kind": "implementation",
           "ref": "internal/ipc",
-          "note": "Router exists."
+          "note": "Router supports Electron-style handle, handleOnce, removeHandler, duplicate-handler rejection, missing-handler errors, frame-scoped messages, and invoke replies."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/ipc/router_test.go",
+          "note": "Covers invoke replies, duplicate rejection, once-handler removal before invocation, removeHandler, and invalid channel/handler errors."
+        },
+        {
+          "kind": "e2e-fixture",
+          "ref": "compat/fixtures/ipc-invoke",
+          "note": "Exercises official Electron ipcMain.handle, handleOnce, removeHandler, duplicate handler rejection, ipcRenderer.invoke replies, argument passing, and missing-handler rejection."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with electron-go --ipc-check for the invoke/handler contract currently modeled."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Asserts the Electron-Go IPC probe emits invoke, argument echo, once-handler, remove-handler, duplicate, and missing-handler flags."
         },
         {
           "kind": "upstream",
@@ -424,13 +811,13 @@
           "ref": "electron/docs/api/ipc-renderer.md"
         }
       ],
-      "notes": "Requires JavaScript bindings, structured clone parity, invoke/handle error semantics, frame routing, transferables, MessagePortMain, and security constraints."
+      "notes": "Partial: internal IPC routing now covers invoke replies, argument passing, handleOnce, removeHandler, duplicate-handler rejection, missing-handler rejection, and has official-Electron fixture evidence for that ipcMain/ipcRenderer.invoke subset. Compatibility still requires JavaScript bindings in Electron-Go, structured clone parity, full invoke/handle error semantics, frame routing, transferables, MessagePortMain, and security constraints."
     },
     {
       "id": "context-bridge-preload-and-isolation",
       "area": "security",
       "api_group": "contextBridge/preload",
-      "status": "unstarted",
+      "status": "partial",
       "evidence": [
         {
           "kind": "upstream",
@@ -439,59 +826,159 @@
         {
           "kind": "upstream",
           "ref": "electron/docs/tutorial/tutorial-preload.md"
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/contextbridge/bridge.go",
+          "note": "Adds isolated-world exposure registry, main-world exposure, preload completion lockout, duplicate-key rejection, immutable copy-out values, function placeholders, and serializable value validation."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/contextbridge/bridge_test.go",
+          "note": "Covers main-world and isolated-world exposure, defensive value copying, mutation rejection, invalid world/key/value inputs, duplicate exposure rejection, and post-preload lockout."
+        },
+        {
+          "kind": "e2e-fixture",
+          "ref": "compat/fixtures/context-bridge",
+          "note": "Exercises official Electron contextBridge.exposeInMainWorld from preload with contextIsolation, renderer value/function access, duplicate exposure rejection, and renderer mutation rejection."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with electron-go --context-bridge-check for the preload exposure contract currently modeled."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Asserts the Electron-Go contextBridge probe emits exposed value, function placeholder, copied array, duplicate rejection, and mutation rejection flags."
         }
       ],
-      "notes": "Requires isolated worlds, preload load ordering, contextBridge exposure rules, sandbox interaction, and error propagation."
+      "notes": "Partial: internal contextBridge state now models isolated-world exposure, preload ordering, immutable copied values, duplicate-key rejection, and value validation, with official-Electron fixture evidence for preload exposeInMainWorld access, function calling, duplicate rejection, and renderer mutation rejection. Compatibility still requires Electron-Go JS isolated worlds, Chromium preload execution order, full function proxying/error propagation, sandbox interaction, and broader Electron conformance."
     },
     {
       "id": "session-partitions-cookies-cache-permissions",
       "area": "networking",
       "api_group": "session",
-      "status": "unstarted",
+      "status": "partial",
       "evidence": [
         {
           "kind": "upstream",
           "ref": "electron/docs/api/session.md"
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/session/session.go",
+          "note": "Adds default/fromPartition session registry state, persist: partition detection, cookie store mutation events, permission request handler state, cache clearing state, and clearStorageData option recording."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/session/session_test.go",
+          "note": "Covers default and partition identity, persistent vs in-memory sessions, permission allow/deny, cookie normalization/overwrite/delete events, validation failures, cache clearing, and clearStorageData recording."
+        },
+        {
+          "kind": "fixture",
+          "ref": "compat/fixtures/session-basic",
+          "note": "Runs official Electron default/fromPartition identity, persistent vs in-memory partition shape, cookie set/get/remove, clearCache, and clearStorageData resolution as JSON."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with Electron-Go --session-check for basic session partition, cookie set/get/remove, and clearing behavior."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Covers --session-check JSON output for default/partition flags, cookie set/get/remove, cache clear, and storage clear recording."
         }
       ],
-      "notes": "Inventory persistent/in-memory partitions, cookie store events, permissions, spellchecker, cache, proxy, preconnect, net log, and device permission handlers."
+      "notes": "Partial: internal session state now covers default/fromPartition identity, persistent partition detection, cookie store events, permission request handlers, cache clear state, clearStorageData recording, and official-Electron fixture evidence for basic session cookie set/get/remove behavior. Compatibility still requires Chromium-backed storage, JS bindings, spellchecker, proxy, preconnect, netLog, device permission handlers, and exact Electron cookie/storage semantics."
     },
     {
       "id": "session-clear-storage-data-quotas-removal-electron-42",
       "area": "electron-42-breaking-change",
       "api_group": "session.clearStorageData",
-      "status": "unstarted",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "release-note",
           "ref": "https://releases.electronjs.org/release/v42.0.0",
           "note": "Electron 42 removes options.quotas from Session.clearStorageData(options)."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/session/session.go",
+          "note": "Ignores ClearStorageData quotas input while recording the remaining storage clear options, matching Electron 42's removed option behavior."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/session/session_test.go",
+          "note": "Covers successful clearStorageData without quotas, ignored quotas input, and invalid-origin rejection."
+        },
+        {
+          "kind": "fixture",
+          "ref": "compat/fixtures/session-quotas",
+          "note": "Runs official Electron clearStorageData with the removed quotas option and reports the resolved/ignored behavior as JSON."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with Electron-Go --session-quotas-check for removed quotas ignored/accepted behavior."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Covers --session-quotas-check JSON output and ignored acceptance of the removed quotas option."
         }
       ],
-      "notes": "Must reject or ignore quotas exactly as Electron 42 does and keep tests for old option removal."
+      "notes": "Compatible for the Electron 42 removed-quotas behavior: ClearStorageData ignores the removed quotas option while preserving valid storage/origin clearing options, and the official Electron fixture confirms the call resolves with the same JSON shape. Broader Chromium storage clearing remains covered by the main session storage row."
     },
     {
       "id": "session-select-webauthn-account-electron-42",
       "area": "electron-42-release-notes",
       "api_group": "session",
-      "status": "unstarted",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "release-note",
           "ref": "https://releases.electronjs.org/release/v42.0.0",
           "note": "Electron 42 introduces select-webauthn-account for discoverable credential selection."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/session/webauthn.go",
+          "note": "Adds WebAuthn account selection request normalization, handler dispatch, selected credential validation, and invalid-selection errors."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/session/webauthn_test.go",
+          "note": "Covers normalized account selection dispatch, missing handler, invalid selections, duplicate credential IDs, and handler return of unknown credential IDs."
+        },
+        {
+          "kind": "e2e-fixture",
+          "ref": "compat/fixtures/session-webauthn",
+          "note": "Exercises official Electron session select-webauthn-account event/callback shape with a synthetic request and selected credential."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with electron-go --session-webauthn-check for the account-selection event/callback subset currently modeled."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Asserts the Electron-Go session WebAuthn probe emits normalized request id/origin, credential count, handler dispatch, and selected credential."
         }
       ],
       "electron_refs": [
         "#51411"
       ],
-      "notes": "Requires WebAuthn session event dispatch and callback semantics."
+      "notes": "Compatible for the Electron 42 session select-webauthn-account event/callback contract: Electron-Go normalizes account-selection details, dispatches a handler, validates selected credential IDs, rejects invalid selections, and matches the official Electron synthetic event/callback fixture. Chromium WebAuthn integration, navigator.credentials-triggered event delivery, Touch ID/keychain behavior, and broader WebAuthn wiring remain tracked by app-webauthn-touch-id-electron-42."
     },
     {
       "id": "protocol-registration-privileges-and-validation",
       "area": "networking",
       "api_group": "protocol",
-      "status": "unstarted",
+      "status": "partial",
       "evidence": [
         {
           "kind": "upstream",
@@ -501,6 +988,31 @@
           "kind": "release-note",
           "ref": "https://releases.electronjs.org/release/v42.0.0",
           "note": "Electron 42 includes allowExtensions privilege and stricter protocol/client validation changes."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/protocol/registry.go",
+          "note": "Adds scheme privilege registration, allowExtensions validation, privilege lock state, handler registration/removal, scheme normalization, and protocol response header/status validation."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/protocol/registry_test.go",
+          "note": "Covers privileged scheme registration, allowExtensions requiring standard schemes, duplicate and invalid schemes, ready-time privilege locking, handler lifecycle, and invalid protocol responses."
+        },
+        {
+          "kind": "fixture",
+          "ref": "compat/fixtures/protocol-registration",
+          "note": "Runs official Electron privileged scheme registration with allowExtensions, duplicate handler rejection, and protocol handler registration/removal as JSON."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with Electron-Go --protocol-check for privileged registration, duplicate handler rejection, and handler lifecycle."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Covers --protocol-check JSON output for privileged scheme registration, allowExtensions, duplicate handler rejection, handler registration, and handler removal."
         }
       ],
       "electron_refs": [
@@ -508,13 +1020,13 @@
         "#50141",
         "#50123"
       ],
-      "notes": "Inventory standard/secure/bypassCSP/supportFetchStream/CORS/fetch support, allowExtensions, RFC 3986 validation, and response header validation."
+      "notes": "Partial: internal protocol state now covers scheme privileges including allowExtensions, handler lifecycle, scheme validation, privilege registration lockout, basic response validation, and official-Electron fixture evidence for registration lifecycle. Compatibility still requires JS protocol bindings, Chromium request interception, RFC 3986 edge-case parity, real fetch/stream/CORS behavior, sessions, and broader Electron conformance."
     },
     {
       "id": "net-netlog-and-client-request",
       "area": "networking",
       "api_group": "net/netLog/ClientRequest",
-      "status": "unstarted",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "upstream",
@@ -523,68 +1035,198 @@
         {
           "kind": "upstream",
           "ref": "electron/docs/api/client-request.md"
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/netrequest/request.go",
+          "note": "Adds ClientRequest option normalization for method, URL, parsed URL access, headers, session partition, redirect policy, upload body copying, request end state, and netLog capture lifecycle state."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/netrequest/request_test.go",
+          "note": "Covers request defaults, explicit upload/headers/session/redirect options, invalid method/URL/header/redirect inputs, defensive copies, request end state, and netLog start/stop errors."
+        },
+        {
+          "kind": "fixture",
+          "ref": "compat/fixtures/netlog-lifecycle",
+          "note": "Runs official Electron netLog start/currentlyLogging/stop lifecycle and reports state transitions as JSON without external network access."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with Electron-Go --netlog-check for netLog lifecycle state transitions."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Covers --netlog-check JSON output for started, activeDuring, stopped, and inactiveAfter lifecycle state."
+        },
+        {
+          "kind": "e2e-fixture",
+          "ref": "compat/fixtures/client-request",
+          "note": "Exercises official Electron net.request ClientRequest POST method, URL path/query delivery, custom header, upload body, redirect option, and request end against a local loopback server."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with electron-go --client-request-check for the deterministic ClientRequest option subset currently modeled."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Covers --client-request-check JSON output for method, URL path/query, header, body, redirect, and end state."
         }
       ],
-      "notes": "Requires net.fetch, request streaming, upload bodies, session binding, redirects, auth, certificate errors, and netLog capture parity."
+      "notes": "Compatible for the modeled deterministic networking surface: Electron-Go matches official Electron netLog start/currentlyLogging/stop transitions and ClientRequest method, URL path/query, custom header, upload body, redirect option, and end-state behavior against a loopback server. Chromium network stack integration, net.fetch, streaming, auth, certificate errors, real session binding, redirect events, full ClientRequest event behavior, and netLog file capture parity remain tracked by broader Chromium/session/network rows."
     },
     {
       "id": "notifications-core-and-platform-behavior",
       "area": "desktop-integrations",
       "api_group": "Notification",
-      "status": "unstarted",
+      "status": "partial",
       "evidence": [
         {
           "kind": "upstream",
           "ref": "electron/docs/api/notification.md"
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/notification/notification.go",
+          "note": "Adds Notification option normalization, urgency validation, action/reply state, show/click/action/reply/close/failed event recording, unsigned-app failure state, and history storage by id/group."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/notification/notification_test.go",
+          "note": "Covers constructor defaults and validation, action/reply validation, event order, unsigned-app failed events, close reasons, and history record/remove behavior."
+        },
+        {
+          "kind": "fixture",
+          "ref": "compat/fixtures/notification-options",
+          "note": "Runs official Electron Notification constructor option reporting for title, body, silent, and default urgency as JSON without posting a native notification."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with Electron-Go --notification-check for constructor option state."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Covers --notification-check JSON output for constructor title/body/silent/default urgency."
+        },
+        {
+          "kind": "fixture",
+          "ref": "compat/fixtures/notification-identity",
+          "note": "Runs official Electron Notification id/group constructor property reporting on macOS/Windows, and emits an unsupported platform report elsewhere without posting a native notification."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with Electron-Go --notification-identity-check for platform-scoped Notification identity constructor state."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Covers --notification-identity-check JSON output for supported and unsupported platform reporting."
         }
       ],
-      "notes": "Inventory constructor options, show/close events, actions, reply, silent/urgency, icons, click activation, and platform-specific notification center behavior."
+      "notes": "Partial: internal Notification state now covers constructor options, show/click/action/reply/close/failed events, silent/urgency/id/group fields, action validation, unsigned-app failure state, history storage, and official-Electron fixture evidence for constructor option state plus macOS/Windows id/group constructor property reporting. Compatibility still requires JS bindings, native notification centers, icons, platform activation routing, and posted-notification conformance."
     },
     {
       "id": "notifications-macos-unnotification-electron-42",
       "area": "electron-42-breaking-change",
       "api_group": "Notification",
-      "status": "unstarted",
+      "status": "partial",
       "evidence": [
         {
           "kind": "release-note",
           "ref": "https://releases.electronjs.org/release/v42.0.0",
           "note": "Electron 42 migrates macOS notifications to UNNotification and unsigned apps emit failed."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/notification/notification.go",
+          "note": "Models unsigned-app notification show failure as a failed event."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/notification/notification_test.go",
+          "note": "Covers unsigned-app Show emitting a failed event instead of a show event."
         }
       ],
       "electron_refs": [
         "#47817"
       ],
-      "notes": "Requires macOS UNNotification implementation, code-signing failure behavior, and failed event tests."
+      "notes": "Partial: unsigned-app failure behavior is represented in the internal model. Compatibility still requires real macOS UNNotification integration, code-signing detection, delivered-notification behavior, and Electron conformance."
     },
     {
       "id": "notifications-macos-history-id-group-electron-42",
       "area": "electron-42-release-notes",
       "api_group": "Notification",
-      "status": "unstarted",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "release-note",
           "ref": "https://releases.electronjs.org/release/v42.0.0",
           "note": "Electron 42 adds Notification.getHistory() on macOS and id/groupId constructor options."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/notification/notification.go",
+          "note": "Stores Notification id/groupId/groupTitle fields and tracks shown notifications in a copy-out history collection."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/notification/notification_test.go",
+          "note": "Covers id/group normalization, shown-only history recording, copy-out history results, and removal by id."
+        },
+        {
+          "kind": "fixture",
+          "ref": "compat/fixtures/notification-identity",
+          "note": "Exercises official Electron Notification id/group constructor properties on supported platforms and macOS Notification.getHistory/removeFromHistory API availability."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares Electron-Go --notification-identity-check with the official Electron id/group fixture output."
         }
       ],
       "electron_refs": [
         "#51123",
         "#50304"
       ],
-      "notes": "Requires notification history reads and grouping identifier behavior on macOS."
+      "notes": "Compatible for the Electron 42 Notification id/group constructor surface and macOS history API availability: Electron-Go stores id/groupId/groupTitle, models shown-notification history reads internally, reports getHistory available and removeFromHistory unavailable on darwin to match official Electron 42, and matches the official Electron identity/history-availability fixture. Native delivered-notification history through UNNotification, OS grouping behavior, posted-history persistence, and broader notification backend behavior remain tracked by notifications-core-and-platform-behavior and notifications-macos-unnotification-electron-42."
     },
     {
       "id": "notifications-windows-activation-actions-reason-urgency-electron-42",
       "area": "electron-42-release-notes",
       "api_group": "Notification",
-      "status": "unstarted",
+      "status": "partial",
       "evidence": [
         {
           "kind": "release-note",
           "ref": "https://releases.electronjs.org/release/v42.0.0",
           "note": "Electron 42 adds handleActivation, closed reason, urgency, id/groupId/groupTitle, and expanded Windows action/reply support."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/notification/notification.go",
+          "note": "Models urgency, close reason, id/group fields, action activation, dropdown/text action validation, and reply events."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/notification/notification_test.go",
+          "note": "Covers urgency defaults/validation, action events, reply events, close reasons, group fields, and invalid action/reply cases."
+        },
+        {
+          "kind": "fixture",
+          "ref": "compat/fixtures/notification-identity",
+          "note": "Exercises official Electron Windows Notification id/groupTitle constructor property reporting when run on win32, and reports unsupported elsewhere."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares Electron-Go --notification-identity-check with the official Electron platform-scoped identity fixture."
         }
       ],
       "electron_refs": [
@@ -595,13 +1237,13 @@
         "#48132",
         "#51330"
       ],
-      "notes": "Requires Windows activation routing for cold starts, action buttons, dropdowns, replies, close reasons, urgency, and grouping."
+      "notes": "Partial: internal Notification state now models Windows-facing urgency, id/group fields, action/reply events, and close reasons, with platform-scoped fixture evidence for id/groupTitle constructor property reporting. Compatibility still requires native Windows notification activation/cold-start routing, toast XML/action/dropdown/reply integration, and Electron conformance."
     },
     {
       "id": "global-shortcut-registration-and-wayland",
       "area": "desktop-integrations",
       "api_group": "globalShortcut",
-      "status": "unstarted",
+      "status": "partial",
       "evidence": [
         {
           "kind": "upstream",
@@ -611,36 +1253,81 @@
           "kind": "release-note",
           "ref": "https://releases.electronjs.org/release/v42.0.0",
           "note": "Electron 42 includes Wayland GlobalShortcutsPortal reliability fixes."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/globalshortcut/accelerator.go",
+          "note": "Parses accelerator strings, normalizes Electron modifier aliases, rejects malformed tokens, and produces stable canonical accelerator keys."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/globalshortcut/registry.go",
+          "note": "Implements in-process register/registerAll/isRegistered/unregister/unregisterAll lifecycle semantics around canonical accelerators."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/globalshortcut/accelerator_test.go",
+          "note": "Covers alias canonicalization, malformed accelerator rejection, duplicate modifiers, and key position validation."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/globalshortcut/registry_test.go",
+          "note": "Covers duplicate registration failure without callback replacement, canonical alias lookup, unregister, and callback trigger behavior."
         }
       ],
       "electron_refs": [
         "#49842",
         "#49988"
       ],
-      "notes": "Requires accelerator parsing, registration lifecycle, platform denial behavior, portal behavior, and unregister semantics."
+      "notes": "Partial: accelerator parsing and in-process registration lifecycle now exist with Electron-style alias normalization and duplicate handling. Compatibility still requires native OS registration, platform denial behavior, Wayland GlobalShortcutsPortal support, JavaScript globalShortcut bindings, and app-ready lifecycle enforcement."
     },
     {
       "id": "global-shortcut-suspension-electron-42",
       "area": "electron-42-release-notes",
       "api_group": "globalShortcut",
-      "status": "unstarted",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "release-note",
           "ref": "https://releases.electronjs.org/release/v42.0.0",
           "note": "Electron 42 adds globalShortcut.setSuspended() and globalShortcut.isSuspended()."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/globalshortcut/registry.go",
+          "note": "Tracks registered accelerators, duplicate registration failure, unregister/unregisterAll, and setSuspended/isSuspended state."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/globalshortcut/registry_test.go",
+          "note": "Covers suspension suppressing callbacks without losing registrations, resume behavior, duplicate registration, unregisterAll, and validation failures."
+        },
+        {
+          "kind": "fixture",
+          "ref": "compat/fixtures/global-shortcut-suspension",
+          "note": "Runs official Electron globalShortcut.setSuspended/isSuspended state transitions as JSON without relying on OS shortcut registration."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with Electron-Go --global-shortcut-suspension-check for suspension and resume state transitions."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Covers --global-shortcut-suspension-check JSON output for initial, suspended, and resumed states."
         }
       ],
       "electron_refs": [
         "#50777"
       ],
-      "notes": "Requires shortcut suspension state and callback suppression semantics without losing registrations."
+      "notes": "Compatible for the Electron 42 globalShortcut.setSuspended()/isSuspended() API addition: the registry preserves registrations while suspended, suppresses callbacks until resumed, exposes the expected suspended state transitions, and matches the official Electron fixture. Native OS shortcut registration, Wayland portal behavior, JavaScript binding breadth, and app-ready lifecycle enforcement remain tracked by global-shortcut-registration-and-wayland."
     },
     {
       "id": "menu-menuitem-tray-and-platform-menus",
       "area": "desktop-integrations",
       "api_group": "Menu/MenuItem/Tray",
-      "status": "unstarted",
+      "status": "partial",
       "evidence": [
         {
           "kind": "upstream",
@@ -654,6 +1341,31 @@
           "kind": "release-note",
           "ref": "https://releases.electronjs.org/release/v42.0.0",
           "note": "Electron 42 contains menu dynamic label/icon updates and platform menu fixes."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/menu/menu.go",
+          "note": "Adds Menu/MenuItem template normalization, role/accelerator/submenu state, dynamic item updates, popup/click events, disposal, and Tray tooltip/title/context-menu/click lifecycle state."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/menu/menu_test.go",
+          "note": "Covers menu template defaults and validation, duplicate IDs, submenu lookup, dynamic label/enabled/visible updates, popup activation constraints, disposal, tray context menu popup, and tray disposal."
+        },
+        {
+          "kind": "fixture",
+          "ref": "compat/fixtures/menu-template",
+          "note": "Runs official Electron Menu.buildFromTemplate for verbatim labels, enabled defaults, checkbox checked state, and lowercased submenu role lookup as JSON."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with Electron-Go --menu-check for template normalization and submenu lookup."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Covers --menu-check JSON output for item count, verbatim label preservation, enabled defaults, checkbox state, and lowercased submenu role lookup."
         }
       ],
       "electron_refs": [
@@ -661,13 +1373,13 @@
         "#50504",
         "#49783"
       ],
-      "notes": "Inventory application/context menus, roles, accelerators, submenu events, dynamic item updates, tray behavior, and platform accessibility events."
+      "notes": "Partial: internal Menu/MenuItem/Tray state now covers template normalization, verbatim label preservation, lowercased roles, accelerators, submenus, dynamic updates, popup/click events, tray context menus, disposal, and official-Electron fixture evidence for basic template behavior. Compatibility still requires JS bindings, native application/context menu integration, platform tray/menu accessibility events, icons, full role/accelerator behavior, and tray conformance."
     },
     {
       "id": "dialog-shell-clipboard-and-desktop-capturer",
       "area": "desktop-integrations",
       "api_group": "dialog/shell/clipboard/desktopCapturer",
-      "status": "unstarted",
+      "status": "partial",
       "evidence": [
         {
           "kind": "upstream",
@@ -680,15 +1392,70 @@
         {
           "kind": "upstream",
           "ref": "electron/docs/api/desktop-capturer.md"
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/desktop/dialog_shell_clipboard.go",
+          "note": "Adds dialog option normalization, shell open/show/trash validation and event state, clipboard text/html/rtf/image/buffer formats, and desktopCapturer source inventory with thumbnail copying."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/desktop/dialog_shell_clipboard_test.go",
+          "note": "Covers dialog default path/filter/property validation, shell events and invalid requests, clipboard format reads/writes, image and buffer copying, and desktopCapturer source filtering/validation."
+        },
+        {
+          "kind": "fixture",
+          "ref": "compat/fixtures/clipboard-text",
+          "note": "Runs official Electron clipboard.writeText/readText round-trip behavior as JSON."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with Electron-Go --clipboard-check for clipboard text round-trip behavior."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Covers --clipboard-check JSON output for clipboard text round-trip behavior."
+        },
+        {
+          "kind": "fixture",
+          "ref": "compat/fixtures/clipboard-formats",
+          "note": "Runs official Electron clipboard.writeHTML/readHTML payload preservation, writeRTF/readRTF round-trip, and writeBuffer/readBuffer custom format behavior as JSON."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with Electron-Go --clipboard-formats-check for deterministic HTML and RTF clipboard behavior."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Covers --clipboard-formats-check JSON output for HTML payload preservation, RTF round-trip, and custom buffer round-trip behavior."
+        },
+        {
+          "kind": "fixture",
+          "ref": "compat/fixtures/shell-open-path",
+          "note": "Runs official Electron shell.openPath against a missing absolute path and reports deterministic rejection booleans as JSON."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with Electron-Go --shell-check for missing shell.openPath behavior."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Covers --shell-check JSON output for missing openPath rejection and nonempty error message state."
         }
       ],
-      "notes": "Requires native dialogs, shell open/show/trash behavior, clipboard formats, desktopCapturer media source parity, and macOS CoreAudio Tap capture behavior."
+      "notes": "Partial: internal desktop integration state now covers dialog option normalization, shell request validation/events, clipboard text/html/rtf/image/buffer formats, desktopCapturer source inventory, and official-Electron fixture evidence for clipboard text round trips, deterministic HTML/RTF/buffer clipboard behavior, and missing shell.openPath rejection. Compatibility still requires native dialogs, OS shell actions for successful shell requests, platform clipboard integration beyond the proven formats, media source capture, macOS CoreAudio Tap behavior, JS bindings, and broader Electron conformance."
     },
     {
       "id": "native-theme-power-monitor-screen-and-system-preferences",
       "area": "desktop-integrations",
       "api_group": "nativeTheme/powerMonitor/screen/systemPreferences",
-      "status": "unstarted",
+      "status": "partial",
       "evidence": [
         {
           "kind": "upstream",
@@ -698,83 +1465,218 @@
           "kind": "release-note",
           "ref": "https://releases.electronjs.org/release/v42.0.0",
           "note": "Electron 42 adds nativeTheme.shouldDifferentiateWithoutColor on macOS."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/nativetheme/theme.go",
+          "note": "Defines a nativeTheme snapshot including shouldDifferentiateWithoutColor support and value."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/nativetheme/theme_darwin.m",
+          "note": "Reads macOS accessibility display setting for differentiating without color through NSWorkspace."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/nativetheme/theme_test.go",
+          "note": "Covers platform support reporting, unsupported false values, and context cancellation."
+        },
+        {
+          "kind": "fixture",
+          "ref": "compat/fixtures/native-theme",
+          "note": "Runs official Electron nativeTheme.shouldDifferentiateWithoutColor platform support and value reporting as JSON."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with Electron-Go --native-theme-check for platform support and value reporting."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Covers --native-theme-check JSON output and unsupported-platform false-value behavior."
         }
       ],
       "electron_refs": [
         "#50409"
       ],
-      "notes": "Inventory display changes, power events, color/theme state, accessibility flags, and system preference APIs."
+      "notes": "Partial: nativeTheme.shouldDifferentiateWithoutColor now has a macOS native snapshot, deterministic unsupported behavior elsewhere, and official-Electron fixture evidence for platform support/value reporting. Compatibility still requires full nativeTheme JS bindings, update events, dark/high-contrast/inverted/reduced-transparency state, powerMonitor, screen, and systemPreferences coverage."
     },
     {
       "id": "safe-storage-async-backends-electron-42",
       "area": "electron-42-release-notes",
       "api_group": "safeStorage",
-      "status": "unstarted",
+      "status": "partial",
       "evidence": [
         {
           "kind": "release-note",
           "ref": "https://releases.electronjs.org/release/v42.0.0",
           "note": "Electron 42 adds support for additional safeStorage backends via new asynchronous functionality."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/safestorage/storage.go",
+          "note": "Adds safeStorage backend selection, sync and async availability checks, sync and async encrypt/decrypt round trips, unavailable backend errors, context cancellation, and ciphertext integrity checks."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/safestorage/storage_test.go",
+          "note": "Covers backend defaults and validation, sync and async encryption round trips, unavailable storage, invalid/tampered ciphertext, and async context cancellation."
+        },
+        {
+          "kind": "fixture",
+          "ref": "compat/fixtures/safe-storage",
+          "note": "Runs official Electron safeStorage availability and encrypt/decrypt round-trip behavior, enabling plaintext fallback when needed for headless Linux."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with Electron-Go --safe-storage-check for availability, round-trip success, and encrypted payload output."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Covers --safe-storage-check JSON output, sync/async availability reporting, backend reporting, and encrypted round-trip success."
         }
       ],
       "electron_refs": [
         "#49054"
       ],
-      "notes": "Requires synchronous and asynchronous safeStorage capability checks, encryption/decryption behavior, and backend selection parity."
+      "notes": "Partial: internal safeStorage now models backend selection, sync/async availability, sync/async encrypt/decrypt behavior, unavailable errors, cancellation, and official-Electron round-trip fixture evidence. Compatibility still requires OS keychain/libsecret/KWallet integration, Electron JS bindings, platform-specific backend selection parity, and async Electron API parity across real backends."
     },
     {
       "id": "utility-process-tcc-disclaim-electron-42",
       "area": "electron-42-release-notes",
       "api_group": "utilityProcess",
-      "status": "unstarted",
+      "status": "partial",
       "evidence": [
         {
           "kind": "release-note",
           "ref": "https://releases.electronjs.org/release/v42.0.0",
           "note": "Electron 42 includes the UtilityProcess disclaim option for macOS TCC disclaiming."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/utilityprocess/process.go",
+          "note": "Adds utilityProcess option normalization, stdio mode validation, sandbox and disclaimTCC option state, start/message/stdin/kill lifecycle events, and defensive message/stdin copying."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/utilityprocess/process_test.go",
+          "note": "Covers option defaults and validation, disclaimTCC state, start and already-running errors, message and stdin events, non-piped stdin rejection, exit events, and not-running errors."
+        },
+        {
+          "kind": "fixture",
+          "ref": "compat/fixtures/utility-process",
+          "note": "Runs official Electron utilityProcess.fork with stdio pipe stdout/stderr exposure and observed stdin absence, serviceName, sandbox/disclaim options, argument/env propagation, message delivery, spawn, and exit reporting as JSON."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with Electron-Go --utility-process-check for the modeled utilityProcess lifecycle and option subset."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Covers --utility-process-check JSON output for spawn/message/exit events, explicit pipe stdout/stderr exposure, observed stdin absence, args, env, and serviceName reporting."
         }
       ],
       "electron_refs": [
         "#49128"
       ],
-      "notes": "Requires utilityProcess fork lifecycle, stdio/message channels, sandboxing, and macOS TCC disclaim behavior."
+      "notes": "Partial: internal utilityProcess state now covers option validation, sandbox/disclaimTCC flags, stdio modes, message/stdin channels, lifecycle events, and fixture-backed evidence for an explicit pipe stdio fork with args/env/message/spawn/exit reporting plus stdout/stderr exposure and stdin absence for stdio:'pipe'. Compatibility still requires Electron-Go real process spawning, JS bindings, IPC serialization, accurate stream semantics, sandboxing, and macOS TCC disclaim behavior."
     },
     {
       "id": "node-v8-and-native-modules",
       "area": "node",
       "api_group": "Node/V8/native modules",
-      "status": "unstarted",
+      "status": "partial",
       "evidence": [
         {
           "kind": "upstream",
           "ref": "https://releases.electronjs.org/release/v42.0.0",
           "note": "Electron 42 targets Node.js 24.15.0 and V8 14.8.178.14."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/nodecompat/node.go",
+          "note": "Adds process.versions normalization for Electron/Chrome/Node/V8/modules including Electron's V8 process-version suffix, CJS/ESM/native module kind inference, and native ABI validation state."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/nodecompat/node_test.go",
+          "note": "Covers process version normalization, missing-version validation, CJS/ESM/native module kind inference, invalid module requests, and native ABI allow-list checks."
+        },
+        {
+          "kind": "fixture",
+          "ref": "compat/fixtures/node-versions",
+          "note": "Runs official Electron process.versions electron/chrome/node/v8/modules reporting as JSON."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with Electron-Go --node-versions-check for target process.versions values."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Covers --node-versions-check JSON output for Electron, Chromium/Chrome, Node, V8 process version, and native module ABI target versions."
         }
       ],
-      "notes": "Requires embedded Node, Electron module loader behavior, Node ABI compatibility, process.versions parity, ESM/CJS behavior, and native module loading."
+      "notes": "Partial: internal Node compatibility state now covers process version reporting, Electron-suffixed V8 process version reporting, module ABI reporting, module kind classification, native ABI validation, and official-Electron fixture evidence for process.versions target values. Compatibility still requires embedded Node execution, Electron module loader behavior, ESM/CJS evaluation, native module loading, and broader Electron conformance."
     },
     {
       "id": "node-experimental-transform-types-electron-42",
       "area": "electron-42-release-notes",
       "api_group": "Node",
-      "status": "unstarted",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "release-note",
           "ref": "https://releases.electronjs.org/release/v42.0.0",
           "note": "Electron 42 adds support for --experimental-transform-types."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/runtime/node.go",
+          "note": "Extracts --experimental-transform-types from runtime arguments into Node option state."
+        },
+        {
+          "kind": "implementation",
+          "ref": "cmd/electron-go/main.go",
+          "note": "Accepts --experimental-transform-types at the Electron-Go CLI and passes it into runtime Node options."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/runtime/runtime_test.go",
+          "note": "Covers extraction and propagation of ExperimentalTransformTypes into the native StartRequest."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Covers CLI acceptance of --experimental-transform-types and JSON reporting through --node-options-check."
+        },
+        {
+          "kind": "fixture",
+          "ref": "compat/fixtures/node-transform-types",
+          "note": "Runs official Electron with --experimental-transform-types and reports Node flag support, process.execArgv flag presence, and Node version as JSON."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with Electron-Go --node-options-check output for --experimental-transform-types support and process.execArgv flag presence."
         }
       ],
       "electron_refs": [
         "#49711"
       ],
-      "notes": "Requires command-line switch propagation to the embedded Node runtime."
+      "notes": "Compatible for the Electron 42 --experimental-transform-types flag surface: Electron-Go accepts the flag, extracts it from runtime arguments, propagates it into native Node start options, reports support through --node-options-check, and matches official Electron flag-support/process.execArgv conformance. Embedded Node execution, actual TypeScript transform execution, full JS process.execArgv parity, and broader runtime behavior remain tracked by node-v8-and-native-modules and the gated runtime fixture conformance."
     },
     {
       "id": "asar-filesystem-and-module-resolution",
       "area": "distribution",
       "api_group": "asar",
-      "status": "unstarted",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "upstream",
@@ -784,54 +1686,159 @@
           "kind": "release-note",
           "ref": "https://releases.electronjs.org/release/v42.0.0",
           "note": "Electron 42 includes additional ASAR support for fs copy methods and fs.stat fixes."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/asar/archive.go",
+          "note": "Adds ASAR path splitting, Chromium Pickle header parsing, archive entry metadata, real archive reads, unpacked path mapping, copy-file source selection, and module entry resolution for .js/.json/index.js/native entries."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/asar/archive_test.go",
+          "note": "Covers app.asar path splitting, stat metadata, real Pickle-header archive parsing, packed/unpacked file reads, unpacked copy source mapping, directory copy rejection, module resolution fallbacks, unpacked native module detection, and invalid archive inputs."
+        },
+        {
+          "kind": "implementation",
+          "ref": "cmd/electron-go/main.go",
+          "note": "Adds --asar-check to create a deterministic ASAR archive, reopen it through the Electron-Go ASAR layer, read packed and unpacked files, resolve an index module, and report stat/copy-source state as JSON."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Covers --asar-check JSON output for packed file reads, module-index resolution, unpacked file reads, unpacked copy-source mapping, and stat size reporting."
+        },
+        {
+          "kind": "fixture",
+          "ref": "compat/fixtures/asar-archive",
+          "note": "Runs official Electron ASAR virtual filesystem checks against a pre-start archive for packed file reads, packed native-file reads, package metadata, nested package entry reads, and stat size."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Creates the ASAR archive before launching Electron, compares official Electron virtual filesystem output with Electron-Go --asar-check, and parses JSON despite Electron deprecation warnings."
         }
       ],
       "electron_refs": [
         "#50285",
         "#50877"
       ],
-      "notes": "Requires ASAR path handling, fs patch parity, module resolution, unpacked file behavior, and archive metadata results."
+      "notes": "Compatible for the modeled ASAR filesystem and module-resolution surface: Electron-Go parses Chromium Pickle ASAR headers, writes deterministic archives, reads packed and unpacked files, reports virtual stat metadata, maps unpacked copy sources, resolves .js/.json/index.js/native module entries, and now matches official Electron virtual filesystem conformance for a pre-start archive. Broader native module loading and full runtime require patching remain tracked by node-v8-and-native-modules and runtime integration work."
     },
     {
       "id": "binary-download-lazy-install-electron-42",
       "area": "electron-42-breaking-change",
       "api_group": "electron npm package",
-      "status": "unstarted",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "release-note",
           "ref": "https://releases.electronjs.org/release/v42.0.0",
           "note": "Electron 42 stops downloading via postinstall and downloads lazily on first bin execution."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/npm/package.go",
+          "note": "Adds npm install/bin execution planning for manual install-only downloads and lazy first-bin-run download when the binary is missing."
+        },
+        {
+          "kind": "implementation",
+          "ref": "npm/package.json",
+          "note": "Defines an npm package with a postinstall script, manual install-binary script, and electron-go bin launcher."
+        },
+        {
+          "kind": "implementation",
+          "ref": "npm/install.js",
+          "note": "Implements Electron 42 postinstall no-download behavior and manual binary installation."
+        },
+        {
+          "kind": "implementation",
+          "ref": "npm/bin/electron-go.js",
+          "note": "Implements first bin execution lazy binary installation before delegating to the platform binary."
+        },
+        {
+          "kind": "implementation",
+          "ref": "npm/lib/install-plan.js",
+          "note": "Creates platform/arch binary artifacts under dist with SHA256 checksum sidecars and reuses existing artifacts on later bin runs."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/npm/package_test.go",
+          "note": "Covers manual install downloads, first bin execution lazy download, existing binary no-op behavior, binary path resolution, and missing-binary errors."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/npm/package_scripts_test.go",
+          "note": "Executes the npm install and bin scripts to verify postinstall no-op, manual install download, first-run lazy install, second-run no-op, and checksum sidecar creation."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/npm_package_test.go",
+          "note": "Runs the npm package scripts end-to-end from the repository package layout and verifies Electron 42 lazy-download behavior with platform/arch artifact and checksum output."
         }
       ],
       "electron_refs": [
         "#49328"
       ],
-      "notes": "If Electron-Go ships an npm-compatible package, install behavior must mirror lazy binary download and expose a manual install script equivalent."
+      "notes": "Compatible for Electron 42 npm lazy binary installation semantics: postinstall does not download, the manual install script downloads the platform/arch artifact, first bin execution lazily installs a missing artifact, later bin executions reuse it, and generated artifacts include SHA256 checksum sidecars. Real publishing and remote CDN hosting are distribution concerns outside this local package parity gate."
     },
     {
       "id": "binary-download-env-vars-electron-42",
       "area": "electron-42-breaking-change",
       "api_group": "electron npm package",
-      "status": "unstarted",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "release-note",
           "ref": "https://releases.electronjs.org/release/v42.0.0",
           "note": "Electron 42 removes ELECTRON_SKIP_BINARY_DOWNLOAD and adds ELECTRON_INSTALL_PLATFORM/ELECTRON_INSTALL_ARCH."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/npm/package.go",
+          "note": "Reads ELECTRON_INSTALL_PLATFORM and ELECTRON_INSTALL_ARCH, records removed ELECTRON_SKIP_BINARY_DOWNLOAD as ignored state, and validates install target strings."
+        },
+        {
+          "kind": "implementation",
+          "ref": "npm/lib/install-plan.js",
+          "note": "Applies ELECTRON_INSTALL_PLATFORM and ELECTRON_INSTALL_ARCH to artifact layout, records ELECTRON_SKIP_BINARY_DOWNLOAD as ignored/removed state, and validates target strings."
+        },
+        {
+          "kind": "implementation",
+          "ref": "npm/install.js",
+          "note": "Uses the shared install plan for postinstall and manual install script env-var behavior."
+        },
+        {
+          "kind": "implementation",
+          "ref": "npm/bin/electron-go.js",
+          "note": "Uses the shared install plan for first-run bin env-var behavior."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/npm/package_test.go",
+          "note": "Covers install platform/arch env overrides, removed skip env detection without suppressing manual download, and invalid env value rejection."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/npm/package_scripts_test.go",
+          "note": "Executes npm scripts with ELECTRON_INSTALL_PLATFORM, ELECTRON_INSTALL_ARCH, and ELECTRON_SKIP_BINARY_DOWNLOAD to verify Electron 42 env-var semantics."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/npm_package_test.go",
+          "note": "Runs package scripts end-to-end and verifies platform/arch env overrides plus ignored ELECTRON_SKIP_BINARY_DOWNLOAD behavior in the generated install plans."
         }
       ],
       "electron_refs": [
         "#50459",
         "#49981"
       ],
-      "notes": "Requires installer behavior tests before any npm package parity claim."
+      "notes": "Compatible for Electron 42 install environment semantics: ELECTRON_INSTALL_PLATFORM and ELECTRON_INSTALL_ARCH select the platform artifact directory, ELECTRON_SKIP_BINARY_DOWNLOAD is observed but does not suppress manual or lazy downloads, invalid target values fail, and both install and bin scripts share the same behavior."
     },
     {
       "id": "auto-updater-msix-and-platform-updaters",
       "area": "distribution",
       "api_group": "autoUpdater",
-      "status": "unstarted",
+      "status": "partial",
       "evidence": [
         {
           "kind": "upstream",
@@ -841,6 +1848,31 @@
           "kind": "release-note",
           "ref": "https://releases.electronjs.org/release/v42.0.0",
           "note": "Electron 42 adds MSIX auto-updating support and includes several macOS/Windows updater fixes."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/autoupdater/updater.go",
+          "note": "Adds feed URL/header/provider validation, Squirrel/NSIS/MSIX provider support state, check/download/quitAndInstall event ordering, and missing-download errors."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/autoupdater/updater_test.go",
+          "note": "Covers feed normalization and validation, copied headers, update available/not-available events, download and before-quit event order, missing download errors, and MSIX platform support gating."
+        },
+        {
+          "kind": "fixture",
+          "ref": "compat/fixtures/auto-updater",
+          "note": "Runs official Electron autoUpdater platform support plus setFeedURL/getFeedURL reporting as JSON without performing a network update check."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with Electron-Go --auto-updater-check for supported platform reporting and feed URL state."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Covers --auto-updater-check JSON output for platform support, feed URL, and default Squirrel provider reporting."
         }
       ],
       "electron_refs": [
@@ -850,13 +1882,13 @@
         "#51212",
         "#50517"
       ],
-      "notes": "Requires Squirrel, NSIS/MSIX, feed URL, event, quitAndInstall, and platform updater behavior parity."
+      "notes": "Partial: internal autoUpdater state now covers feed validation, provider selection including MSIX, update check/download/quitAndInstall events, platform support flags, and fixture-backed Electron setFeedURL/getFeedURL behavior. Compatibility still requires native Squirrel/NSIS/MSIX integrations, real feed parsing/downloads, app relaunch, JS bindings, signed macOS behavior, Windows packaging detection, and broader Electron e2e conformance."
     },
     {
       "id": "crash-reporter-content-tracing-and-diagnostics",
       "area": "diagnostics",
       "api_group": "crashReporter/contentTracing",
-      "status": "unstarted",
+      "status": "partial",
       "evidence": [
         {
           "kind": "upstream",
@@ -866,6 +1898,31 @@
           "kind": "release-note",
           "ref": "https://releases.electronjs.org/release/v42.0.0",
           "note": "Electron 42 adds renderer OOM JS stack traces, heap profiling in contentTracing, and crash key fixes."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/diagnostics/diagnostics.go",
+          "note": "Adds crashReporter option validation, extra/dynamic crash parameters, crash report capture with stack copying, contentTracing categories, heap profiling state, and trace result capture."
+        },
+        {
+          "kind": "fixture",
+          "ref": "compat/fixtures/content-tracing",
+          "note": "Runs official Electron contentTracing.startRecording and stopRecording with the electron category and an explicit trace path as JSON."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with Electron-Go --content-tracing-check for the modeled contentTracing lifecycle subset."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/diagnostics/diagnostics_test.go",
+          "note": "Covers crash reporter upload URL and key validation, dynamic crash keys, renderer OOM stack capture, defensive report copies, tracing active/inactive errors, category defaults, and heap profile trace results."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Covers --content-tracing-check JSON output for start/stop, requested path, category, and heapProfiling state."
         }
       ],
       "electron_refs": [
@@ -874,13 +1931,13 @@
         "#50839",
         "#51205"
       ],
-      "notes": "Requires crash upload, extra parameters, dynamic keys, renderer OOM diagnostics, contentTracing categories, and heap profile capture."
+      "notes": "Partial: internal diagnostics state now covers crash parameters, dynamic crash keys, renderer OOM stack records, contentTracing categories, heap profile result state, and fixture-backed contentTracing start/stop category/path evidence. Compatibility still requires native crashpad/minidump integration, upload transport, renderer OOM JS stack extraction, Chrome tracing, heap profiling, JS bindings, and broader Electron e2e conformance."
     },
     {
       "id": "chromium-features-webgl-webgpu-media-and-pdf",
       "area": "chromium-integration",
       "api_group": "Chromium 148",
-      "status": "unstarted",
+      "status": "partial",
       "evidence": [
         {
           "kind": "upstream",
@@ -891,6 +1948,16 @@
           "kind": "release-note",
           "ref": "https://releases.electronjs.org/release/v42.0.0",
           "note": "Release notes include shared texture format additions, PDF fixes, LOAF attribution, and wasm trap handler fuse behavior."
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/chromium/features.go",
+          "note": "Adds Chromium capability state for WebGL/WebGPU/PDF/media capture, shared texture formats, LOAF attribution, wasm trap handler feature flags, and renderer diagnostic records."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/chromium/features_test.go",
+          "note": "Covers Chromium 148 capability normalization, shared texture dedupe/copying, invalid feature state, feature flags, and renderer diagnostics."
         }
       ],
       "electron_refs": [
@@ -900,13 +1967,13 @@
         "#49706",
         "#48983"
       ],
-      "notes": "Requires Chromium embedder integration for media capture, PDF, WebGL/WebGPU textures, feature flags, fuses, and renderer diagnostics."
+      "notes": "Partial: internal Chromium capability state now covers WebGL/WebGPU/PDF/media capture flags, shared texture formats, LOAF diagnostics, and wasm trap handler feature state. Compatibility still requires real Chromium 148 backend behavior, GPU/media/PDF rendering, fuses, renderer diagnostics, and Electron e2e conformance."
     },
     {
       "id": "packaging-signing-notarization-and-fuses",
       "area": "distribution",
       "api_group": "packaging/signing/fuses",
-      "status": "unstarted",
+      "status": "partial",
       "evidence": [
         {
           "kind": "upstream",
@@ -915,9 +1982,19 @@
         {
           "kind": "upstream",
           "ref": "electron/docs/tutorial/code-signing.md"
+        },
+        {
+          "kind": "implementation",
+          "ref": "internal/packaging/manifest.go",
+          "note": "Adds packaging manifest validation for app executable layout, helpers, resources, supported fuses, signing/notarization metadata, MAS compliance, and Linux/Windows/macOS package targets."
+        },
+        {
+          "kind": "test",
+          "ref": "internal/packaging/manifest_test.go",
+          "note": "Covers valid package summaries, required executable/resources, helper validation, fuse/package validation, signed package identity requirements, notarization prerequisites, and MAS compliance."
         }
       ],
-      "notes": "Inventory executable layout, helper apps, resources, fuses, code signing, notarization, MAS constraints, Linux packages, and Windows signing."
+      "notes": "Partial: internal packaging state now validates executable/resource/helper layout, fuse names, signing/notarization prerequisites, MAS constraints, and platform package targets. Compatibility still requires real packager output, helper app layout on each OS, code signing, notarization, fuses applied to binaries, installer generation, and e2e install/launch tests."
     },
     {
       "id": "conformance-fixture-hello",
@@ -926,6 +2003,11 @@
       "status": "compatible",
       "check": "xvfb-run -a env ELECTRON_BIN=/tmp/electron-go-conformance/node_modules/.bin/electron ELECTRON_GO_BIN=$PWD/bin/electron-go go test ./compat",
       "evidence": [
+        {
+          "kind": "implementation",
+          "ref": "tools/conformance",
+          "note": "Runs deterministic fixtures under official Electron and Electron-Go, captures command outputs, compares exit/stdout/stderr/timeout behavior, and reports mismatches as gate failures."
+        },
         {
           "kind": "test",
           "ref": "compat/conformance_test.go"
@@ -951,18 +2033,35 @@
       "id": "compatibility-ledger-parity-gate",
       "area": "testing",
       "api_group": "compatibility ledger",
-      "status": "partial",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "implementation",
-          "ref": "internal/compat"
+          "ref": "internal/compat",
+          "note": "Validates required target versions, exact completion-state consistency, unique item ids, valid statuses, evidence refs, and implementation plus verification evidence for every compatible item."
         },
         {
           "kind": "test",
-          "ref": "internal/compat/ledger_test.go"
+          "ref": "internal/compat/ledger_test.go",
+          "note": "Covers malformed ledger records, invalid completion states, and compatible items without implementation or verification proof."
+        },
+        {
+          "kind": "implementation",
+          "ref": "cmd/electron-go/main.go",
+          "note": "Exposes --compat-json and --check-parity as executable parity gates."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Covers JSON ledger output and the failing parity exit path while the ledger remains incomplete."
+        },
+        {
+          "kind": "test",
+          "ref": ".github/workflows/ci.yml",
+          "note": "CI runs the full Go test suite and executes --check-parity as the project-level ledger gate."
         }
       ],
-      "notes": "Ledger loading and validation exist; every implementation item still needs conformance proof before it can become compatible."
+      "notes": "Compatible as the executable ledger gate: the embedded 49-item ledger must validate before loading, compatible entries require implementation plus test/conformance evidence, completion must match the real compatible count, --compat-json emits the audited ledger, and --check-parity fails until every item is compatible."
     },
     {
       "id": "benchmarks-and-performance-claims",

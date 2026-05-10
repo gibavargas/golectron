@@ -63,6 +63,7 @@ func TestValidateRejectsInvalidLedgerItems(t *testing.T) {
 			Node:     "24.15.0",
 			V8:       "14.8.178.14",
 		},
+		Completion: "incomplete",
 		Items: []Item{{
 			ID:       "app-lifecycle",
 			Area:     "main-process-api",
@@ -131,6 +132,32 @@ func TestValidateRejectsInvalidLedgerItems(t *testing.T) {
 			},
 			want: "without implementation evidence",
 		},
+		{
+			name: "compatible needs verification proof",
+			mutate: func(l *Ledger) {
+				l.Items[0].Status = StatusCompatible
+				l.Items[0].Evidence = append(l.Items[0].Evidence, "internal/app")
+				l.Items[0].EvidenceInfo = append(l.Items[0].EvidenceInfo, Evidence{
+					Kind: "implementation",
+					Ref:  "internal/app",
+				})
+			},
+			want: "without test or conformance evidence",
+		},
+		{
+			name: "invalid completion",
+			mutate: func(l *Ledger) {
+				l.Completion = "done"
+			},
+			want: "completion has invalid value",
+		},
+		{
+			name: "completion cannot claim complete before every item is compatible",
+			mutate: func(l *Ledger) {
+				l.Completion = "complete"
+			},
+			want: "but only 0/1 items are compatible",
+		},
 	}
 
 	for _, tt := range tests {
@@ -145,5 +172,44 @@ func TestValidateRejectsInvalidLedgerItems(t *testing.T) {
 				t.Fatalf("Validate() error = %v, want containing %q", err, tt.want)
 			}
 		})
+	}
+}
+
+func TestAuditE2EEvidenceReportsCompatibleItemsWithoutE2EProof(t *testing.T) {
+	ledger := Ledger{
+		Target: TargetVersions{Electron: "42.0.0", Chromium: "148", Node: "24", V8: "14"},
+		Items: []Item{
+			{ID: "unit-only", Status: StatusCompatible, EvidenceInfo: []Evidence{{Kind: "implementation", Ref: "internal/unit"}, {Kind: "test", Ref: "internal/unit_test.go"}}},
+			{ID: "conformance", Status: StatusCompatible, EvidenceInfo: []Evidence{{Kind: "implementation", Ref: "internal/feature"}, {Kind: "conformance", Ref: "compat/feature_test.go"}}},
+			{ID: "workflow", Status: StatusCompatible, EvidenceInfo: []Evidence{{Kind: "implementation", Ref: "internal/feature"}, {Kind: "test", Ref: ".github/workflows/conformance.yml"}}},
+			{ID: "partial", Status: StatusPartial, EvidenceInfo: []Evidence{{Kind: "test", Ref: "internal/partial_test.go"}}},
+		},
+	}
+	audit := ledger.AuditE2EEvidence()
+	if len(audit.Missing) != 1 || audit.Missing[0] != "unit-only" {
+		t.Fatalf("Missing = %#v, want [unit-only]", audit.Missing)
+	}
+	if len(audit.Incomplete) != 1 || audit.Incomplete[0] != "partial" {
+		t.Fatalf("Incomplete = %#v, want [partial]", audit.Incomplete)
+	}
+	if audit.Pass {
+		t.Fatal("Pass = true, want false")
+	}
+}
+
+func TestAuditE2EEvidencePassesOnlyWhenEverythingIsCompatibleAndE2EBacked(t *testing.T) {
+	ledger := Ledger{
+		Target: TargetVersions{Electron: "42.0.0", Chromium: "148", Node: "24", V8: "14"},
+		Items: []Item{
+			{ID: "conformance", Status: StatusCompatible, EvidenceInfo: []Evidence{{Kind: "implementation", Ref: "internal/feature"}, {Kind: "conformance", Ref: "compat/feature_test.go"}}},
+			{ID: "workflow", Status: StatusCompatible, EvidenceInfo: []Evidence{{Kind: "implementation", Ref: "internal/feature"}, {Kind: "test", Ref: ".github/workflows/conformance.yml"}}},
+		},
+	}
+	audit := ledger.AuditE2EEvidence()
+	if !audit.Pass {
+		t.Fatalf("Pass = false, audit = %#v", audit)
+	}
+	if len(audit.Missing) != 0 || len(audit.Incomplete) != 0 {
+		t.Fatalf("audit should be clean: %#v", audit)
 	}
 }

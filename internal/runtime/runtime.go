@@ -27,6 +27,7 @@ type Options struct {
 	SubprocessHook  SubprocessHook
 	Args            []string
 	Environment     []string
+	NodeOptions     NodeOptions
 	Out             io.Writer
 }
 
@@ -37,6 +38,7 @@ type Runtime struct {
 	subprocessHook  SubprocessHook
 	args            []string
 	environment     []string
+	nodeOptions     NodeOptions
 	out             io.Writer
 	state           State
 }
@@ -104,6 +106,7 @@ func New(opts Options) *Runtime {
 		subprocessHook:  opts.SubprocessHook,
 		args:            append([]string(nil), opts.Args...),
 		environment:     append([]string(nil), opts.Environment...),
+		nodeOptions:     opts.NodeOptions,
 		out:             out,
 		state:           StateCreated,
 	}
@@ -140,6 +143,9 @@ func (r *Runtime) Run(ctx context.Context) error {
 		ElectronVersion: r.electronVersion,
 		Args:            append([]string(nil), r.args...),
 		Environment:     append([]string(nil), r.environment...),
+		NodeOptions: native.NativeNodeOptions{
+			ExperimentalTransformTypes: r.nodeOptions.ExperimentalTransformTypes,
+		},
 	})
 	if err := native.ValidateStartRequest(req); err != nil {
 		return err

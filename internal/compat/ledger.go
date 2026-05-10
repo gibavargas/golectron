@@ -11,10 +11,12 @@ import (
 var ledgerFS embed.FS
 
 type TargetVersions struct {
-	Electron string `json:"electron"`
-	Chromium string `json:"chromium"`
-	Node     string `json:"node"`
-	V8       string `json:"v8"`
+	Electron  string `json:"electron"`
+	Chromium  string `json:"chromium"`
+	Node      string `json:"node"`
+	V8        string `json:"v8"`
+	V8Process string `json:"v8_process,omitempty"`
+	Modules   string `json:"modules,omitempty"`
 }
 
 type Ledger struct {
@@ -42,6 +44,13 @@ type Item struct {
 	EvidenceInfo []Evidence `json:"evidence_details,omitempty"`
 	ElectronRefs []string   `json:"electron_refs,omitempty"`
 	Notes        string     `json:"notes"`
+}
+
+type E2EAudit struct {
+	Target     TargetVersions `json:"target"`
+	Pass       bool           `json:"pass"`
+	Missing    []string       `json:"missing_e2e_evidence"`
+	Incomplete []string       `json:"incomplete_items"`
 }
 
 type Evidence struct {
@@ -135,6 +144,9 @@ func (l Ledger) Validate() error {
 	if len(l.Items) == 0 {
 		return fmt.Errorf("compatibility ledger has no items")
 	}
+	if l.Completion != "complete" && l.Completion != "incomplete" {
+		return fmt.Errorf("compatibility ledger completion has invalid value %q", l.Completion)
+	}
 
 	seen := make(map[string]struct{}, len(l.Items))
 	for i, item := range l.Items {
@@ -160,6 +172,9 @@ func (l Ledger) Validate() error {
 		if item.Status == StatusCompatible && !hasImplementationEvidence(item.EvidenceInfo) {
 			return fmt.Errorf("compatibility ledger item %q is compatible without implementation evidence", item.ID)
 		}
+		if item.Status == StatusCompatible && !hasVerificationEvidence(item.EvidenceInfo) {
+			return fmt.Errorf("compatibility ledger item %q is compatible without test or conformance evidence", item.ID)
+		}
 		for j, evidence := range item.Evidence {
 			if strings.TrimSpace(evidence) == "" {
 				return fmt.Errorf("compatibility ledger item %q evidence %d has empty ref", item.ID, j)
@@ -176,6 +191,12 @@ func (l Ledger) Validate() error {
 		if strings.TrimSpace(item.Notes) == "" {
 			return fmt.Errorf("compatibility ledger item %q has empty notes", item.ID)
 		}
+	}
+	if l.IsComplete() && l.Completion != "complete" {
+		return fmt.Errorf("compatibility ledger completion is %q but all items are compatible", l.Completion)
+	}
+	if !l.IsComplete() && l.Completion != "incomplete" {
+		return fmt.Errorf("compatibility ledger completion is %q but only %d/%d items are compatible", l.Completion, l.CompatibleCount(), l.TotalCount())
 	}
 	return nil
 }
@@ -198,6 +219,25 @@ func (l Ledger) IsComplete() bool {
 	return l.TotalCount() > 0 && l.CompatibleCount() == l.TotalCount()
 }
 
+func (l Ledger) AuditE2EEvidence() E2EAudit {
+	audit := E2EAudit{
+		Target:     l.Target,
+		Missing:    []string{},
+		Incomplete: []string{},
+	}
+	for _, item := range l.Items {
+		if item.Status != StatusCompatible {
+			audit.Incomplete = append(audit.Incomplete, item.ID)
+			continue
+		}
+		if !hasE2EEvidence(item.EvidenceInfo) {
+			audit.Missing = append(audit.Missing, item.ID)
+		}
+	}
+	audit.Pass = len(audit.Missing) == 0 && len(audit.Incomplete) == 0
+	return audit
+}
+
 func validStatus(status Status) bool {
 	switch status {
 	case StatusUnstarted, StatusStubbed, StatusPartial, StatusCompatible:
@@ -210,7 +250,29 @@ func validStatus(status Status) bool {
 func hasImplementationEvidence(evidence []Evidence) bool {
 	for _, entry := range evidence {
 		switch entry.Kind {
-		case "implementation", "test", "conformance":
+		case "implementation":
+			return true
+		}
+	}
+	return false
+}
+
+func hasVerificationEvidence(evidence []Evidence) bool {
+	for _, entry := range evidence {
+		switch entry.Kind {
+		case "test", "conformance":
+			return true
+		}
+	}
+	return false
+}
+
+func hasE2EEvidence(evidence []Evidence) bool {
+	for _, entry := range evidence {
+		if entry.Kind == "conformance" {
+			return true
+		}
+		if strings.HasPrefix(entry.Ref, "compat/") || strings.HasPrefix(entry.Ref, ".github/workflows/") {
 			return true
 		}
 	}

@@ -89,6 +89,11 @@ type StartRequest struct {
 	ElectronVersion string
 	Args            []string
 	Environment     []string
+	NodeOptions     NativeNodeOptions
+}
+
+type NativeNodeOptions struct {
+	ExperimentalTransformTypes bool
 }
 
 type StartResult struct {

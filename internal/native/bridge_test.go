@@ -215,6 +215,25 @@ func TestUnavailableResult(t *testing.T) {
 	}
 }
 
+func TestIsAppActiveReportsPlatformSupport(t *testing.T) {
+	activity, err := IsAppActive(context.Background())
+	if err != nil {
+		t.Fatalf("IsAppActive() error = %v", err)
+	}
+	if activity.Platform == "" {
+		t.Fatal("Platform is empty")
+	}
+	if activity.Platform == "darwin" && !activity.Supported {
+		t.Fatal("darwin AppKit app.isActive support is disabled")
+	}
+	if activity.Platform != "darwin" && activity.Supported {
+		t.Fatalf("Supported = true on %s, want false", activity.Platform)
+	}
+	if !activity.Supported && activity.Active {
+		t.Fatal("unsupported app.isActive report cannot be active")
+	}
+}
+
 func with(req StartRequest, edit func(*StartRequest)) StartRequest {
 	edit(&req)
 	return req

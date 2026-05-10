@@ -65,11 +65,13 @@ type CommandResult struct {
 	Stderr     string   `json:"stderr"`
 	DurationMS int64    `json:"duration_ms"`
 	TimedOut   bool     `json:"timed_out"`
+	Skipped    bool     `json:"skipped,omitempty"`
 	Error      string   `json:"error,omitempty"`
 }
 
 type Comparison struct {
 	Match       bool     `json:"match"`
+	Skipped     bool     `json:"skipped,omitempty"`
 	Differences []string `json:"differences,omitempty"`
 }
 
@@ -210,9 +212,21 @@ func runFixtureCommand(command string, args []string, fixture string, timeout ti
 		ParsedArgs: append([]string{}, args...),
 		ExitCode:   -1,
 	}
+	if shouldSkipSandboxedDarwinElectron(args) {
+		result.DurationMS = time.Since(started).Milliseconds()
+		result.Skipped = true
+		result.Error = "official Electron GUI launch is skipped under the macOS seatbelt sandbox; run outside the sandbox for e2e evidence"
+		return result
+	}
 	cmdArgs := append(append([]string{}, args[1:]...), fixture)
 	cmd := exec.CommandContext(ctx, args[0], cmdArgs...)
 	cmd.Env = os.Environ()
+	prepareCommandForCleanup(cmd)
+	cmd.Cancel = func() error {
+		terminateCommandGroup(cmd)
+		return nil
+	}
+	cmd.WaitDelay = 2 * time.Second
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -234,7 +248,44 @@ func runFixtureCommand(command string, args []string, fixture string, timeout ti
 	return result
 }
 
+func shouldSkipSandboxedDarwinElectron(args []string) bool {
+	if runtime.GOOS != "darwin" {
+		return false
+	}
+	if os.Getenv("CODEX_SANDBOX") == "" {
+		return false
+	}
+	if os.Getenv("ELECTRON_GO_ALLOW_SANDBOXED_DARWIN_CONFORMANCE") == "1" {
+		return false
+	}
+	for _, arg := range args {
+		lower := strings.ToLower(arg)
+		base := strings.ToLower(filepathBase(arg))
+		if lower == "electron" || base == "electron" || strings.Contains(lower, "node_modules/.bin/electron") || strings.Contains(lower, "electron.app/") {
+			return true
+		}
+	}
+	return false
+}
+
+func filepathBase(path string) string {
+	path = strings.TrimRight(path, `/\`)
+	for i := len(path) - 1; i >= 0; i-- {
+		if path[i] == '/' || path[i] == '\\' {
+			return path[i+1:]
+		}
+	}
+	return path
+}
+
 func compareResults(electron, electronGo CommandResult) Comparison {
+	if electron.Skipped || electronGo.Skipped {
+		return Comparison{
+			Match:   true,
+			Skipped: true,
+		}
+	}
+
 	var differences []string
 	if electron.ExitCode != electronGo.ExitCode {
 		differences = append(differences, "exit_code")

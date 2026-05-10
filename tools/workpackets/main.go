@@ -12,12 +12,14 @@ import (
 )
 
 type packet struct {
-	ID       string   `json:"id"`
-	Area     string   `json:"area"`
-	Status   string   `json:"status"`
-	Evidence []string `json:"evidence"`
-	Notes    string   `json:"notes"`
-	Prompt   string   `json:"prompt"`
+	ID          string   `json:"id"`
+	Area        string   `json:"area"`
+	Status      string   `json:"status"`
+	Evidence    []string `json:"evidence"`
+	Notes       string   `json:"notes"`
+	E2ERequired bool     `json:"e2e_required"`
+	Acceptance  []string `json:"acceptance"`
+	Prompt      string   `json:"prompt"`
 }
 
 func main() {
@@ -68,12 +70,14 @@ func buildPackets(ledger compat.Ledger, statuses, areas, ids map[string]bool) []
 			continue
 		}
 		packets = append(packets, packet{
-			ID:       item.ID,
-			Area:     item.Area,
-			Status:   item.Status,
-			Evidence: item.Evidence,
-			Notes:    item.Notes,
-			Prompt:   promptFor(item),
+			ID:          item.ID,
+			Area:        item.Area,
+			Status:      item.Status,
+			Evidence:    item.Evidence,
+			Notes:       item.Notes,
+			E2ERequired: e2eRequired(item),
+			Acceptance:  acceptanceFor(item),
+			Prompt:      promptFor(item),
 		})
 	}
 
@@ -105,7 +109,32 @@ func promptFor(item compat.Item) string {
 	if item.ID == "cef_bootstrap" {
 		return "Implement Electron-Go CEF bootstrap parity. Preserve process-original OS main-thread ownership with runtime.LockOSThread at executable entry, route CEF subprocesses before normal app initialization, initialize CEF through the native C ABI, route callbacks through internal/native.Dispatcher, create one visible BrowserWindow, load the hello fixture file URL, run the CEF message loop, exit cleanly on window close with no zombie renderer processes, and keep JavaScript execution and IPC out of scope until this packet is proven."
 	}
-	return fmt.Sprintf("Implement Electron-Go parity for ledger item %q in area %q. Preserve Electron 42.0.0 behavior, add conformance tests against official Electron fixtures, update evidence only after tests prove compatibility, and keep the ledger honest.", item.ID, item.Area)
+	return fmt.Sprintf("Implement Electron-Go parity for ledger item %q in area %q. Preserve Electron 42.0.0 behavior, add or extend a fixture under compat/fixtures, prove it with tools/conformance or go test ./compat against official Electron, update evidence only after e2e tests prove compatibility, and keep the ledger honest.", item.ID, item.Area)
+}
+
+func e2eRequired(item compat.Item) bool {
+	return item.Status != compat.StatusCompatible || !hasE2EEvidence(item.EvidenceInfo)
+}
+
+func acceptanceFor(item compat.Item) []string {
+	return []string{
+		"Implement the runtime behavior behind the Electron API, not only internal state.",
+		"Add or extend an Electron fixture under compat/fixtures for this ledger item.",
+		"Run the fixture against official Electron and Electron-Go with tools/conformance or go test ./compat.",
+		"Move the ledger item to compatible only after conformance passes and evidence includes implementation plus e2e/conformance refs.",
+	}
+}
+
+func hasE2EEvidence(evidence []compat.Evidence) bool {
+	for _, entry := range evidence {
+		if entry.Kind == "conformance" {
+			return true
+		}
+		if strings.HasPrefix(entry.Ref, "compat/") || strings.HasPrefix(entry.Ref, ".github/workflows/") {
+			return true
+		}
+	}
+	return false
 }
 
 func printMarkdown(target compat.TargetVersions, packets []packet) {
@@ -121,6 +150,13 @@ func printMarkdown(target compat.TargetVersions, packets []packet) {
 		fmt.Printf("- Status: `%s`\n", packet.Status)
 		if len(packet.Evidence) > 0 {
 			fmt.Printf("- Existing evidence: `%s`\n", strings.Join(packet.Evidence, "`, `"))
+		}
+		fmt.Printf("- E2E required: `%t`\n", packet.E2ERequired)
+		if len(packet.Acceptance) > 0 {
+			fmt.Printf("- Acceptance:\n")
+			for _, item := range packet.Acceptance {
+				fmt.Printf("  - %s\n", item)
+			}
 		}
 		fmt.Printf("- Notes: %s\n", packet.Notes)
 		fmt.Printf("- Agent prompt: %s\n\n", packet.Prompt)

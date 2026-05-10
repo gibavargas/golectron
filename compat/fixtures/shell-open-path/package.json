@@ -1,0 +1,5 @@
+{
+  "name": "electron-go-shell-open-path-fixture",
+  "private": true,
+  "main": "main.js"
+}

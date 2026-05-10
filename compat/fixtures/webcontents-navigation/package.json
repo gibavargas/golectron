@@ -1,0 +1,6 @@
+{
+  "name": "electron-go-webcontents-navigation-fixture",
+  "version": "0.0.0",
+  "private": true,
+  "main": "main.js"
+}

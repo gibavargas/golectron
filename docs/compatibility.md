@@ -1,7 +1,8 @@
 # Compatibility
 
 The target baseline is Electron 42.0.0 with Chromium 148.0.7778.96, Node.js
-24.15.0, and V8 14.8.178.14.
+24.15.0, V8 14.8.178.14, `process.versions.v8` value
+`14.8.178.14-electron.0`, and native module ABI 146.
 
 Compatibility state lives in `internal/compat/ledger.json`. The ledger is an
 implementation inventory, not a marketing checklist: entries may cite upstream

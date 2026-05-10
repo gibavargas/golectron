@@ -1,0 +1,5 @@
+{
+  "name": "electron-go-content-tracing-fixture",
+  "private": true,
+  "main": "main.js"
+}

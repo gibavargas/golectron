@@ -20,6 +20,14 @@ fixture applications.
 
 Initial fixtures live in `compat/fixtures/hello`.
 
+On macOS, official Electron GUI launches abort under the Codex seatbelt sandbox
+before fixture code runs. The `compat` Go tests skip those official Electron
+launches when `CODEX_SANDBOX` is set, and the JSON conformance runner marks the
+fixture comparison as skipped instead of a mismatch. Run them outside the
+sandbox for real e2e evidence. Set
+`ELECTRON_GO_ALLOW_SANDBOXED_DARWIN_CONFORMANCE=1` only when you intentionally
+want to reproduce the sandbox abort.
+
 Run the JSON conformance runner with an installed official Electron binary:
 
 ```sh

@@ -1,0 +1,19 @@
+{
+  "name": "electron-go",
+  "version": "0.1.0",
+  "description": "Electron-Go npm launcher package",
+  "bin": {
+    "electron-go": "bin/electron-go.js"
+  },
+  "scripts": {
+    "postinstall": "node install.js",
+    "install-binary": "node install.js --manual"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "install.js",
+    "package.json"
+  ],
+  "license": "MIT"
+}

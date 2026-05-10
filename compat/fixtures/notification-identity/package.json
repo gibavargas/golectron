@@ -1,0 +1,5 @@
+{
+  "name": "electron-go-notification-identity-fixture",
+  "private": true,
+  "main": "main.js"
+}

@@ -1,0 +1,6 @@
+{
+  "name": "electron-go-session-quotas-fixture",
+  "version": "0.0.0",
+  "private": true,
+  "main": "main.js"
+}

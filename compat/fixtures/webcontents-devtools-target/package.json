@@ -1,0 +1,6 @@
+{
+  "name": "electron-go-webcontents-devtools-target-fixture",
+  "version": "0.0.0",
+  "private": true,
+  "main": "main.js"
+}

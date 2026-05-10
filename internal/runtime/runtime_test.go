@@ -33,6 +33,7 @@ func TestRuntimeStartsBridge(t *testing.T) {
 	dir := fixtureApp(t)
 	args := []string{"electron-go", "--inspect", dir}
 	env := []string{"ELECTRON_ENABLE_LOGGING=1", "PATH=/test/bin"}
+	nodeOptions := NodeOptions{ExperimentalTransformTypes: true}
 	var got native.StartRequest
 	rt := New(Options{
 		AppDir:          dir,
@@ -43,6 +44,7 @@ func TestRuntimeStartsBridge(t *testing.T) {
 		}),
 		Args:        args,
 		Environment: env,
+		NodeOptions: nodeOptions,
 	})
 
 	if err := rt.Run(context.Background()); err != nil {
@@ -65,6 +67,18 @@ func TestRuntimeStartsBridge(t *testing.T) {
 	}
 	if !slices.Equal(got.Environment, env) {
 		t.Fatalf("Environment = %#v, want %#v", got.Environment, env)
+	}
+	if !got.NodeOptions.ExperimentalTransformTypes {
+		t.Fatal("NodeOptions.ExperimentalTransformTypes = false, want true")
+	}
+}
+
+func TestExtractNodeOptions(t *testing.T) {
+	if got := ExtractNodeOptions([]string{"electron-go", "--experimental-transform-types", "."}); !got.ExperimentalTransformTypes {
+		t.Fatal("ExperimentalTransformTypes = false, want true")
+	}
+	if got := ExtractNodeOptions([]string{"electron-go", "--inspect", "."}); got.ExperimentalTransformTypes {
+		t.Fatal("ExperimentalTransformTypes = true, want false")
 	}
 }
 

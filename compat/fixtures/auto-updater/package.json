@@ -1,0 +1,5 @@
+{
+  "name": "electron-go-auto-updater-fixture",
+  "private": true,
+  "main": "main.js"
+}

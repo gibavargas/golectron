@@ -29,6 +29,12 @@ func TestBuildPacketsFiltersAndOrdersByStatus(t *testing.T) {
 	if packets[0].Prompt == "" {
 		t.Fatal("prompt is empty")
 	}
+	if !packets[1].E2ERequired {
+		t.Fatal("partial packet E2ERequired = false, want true")
+	}
+	if len(packets[1].Acceptance) == 0 || !strings.Contains(strings.Join(packets[1].Acceptance, " "), "compat/fixtures") {
+		t.Fatalf("acceptance does not mention compat fixtures: %#v", packets[1].Acceptance)
+	}
 }
 
 func TestBuildPacketsAreaFilter(t *testing.T) {
@@ -62,5 +68,33 @@ func TestBuildPacketsIDFilterAndCEFBootstrapPrompt(t *testing.T) {
 	}
 	if !strings.Contains(packets[0].Prompt, "runtime.LockOSThread") {
 		t.Fatalf("CEF bootstrap prompt does not mention thread ownership: %q", packets[0].Prompt)
+	}
+}
+
+func TestBuildPacketsMarksCompatibleWithoutE2EAsRequired(t *testing.T) {
+	ledger := compat.Ledger{
+		Items: []compat.Item{
+			{ID: "unit-only", Area: "testing", Status: compat.StatusCompatible, Evidence: []string{"internal/unit"}, EvidenceInfo: []compat.Evidence{{Kind: "test", Ref: "internal/unit_test.go"}}, Notes: "unit only"},
+			{ID: "conformance", Area: "testing", Status: compat.StatusCompatible, Evidence: []string{"compat/fixture"}, EvidenceInfo: []compat.Evidence{{Kind: "conformance", Ref: "compat/fixture"}}, Notes: "e2e"},
+		},
+	}
+	packets := buildPackets(ledger, nil, nil, nil)
+	if len(packets) != 2 {
+		t.Fatalf("len(packets) = %d, want 2", len(packets))
+	}
+	var unitOnly, conformance packet
+	for _, packet := range packets {
+		if packet.ID == "unit-only" {
+			unitOnly = packet
+		}
+		if packet.ID == "conformance" {
+			conformance = packet
+		}
+	}
+	if !unitOnly.E2ERequired {
+		t.Fatal("unit-only E2ERequired = false, want true")
+	}
+	if conformance.E2ERequired {
+		t.Fatal("conformance E2ERequired = true, want false")
 	}
 }

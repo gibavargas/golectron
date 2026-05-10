@@ -1,0 +1,5 @@
+{
+  "name": "electron-go-clipboard-formats-fixture",
+  "private": true,
+  "main": "main.js"
+}

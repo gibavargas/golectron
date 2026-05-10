@@ -9,7 +9,8 @@ The current compatibility baseline is Electron 42.0.0:
 
 - Chromium 148.0.7778.96
 - Node.js 24.15.0
-- V8 14.8.178.14
+- V8 14.8.178.14 (`process.versions.v8` reports `14.8.178.14-electron.0`)
+- Native module ABI 146
 
 Electron-Go is not considered complete until every public Electron API and
 supported platform behavior is marked `compatible` with evidence in the ledger.
