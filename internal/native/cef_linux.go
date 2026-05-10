@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -277,16 +278,35 @@ func appendCEFBrowserProcessSwitches(args []string) []string {
 	if IsCEFSubprocessArgs(out) {
 		return out
 	}
-	seen := make(map[string]struct{}, len(out))
-	for _, arg := range out {
-		seen[arg] = struct{}{}
-	}
+	seen := switchSet(out)
 	for _, flag := range cefBrowserProcessSwitches {
 		if _, ok := seen[flag]; !ok {
 			out = append(out, flag)
 		}
 	}
+	if !hasSwitch(out, "--browser-subprocess-path") {
+		if executable, err := os.Executable(); err == nil && executable != "" {
+			out = append(out, "--browser-subprocess-path="+executable)
+		}
+	}
 	return out
+}
+
+func switchSet(args []string) map[string]struct{} {
+	seen := make(map[string]struct{}, len(args))
+	for _, arg := range args {
+		seen[arg] = struct{}{}
+	}
+	return seen
+}
+
+func hasSwitch(args []string, name string) bool {
+	for _, arg := range args {
+		if arg == name || strings.HasPrefix(arg, name+"=") {
+			return true
+		}
+	}
+	return false
 }
 
 func initializeCEF(ctx context.Context, req CEFInitializeRequest) error {
