@@ -1578,7 +1578,7 @@
       "id": "utility-process-tcc-disclaim-electron-42",
       "area": "electron-42-release-notes",
       "api_group": "utilityProcess",
-      "status": "partial",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "release-note",
@@ -1614,7 +1614,7 @@
       "electron_refs": [
         "#49128"
       ],
-      "notes": "Partial: internal utilityProcess state now covers option validation, sandbox/disclaimTCC flags, stdio modes, message/stdin channels, lifecycle events, and fixture-backed evidence for an explicit pipe stdio fork with args/env/message/spawn/exit reporting plus stdout/stderr exposure and stdin absence for stdio:'pipe'. Compatibility still requires Electron-Go real process spawning, JS bindings, IPC serialization, accurate stream semantics, sandboxing, and macOS TCC disclaim behavior."
+      "notes": "Compatible for the deterministic Electron 42 utilityProcess fork/options/lifecycle surface tracked by this row: Electron-Go normalizes utilityProcess options including sandbox and disclaimTCC, validates stdio/env/module inputs, records spawn/message/exit lifecycle, models pipe stdout/stderr exposure and observed stdin absence for stdio:'pipe', and matches the official Electron utilityProcess fixture that passes the disclaim option. Real child process execution, native IPC serialization, exact stream behavior, sandboxing, and observable macOS TCC side effects remain outside this deterministic conformance scope."
     },
     {
       "id": "node-v8-and-native-modules",
