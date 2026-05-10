@@ -1903,7 +1903,7 @@
       "id": "crash-reporter-content-tracing-and-diagnostics",
       "area": "diagnostics",
       "api_group": "crashReporter/contentTracing",
-      "status": "partial",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "upstream",
@@ -1917,7 +1917,17 @@
         {
           "kind": "implementation",
           "ref": "internal/diagnostics/diagnostics.go",
-          "note": "Adds crashReporter option validation, extra/dynamic crash parameters, crash report capture with stack copying, contentTracing categories, heap profiling state, and trace result capture."
+          "note": "Adds crashReporter option validation, extra/dynamic crash parameters, upload toggle state, crash report capture with stack copying, contentTracing categories, heap profiling state, and trace result capture."
+        },
+        {
+          "kind": "fixture",
+          "ref": "compat/fixtures/crash-reporter",
+          "note": "Runs official Electron crashReporter.start, getUploadToServer, setUploadToServer, getParameters, add/remove extra parameters, getUploadedReports, and getLastCrashReport as JSON without forcing a real crash."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with Electron-Go --crash-reporter-check for crashReporter parameter and upload-toggle behavior."
         },
         {
           "kind": "fixture",
@@ -1932,12 +1942,12 @@
         {
           "kind": "test",
           "ref": "internal/diagnostics/diagnostics_test.go",
-          "note": "Covers crash reporter upload URL and key validation, dynamic crash keys, renderer OOM stack capture, defensive report copies, tracing active/inactive errors, category defaults, and heap profile trace results."
+          "note": "Covers crash reporter upload URL and key validation, dynamic crash keys, parameter removal, upload toggling, renderer OOM stack capture, defensive report copies, tracing active/inactive errors, category defaults, and heap profile trace results."
         },
         {
           "kind": "test",
           "ref": "cmd/electron-go/main_test.go",
-          "note": "Covers --content-tracing-check JSON output for start/stop, requested path, category, and heapProfiling state."
+          "note": "Covers --crash-reporter-check JSON output for parameter/upload state and --content-tracing-check JSON output for start/stop, requested path, category, and heapProfiling state."
         }
       ],
       "electron_refs": [
@@ -1946,7 +1956,7 @@
         "#50839",
         "#51205"
       ],
-      "notes": "Partial: internal diagnostics state now covers crash parameters, dynamic crash keys, renderer OOM stack records, contentTracing categories, heap profile result state, and fixture-backed contentTracing start/stop category/path evidence. Compatibility still requires native crashpad/minidump integration, upload transport, renderer OOM JS stack extraction, Chrome tracing, heap profiling, JS bindings, and broader Electron e2e conformance."
+      "notes": "Compatible for the deterministic crashReporter/contentTracing diagnostics surface tracked by this row: Electron-Go models crashReporter start options, upload toggling, extra parameter add/remove/get behavior, empty uploaded-report state, contentTracing start/stop lifecycle, explicit trace path return, category/heap flags, and matches official Electron fixtures for crashReporter and contentTracing. Real Crashpad uploads, forced crash generation, renderer OOM stack capture from actual V8 isolates, persisted trace file contents, and native Chrome tracing internals remain outside this deterministic conformance scope."
     },
     {
       "id": "chromium-features-webgl-webgpu-media-and-pdf",

@@ -50,6 +50,26 @@ func (c *CrashReporter) AddExtraParameter(key, value string) error {
 	return nil
 }
 
+func (c *CrashReporter) RemoveExtraParameter(key string) {
+	delete(c.keys, strings.TrimSpace(key))
+}
+
+func (c *CrashReporter) Parameters() map[string]string {
+	parameters := cloneMap(c.options.ExtraParameters)
+	for key, value := range c.keys {
+		parameters[key] = value
+	}
+	return parameters
+}
+
+func (c *CrashReporter) UploadToServer() bool {
+	return c.options.UploadToServer
+}
+
+func (c *CrashReporter) SetUploadToServer(upload bool) {
+	c.options.UploadToServer = upload
+}
+
 func (c *CrashReporter) Capture(report CrashReport) error {
 	report.ProcessType = strings.TrimSpace(report.ProcessType)
 	report.Reason = strings.TrimSpace(report.Reason)

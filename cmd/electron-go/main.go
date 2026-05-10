@@ -89,6 +89,7 @@ func run(argv []string, env []string) int {
 	clipboardCheck := fs.Bool("clipboard-check", false, "print clipboard compatibility JSON")
 	clipboardFormatsCheck := fs.Bool("clipboard-formats-check", false, "print clipboard rich-format compatibility JSON")
 	shellCheck := fs.Bool("shell-check", false, "print shell compatibility JSON")
+	crashReporterCheck := fs.Bool("crash-reporter-check", false, "print crashReporter compatibility JSON")
 	contentTracingCheck := fs.Bool("content-tracing-check", false, "print contentTracing compatibility JSON")
 	processModelCheck := fs.Bool("process-model-check", false, "verify CEF process ownership and subprocess teardown")
 	appLifecycleCheck := fs.Bool("app-lifecycle-check", false, "print app lifecycle compatibility JSON")
@@ -371,6 +372,20 @@ func run(argv []string, env []string) int {
 
 	if *contentTracingCheck {
 		report := contentTracingReport()
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(report); err != nil {
+			fmt.Fprintf(os.Stderr, "electron-go: %v\n", err)
+			return 1
+		}
+		if report.Error != "" {
+			return 1
+		}
+		return 0
+	}
+
+	if *crashReporterCheck {
+		report := crashReporterReport()
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		if err := enc.Encode(report); err != nil {
@@ -800,6 +815,18 @@ type contentTracingCheckReport struct {
 	Error                 string   `json:"error,omitempty"`
 }
 
+type crashReporterCheckReport struct {
+	Started              bool   `json:"started"`
+	UploadInitial        bool   `json:"uploadInitial"`
+	UploadAfterSet       bool   `json:"uploadAfterSet"`
+	ExtraInitial         bool   `json:"extraInitial"`
+	ExtraAdded           bool   `json:"extraAdded"`
+	ExtraRemoved         bool   `json:"extraRemoved"`
+	UploadedReportsEmpty bool   `json:"uploadedReportsEmpty"`
+	LastReportNull       bool   `json:"lastReportNull"`
+	Error                string `json:"error,omitempty"`
+}
+
 type notificationCheckReport struct {
 	Title          string `json:"title"`
 	Body           string `json:"body"`
@@ -1179,6 +1206,36 @@ func contentTracingReport() contentTracingCheckReport {
 	report.RequestedPathReturned = result.Path == "electron-go-trace.json"
 	report.Categories = result.Categories
 	report.HeapProfiling = result.HeapProfile
+	return report
+}
+
+func crashReporterReport() crashReporterCheckReport {
+	reporter, err := egdiagnostics.StartCrashReporter(egdiagnostics.CrashReporterOptions{
+		UploadToServer:  false,
+		ExtraParameters: map[string]string{"channel": "stable"},
+	})
+	report := crashReporterCheckReport{Started: err == nil}
+	if err != nil {
+		report.Error = err.Error()
+		return report
+	}
+	report.UploadInitial = reporter.UploadToServer()
+	params := reporter.Parameters()
+	report.ExtraInitial = params["channel"] == "stable"
+	if err := reporter.AddExtraParameter("build", "42"); err != nil {
+		report.Error = err.Error()
+		return report
+	}
+	params = reporter.Parameters()
+	report.ExtraAdded = params["channel"] == "stable" && params["build"] == "42"
+	reporter.RemoveExtraParameter("build")
+	params = reporter.Parameters()
+	_, hasBuild := params["build"]
+	report.ExtraRemoved = params["channel"] == "stable" && !hasBuild
+	reporter.SetUploadToServer(true)
+	report.UploadAfterSet = reporter.UploadToServer()
+	report.UploadedReportsEmpty = len(reporter.Reports()) == 0
+	report.LastReportNull = len(reporter.Reports()) == 0
 	return report
 }
 

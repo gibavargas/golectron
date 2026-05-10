@@ -18,6 +18,28 @@ func TestCrashReporterCapturesReportsWithDynamicKeys(t *testing.T) {
 	if err := reporter.AddExtraParameter("build", "42"); err != nil {
 		t.Fatalf("AddExtraParameter() error = %v", err)
 	}
+	params := reporter.Parameters()
+	if params["channel"] != "stable" || params["build"] != "42" {
+		t.Fatalf("Parameters() = %#v", params)
+	}
+	params["build"] = "mutated"
+	if got := reporter.Parameters()["build"]; got != "42" {
+		t.Fatalf("Parameters() returned mutable map: %q", got)
+	}
+	reporter.RemoveExtraParameter("build")
+	if _, ok := reporter.Parameters()["build"]; ok {
+		t.Fatal("RemoveExtraParameter() did not remove dynamic key")
+	}
+	if !reporter.UploadToServer() {
+		t.Fatal("UploadToServer() = false, want true")
+	}
+	reporter.SetUploadToServer(false)
+	if reporter.UploadToServer() {
+		t.Fatal("UploadToServer() = true after SetUploadToServer(false)")
+	}
+	if err := reporter.AddExtraParameter("build", "42"); err != nil {
+		t.Fatalf("AddExtraParameter(second) error = %v", err)
+	}
 	if err := reporter.Capture(CrashReport{ProcessType: "renderer", Reason: "oom", Stack: []string{"main.js:1"}}); err != nil {
 		t.Fatalf("Capture() error = %v", err)
 	}

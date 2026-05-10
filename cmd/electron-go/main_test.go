@@ -177,6 +177,35 @@ func TestRunContentTracingCheckReportsLifecycle(t *testing.T) {
 	}
 }
 
+func TestRunCrashReporterCheckReportsParameters(t *testing.T) {
+	var stdout bytes.Buffer
+	code := runWithOutput(t, []string{"electron-go", "--crash-reporter-check"}, &stdout, nil)
+	if code != 0 {
+		t.Fatalf("run(--crash-reporter-check) exit = %d, want 0", code)
+	}
+
+	var payload struct {
+		Started              bool   `json:"started"`
+		UploadInitial        bool   `json:"uploadInitial"`
+		UploadAfterSet       bool   `json:"uploadAfterSet"`
+		ExtraInitial         bool   `json:"extraInitial"`
+		ExtraAdded           bool   `json:"extraAdded"`
+		ExtraRemoved         bool   `json:"extraRemoved"`
+		UploadedReportsEmpty bool   `json:"uploadedReportsEmpty"`
+		LastReportNull       bool   `json:"lastReportNull"`
+		Error                string `json:"error,omitempty"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+		t.Fatalf("--crash-reporter-check output is not JSON: %v\n%s", err, stdout.String())
+	}
+	if payload.Error != "" {
+		t.Fatalf("crashReporter error = %q", payload.Error)
+	}
+	if !payload.Started || payload.UploadInitial || !payload.UploadAfterSet || !payload.ExtraInitial || !payload.ExtraAdded || !payload.ExtraRemoved || !payload.UploadedReportsEmpty || !payload.LastReportNull {
+		t.Fatalf("crashReporter report = %#v, want start, extra parameter, upload toggle, and empty report state", payload)
+	}
+}
+
 func TestRunBrowserWindowOptionsCheckReportsConstructorState(t *testing.T) {
 	var stdout bytes.Buffer
 	code := runWithOutput(t, []string{"electron-go", "--browser-window-options-check"}, &stdout, nil)

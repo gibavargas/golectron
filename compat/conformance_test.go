@@ -152,6 +152,29 @@ func TestContentTracingConformance(t *testing.T) {
 	}
 }
 
+func TestCrashReporterConformance(t *testing.T) {
+	electronBin := os.Getenv("ELECTRON_BIN")
+	electronGoBin := os.Getenv("ELECTRON_GO_BIN")
+	if electronBin == "" || electronGoBin == "" {
+		t.Skip("set ELECTRON_BIN and ELECTRON_GO_BIN to run official Electron vs Electron-Go conformance")
+	}
+
+	electron := runFixture(t, electronBin, filepath.Join("fixtures", "crash-reporter"))
+	electronGo := runCommand(t, electronGoBin, "--crash-reporter-check")
+	if electron.ExitCode != 0 {
+		t.Fatalf("official Electron crashReporter fixture exit code = %d\nOutput:\n%s", electron.ExitCode, electron.Output)
+	}
+	if electronGo.ExitCode != 0 {
+		t.Fatalf("Electron-Go crashReporter check exit code = %d\nOutput:\n%s", electronGo.ExitCode, electronGo.Output)
+	}
+
+	electronReport := parseCrashReporter(t, electron.Output)
+	electronGoReport := parseCrashReporter(t, electronGo.Output)
+	if electronReport != electronGoReport {
+		t.Fatalf("crashReporter report mismatch:\nelectron=%#v\nelectron-go=%#v", electronReport, electronGoReport)
+	}
+}
+
 func TestBrowserWindowOptionsConformance(t *testing.T) {
 	electronBin := os.Getenv("ELECTRON_BIN")
 	electronGoBin := os.Getenv("ELECTRON_GO_BIN")
@@ -978,6 +1001,18 @@ type contentTracingReport struct {
 	Error                 string   `json:"error,omitempty"`
 }
 
+type crashReporterReport struct {
+	Started              bool   `json:"started"`
+	UploadInitial        bool   `json:"uploadInitial"`
+	UploadAfterSet       bool   `json:"uploadAfterSet"`
+	ExtraInitial         bool   `json:"extraInitial"`
+	ExtraAdded           bool   `json:"extraAdded"`
+	ExtraRemoved         bool   `json:"extraRemoved"`
+	UploadedReportsEmpty bool   `json:"uploadedReportsEmpty"`
+	LastReportNull       bool   `json:"lastReportNull"`
+	Error                string `json:"error,omitempty"`
+}
+
 type browserWindowOptionsReport struct {
 	Width                    int    `json:"width"`
 	Height                   int    `json:"height"`
@@ -1444,6 +1479,18 @@ func parseContentTracing(t *testing.T, output string) contentTracingReport {
 	}
 	if report.Error != "" {
 		t.Fatalf("contentTracing report has error %q\n%s", report.Error, output)
+	}
+	return report
+}
+
+func parseCrashReporter(t *testing.T, output string) crashReporterReport {
+	t.Helper()
+	var report crashReporterReport
+	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+		t.Fatalf("crashReporter output is not JSON: %v\n%s", err, output)
+	}
+	if report.Error != "" {
+		t.Fatalf("crashReporter report has error %q\n%s", report.Error, output)
 	}
 	return report
 }
