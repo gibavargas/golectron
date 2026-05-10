@@ -1040,12 +1040,16 @@ type menuCheckReport struct {
 }
 
 type protocolCheckReport struct {
-	RegisteredPrivileged bool   `json:"registeredPrivileged"`
-	AllowExtensions      bool   `json:"allowExtensions"`
-	HandledAfterRegister bool   `json:"handledAfterRegister"`
-	DuplicateRejected    bool   `json:"duplicateRejected"`
-	HandledAfterRemove   bool   `json:"handledAfterRemove"`
-	Error                string `json:"error,omitempty"`
+	RegisteredPrivileged   bool   `json:"registeredPrivileged"`
+	AllowExtensions        bool   `json:"allowExtensions"`
+	HandledAfterRegister   bool   `json:"handledAfterRegister"`
+	FetchStatus            int    `json:"fetchStatus"`
+	FetchHeader            bool   `json:"fetchHeader"`
+	FetchBody              bool   `json:"fetchBody"`
+	DuplicateRejected      bool   `json:"duplicateRejected"`
+	LatePrivilegedRejected bool   `json:"latePrivilegedRejected"`
+	HandledAfterRemove     bool   `json:"handledAfterRemove"`
+	Error                  string `json:"error,omitempty"`
 }
 
 type sessionCheckReport struct {
@@ -2051,14 +2055,38 @@ func protocolReport() protocolCheckReport {
 		AllowExtensions:      privileges.AllowExtensions,
 	}
 
-	if err := registry.RegisterHandler("egtest", egprotocol.Handler{Kind: egprotocol.HandlerString}); err != nil {
+	if err := registry.RegisterHandler("egtest", egprotocol.Handler{
+		Kind: egprotocol.HandlerString,
+		Responder: func(request egprotocol.Request) (egprotocol.Response, error) {
+			return egprotocol.Response{
+				StatusCode: 201,
+				Headers:    http.Header{"X-Eg-Protocol": []string{"handled"}, "Content-Type": []string{"text/plain"}},
+				Body:       []byte("ok"),
+			}, nil
+		},
+	}); err != nil {
 		report.Error = err.Error()
 		return report
 	}
 	report.HandledAfterRegister = registry.IsProtocolHandled("egtest")
-	err := registry.RegisterHandler("egtest", egprotocol.Handler{Kind: egprotocol.HandlerString})
+	response, err := registry.Dispatch(egprotocol.Request{URL: "egtest://fixture/path?mode=fetch", Method: "GET"})
+	if err != nil {
+		report.Error = err.Error()
+		return report
+	}
+	report.FetchStatus = response.StatusCode
+	report.FetchHeader = response.Headers.Get("X-Eg-Protocol") == "handled"
+	report.FetchBody = string(response.Body) == "ok"
+	err = registry.RegisterHandler("egtest", egprotocol.Handler{Kind: egprotocol.HandlerString})
 	report.DuplicateRejected = errors.Is(err, egprotocol.ErrAlreadyRegistered)
 	if err != nil && !report.DuplicateRejected {
+		report.Error = err.Error()
+		return report
+	}
+	registry.LockPrivileges()
+	err = registry.RegisterSchemesAsPrivileged([]egprotocol.SchemePrivilege{{Scheme: "late", Privileges: egprotocol.Privileges{Standard: true}}})
+	report.LatePrivilegedRejected = errors.Is(err, egprotocol.ErrRegistryLocked)
+	if err != nil && !report.LatePrivilegedRejected {
 		report.Error = err.Error()
 		return report
 	}

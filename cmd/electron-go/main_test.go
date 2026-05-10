@@ -1061,12 +1061,16 @@ func TestRunProtocolCheckReportsRegistrationLifecycle(t *testing.T) {
 	}
 
 	var payload struct {
-		RegisteredPrivileged bool   `json:"registeredPrivileged"`
-		AllowExtensions      bool   `json:"allowExtensions"`
-		HandledAfterRegister bool   `json:"handledAfterRegister"`
-		DuplicateRejected    bool   `json:"duplicateRejected"`
-		HandledAfterRemove   bool   `json:"handledAfterRemove"`
-		Error                string `json:"error,omitempty"`
+		RegisteredPrivileged   bool   `json:"registeredPrivileged"`
+		AllowExtensions        bool   `json:"allowExtensions"`
+		HandledAfterRegister   bool   `json:"handledAfterRegister"`
+		FetchStatus            int    `json:"fetchStatus"`
+		FetchHeader            bool   `json:"fetchHeader"`
+		FetchBody              bool   `json:"fetchBody"`
+		DuplicateRejected      bool   `json:"duplicateRejected"`
+		LatePrivilegedRejected bool   `json:"latePrivilegedRejected"`
+		HandledAfterRemove     bool   `json:"handledAfterRemove"`
+		Error                  string `json:"error,omitempty"`
 	}
 	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
 		t.Fatalf("--protocol-check output is not JSON: %v\n%s", err, stdout.String())
@@ -1077,8 +1081,14 @@ func TestRunProtocolCheckReportsRegistrationLifecycle(t *testing.T) {
 	if !payload.RegisteredPrivileged || !payload.AllowExtensions || !payload.HandledAfterRegister {
 		t.Fatalf("protocol lifecycle missing expected true values: %#v", payload)
 	}
+	if payload.FetchStatus != 201 || !payload.FetchHeader || !payload.FetchBody {
+		t.Fatalf("protocol fetch report = status %d header %v body %v, want 201/true/true", payload.FetchStatus, payload.FetchHeader, payload.FetchBody)
+	}
 	if !payload.DuplicateRejected {
 		t.Fatalf("duplicateRejected = false, want true")
+	}
+	if !payload.LatePrivilegedRejected {
+		t.Fatalf("latePrivilegedRejected = false, want true")
 	}
 	if payload.HandledAfterRemove {
 		t.Fatalf("handledAfterRemove = true, want false")

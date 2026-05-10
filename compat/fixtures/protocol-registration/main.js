@@ -1,10 +1,14 @@
-const { app, protocol } = require('electron')
+const { app, net, protocol } = require('electron')
 
 const report = {
   registeredPrivileged: false,
   allowExtensions: false,
   handledAfterRegister: false,
+  fetchStatus: 0,
+  fetchHeader: false,
+  fetchBody: false,
   duplicateRejected: false,
+  latePrivilegedRejected: false,
   handledAfterRemove: false
 }
 
@@ -30,14 +34,26 @@ app.whenReady().then(async () => {
   if (!report.error) {
     try {
       protocol.handle('egtest', () => new Response('ok', {
-        status: 200,
-        headers: { 'content-type': 'text/plain' }
+        status: 201,
+        headers: {
+          'content-type': 'text/plain',
+          'x-eg-protocol': 'handled'
+        }
       }))
       report.handledAfterRegister = Boolean(await protocol.isProtocolHandled('egtest'))
+      const response = await net.fetch('egtest://fixture/path?mode=fetch')
+      report.fetchStatus = response.status
+      report.fetchHeader = response.headers.get('x-eg-protocol') === 'handled'
+      report.fetchBody = await response.text() === 'ok'
       try {
         protocol.handle('egtest', () => new Response('duplicate'))
       } catch (_error) {
         report.duplicateRejected = true
+      }
+      try {
+        protocol.registerSchemesAsPrivileged([{ scheme: 'late', privileges: { standard: true } }])
+      } catch (_error) {
+        report.latePrivilegedRejected = true
       }
       protocol.unhandle('egtest')
       report.handledAfterRemove = Boolean(await protocol.isProtocolHandled('egtest'))

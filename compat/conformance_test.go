@@ -1259,12 +1259,16 @@ type safeStorageReport struct {
 }
 
 type protocolReport struct {
-	RegisteredPrivileged bool   `json:"registeredPrivileged"`
-	AllowExtensions      bool   `json:"allowExtensions"`
-	HandledAfterRegister bool   `json:"handledAfterRegister"`
-	DuplicateRejected    bool   `json:"duplicateRejected"`
-	HandledAfterRemove   bool   `json:"handledAfterRemove"`
-	Error                string `json:"error,omitempty"`
+	RegisteredPrivileged   bool   `json:"registeredPrivileged"`
+	AllowExtensions        bool   `json:"allowExtensions"`
+	HandledAfterRegister   bool   `json:"handledAfterRegister"`
+	FetchStatus            int    `json:"fetchStatus"`
+	FetchHeader            bool   `json:"fetchHeader"`
+	FetchBody              bool   `json:"fetchBody"`
+	DuplicateRejected      bool   `json:"duplicateRejected"`
+	LatePrivilegedRejected bool   `json:"latePrivilegedRejected"`
+	HandledAfterRemove     bool   `json:"handledAfterRemove"`
+	Error                  string `json:"error,omitempty"`
 }
 
 type sessionReport struct {

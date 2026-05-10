@@ -46,12 +46,20 @@ const (
 )
 
 type Handler struct {
-	Kind HandlerKind
+	Kind      HandlerKind
+	Responder func(Request) (Response, error)
+}
+
+type Request struct {
+	URL     string
+	Method  string
+	Headers http.Header
 }
 
 type Response struct {
 	StatusCode int
 	Headers    http.Header
+	Body       []byte
 }
 
 type Registry struct {
@@ -134,6 +142,38 @@ func (r *Registry) UnregisterProtocol(scheme string) error {
 	}
 	delete(r.handlers, name)
 	return nil
+}
+
+func (r *Registry) Dispatch(request Request) (Response, error) {
+	parsedScheme := request.URL
+	if i := strings.Index(parsedScheme, ":"); i >= 0 {
+		parsedScheme = parsedScheme[:i]
+	}
+	name, err := NormalizeScheme(parsedScheme)
+	if err != nil {
+		return Response{}, err
+	}
+	handler, ok := r.handlers[name]
+	if !ok {
+		return Response{}, fmt.Errorf("%w: %s", ErrNotRegistered, name)
+	}
+	if handler.Responder == nil {
+		return Response{}, fmt.Errorf("%w: responder is required", ErrNotRegistered)
+	}
+	response, err := handler.Responder(Request{
+		URL:     request.URL,
+		Method:  strings.ToUpper(strings.TrimSpace(request.Method)),
+		Headers: request.Headers.Clone(),
+	})
+	if err != nil {
+		return Response{}, err
+	}
+	if err := ValidateResponse(response); err != nil {
+		return Response{}, err
+	}
+	response.Headers = response.Headers.Clone()
+	response.Body = append([]byte(nil), response.Body...)
+	return response, nil
 }
 
 func NormalizeScheme(scheme string) (string, error) {

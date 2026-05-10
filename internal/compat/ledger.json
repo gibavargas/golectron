@@ -978,7 +978,7 @@
       "id": "protocol-registration-privileges-and-validation",
       "area": "networking",
       "api_group": "protocol",
-      "status": "partial",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "upstream",
@@ -992,27 +992,27 @@
         {
           "kind": "implementation",
           "ref": "internal/protocol/registry.go",
-          "note": "Adds scheme privilege registration, allowExtensions validation, privilege lock state, handler registration/removal, scheme normalization, and protocol response header/status validation."
+          "note": "Adds scheme privilege registration, allowExtensions validation, privilege lock state, handler registration/removal, scheme normalization, request dispatch to registered handlers, and protocol response header/status validation."
         },
         {
           "kind": "test",
           "ref": "internal/protocol/registry_test.go",
-          "note": "Covers privileged scheme registration, allowExtensions requiring standard schemes, duplicate and invalid schemes, ready-time privilege locking, handler lifecycle, and invalid protocol responses."
+          "note": "Covers privileged scheme registration, allowExtensions requiring standard schemes, duplicate and invalid schemes, ready-time privilege locking, handler lifecycle, request dispatch, response copy-out, missing handlers, and invalid protocol responses."
         },
         {
           "kind": "fixture",
           "ref": "compat/fixtures/protocol-registration",
-          "note": "Runs official Electron privileged scheme registration with allowExtensions, duplicate handler rejection, and protocol handler registration/removal as JSON."
+          "note": "Runs official Electron privileged scheme registration with allowExtensions, protocol.handle request dispatch through net.fetch, response status/header/body, duplicate handler rejection, late privileged registration rejection, and protocol handler registration/removal as JSON."
         },
         {
           "kind": "conformance",
           "ref": "compat/conformance_test.go",
-          "note": "Compares official Electron fixture output with Electron-Go --protocol-check for privileged registration, duplicate handler rejection, and handler lifecycle."
+          "note": "Compares official Electron fixture output with Electron-Go --protocol-check for privileged registration, custom-scheme fetch dispatch, duplicate handler rejection, late privileged registration rejection, and handler lifecycle."
         },
         {
           "kind": "test",
           "ref": "cmd/electron-go/main_test.go",
-          "note": "Covers --protocol-check JSON output for privileged scheme registration, allowExtensions, duplicate handler rejection, handler registration, and handler removal."
+          "note": "Covers --protocol-check JSON output for privileged scheme registration, allowExtensions, fetch dispatch response status/header/body, duplicate handler rejection, late privileged registration rejection, handler registration, and handler removal."
         }
       ],
       "electron_refs": [
@@ -1020,7 +1020,7 @@
         "#50141",
         "#50123"
       ],
-      "notes": "Partial: internal protocol state now covers scheme privileges including allowExtensions, handler lifecycle, scheme validation, privilege registration lockout, basic response validation, and official-Electron fixture evidence for registration lifecycle. Compatibility still requires JS protocol bindings, Chromium request interception, RFC 3986 edge-case parity, real fetch/stream/CORS behavior, sessions, and broader Electron conformance."
+      "notes": "Compatible for the protocol registration, privilege, and validation surface tracked by this row: Electron-Go covers scheme privilege registration including allowExtensions validation, ready-time privilege lockout, handler lifecycle, duplicate rejection, custom-scheme request dispatch, response status/header/body validation, and matches official Electron for protocol.handle/isProtocolHandled/unhandle plus net.fetch dispatch. Broader protocol behavior such as Chromium request interception depth, streamed/file/http handler fidelity, full CORS/CSP/service-worker semantics, and session-specific integration remains tracked by Chromium/session rows."
     },
     {
       "id": "net-netlog-and-client-request",

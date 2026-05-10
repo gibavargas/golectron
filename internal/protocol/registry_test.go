@@ -58,7 +58,9 @@ func TestPrivilegeRegistrationLocksAfterReady(t *testing.T) {
 
 func TestProtocolHandlers(t *testing.T) {
 	registry := NewRegistry()
-	if err := registry.RegisterHandler("app", Handler{Kind: HandlerString}); err != nil {
+	if err := registry.RegisterHandler("app", Handler{Kind: HandlerString, Responder: func(Request) (Response, error) {
+		return Response{StatusCode: http.StatusOK}, nil
+	}}); err != nil {
 		t.Fatalf("RegisterHandler() error = %v", err)
 	}
 	if !registry.IsProtocolHandled("app:") {
@@ -75,6 +77,59 @@ func TestProtocolHandlers(t *testing.T) {
 	}
 	if err := registry.UnregisterProtocol("app"); !errors.Is(err, ErrNotRegistered) {
 		t.Fatalf("UnregisterProtocol(missing) error = %v, want ErrNotRegistered", err)
+	}
+}
+
+func TestProtocolDispatch(t *testing.T) {
+	registry := NewRegistry()
+	if err := registry.RegisterHandler("app", Handler{
+		Kind: HandlerString,
+		Responder: func(request Request) (Response, error) {
+			if request.Method != "GET" || request.URL != "app://fixture/path?mode=fetch" {
+				t.Fatalf("request = %#v", request)
+			}
+			return Response{
+				StatusCode: http.StatusCreated,
+				Headers:    http.Header{"X-Eg-Protocol": []string{"handled"}},
+				Body:       []byte("ok"),
+			}, nil
+		},
+	}); err != nil {
+		t.Fatalf("RegisterHandler() error = %v", err)
+	}
+
+	response, err := registry.Dispatch(Request{URL: "app://fixture/path?mode=fetch", Method: "get", Headers: http.Header{"X-Test": []string{"1"}}})
+	if err != nil {
+		t.Fatalf("Dispatch() error = %v", err)
+	}
+	if response.StatusCode != http.StatusCreated || response.Headers.Get("X-Eg-Protocol") != "handled" || string(response.Body) != "ok" {
+		t.Fatalf("response = %#v", response)
+	}
+	response.Body[0] = 'x'
+	again, err := registry.Dispatch(Request{URL: "app://fixture/path?mode=fetch", Method: "GET"})
+	if err != nil {
+		t.Fatalf("Dispatch(second) error = %v", err)
+	}
+	if string(again.Body) != "ok" {
+		t.Fatalf("second body = %q, want copy isolated ok", string(again.Body))
+	}
+}
+
+func TestProtocolDispatchRejectsMissingAndInvalidResponses(t *testing.T) {
+	registry := NewRegistry()
+	if _, err := registry.Dispatch(Request{URL: "missing://fixture"}); !errors.Is(err, ErrNotRegistered) {
+		t.Fatalf("Dispatch(missing) error = %v, want ErrNotRegistered", err)
+	}
+	if err := registry.RegisterHandler("app", Handler{
+		Kind: HandlerString,
+		Responder: func(Request) (Response, error) {
+			return Response{StatusCode: 99}, nil
+		},
+	}); err != nil {
+		t.Fatalf("RegisterHandler() error = %v", err)
+	}
+	if _, err := registry.Dispatch(Request{URL: "app://fixture"}); !errors.Is(err, ErrInvalidResponse) {
+		t.Fatalf("Dispatch(invalid response) error = %v, want ErrInvalidResponse", err)
 	}
 }
 
