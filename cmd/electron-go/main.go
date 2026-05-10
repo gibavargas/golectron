@@ -1110,6 +1110,9 @@ type sessionCheckReport struct {
 	DefaultSameWithEmpty       bool   `json:"defaultSameWithEmpty"`
 	PersistStoragePathNonempty bool   `json:"persistStoragePathNonempty"`
 	MemoryStoragePathEmpty     bool   `json:"memoryStoragePathEmpty"`
+	PermissionCheckCalled      bool   `json:"permissionCheckCalled"`
+	PermissionRequestCalled    bool   `json:"permissionRequestCalled"`
+	PermissionRequestAllowed   bool   `json:"permissionRequestAllowed"`
 	CookieRoundTrip            bool   `json:"cookieRoundTrip"`
 	CookieCount                int    `json:"cookieCount"`
 	CookieOverwriteValue       bool   `json:"cookieOverwriteValue"`
@@ -2232,6 +2235,26 @@ func sessionReport() sessionCheckReport {
 		DefaultSameWithEmpty:       defaultSession == emptyPartition,
 		PersistStoragePathNonempty: persistent.IsPersistent(),
 		MemoryStoragePathEmpty:     !inMemory.IsPersistent(),
+	}
+	defaultSession.SetPermissionCheckHandler(func(req egsession.PermissionRequest) bool {
+		report.PermissionCheckCalled = true
+		return req.Permission == "notifications"
+	})
+	defaultSession.SetPermissionRequestHandler(func(req egsession.PermissionRequest) bool {
+		report.PermissionRequestCalled = true
+		report.PermissionRequestAllowed = req.Permission == "notifications"
+		return report.PermissionRequestAllowed
+	})
+	_ = defaultSession.CheckPermission(egsession.PermissionRequest{
+		RequestingURL: "data:text/html",
+		Permission:    "notifications",
+	})
+	if err := defaultSession.RequestPermission(egsession.PermissionRequest{
+		RequestingURL: "data:text/html",
+		Permission:    "notifications",
+	}); err != nil {
+		report.Error = err.Error()
+		return report
 	}
 
 	if err := defaultSession.SetCookie(egsession.Cookie{

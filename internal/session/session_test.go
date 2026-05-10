@@ -57,6 +57,29 @@ func TestPermissionHandler(t *testing.T) {
 	}
 }
 
+func TestPermissionCheckAndRequestHandlers(t *testing.T) {
+	s := NewRegistry().DefaultSession()
+	checks := 0
+	requests := 0
+	s.SetPermissionCheckHandler(func(req PermissionRequest) bool {
+		checks++
+		return req.Permission == "notifications" && req.RequestingURL == "https://example.test/"
+	})
+	s.SetPermissionRequestHandler(func(req PermissionRequest) bool {
+		requests++
+		return req.Permission == "notifications"
+	})
+	if !s.CheckPermission(PermissionRequest{Permission: "notifications", RequestingURL: "https://example.test/"}) {
+		t.Fatal("CheckPermission(notifications) = false, want true")
+	}
+	if err := s.RequestPermission(PermissionRequest{Permission: "notifications", RequestingURL: "https://example.test/"}); err != nil {
+		t.Fatalf("RequestPermission(notifications) error = %v", err)
+	}
+	if checks != 1 || requests != 1 {
+		t.Fatalf("handler counts = check %d request %d, want 1/1", checks, requests)
+	}
+}
+
 func TestCookieStoreNormalizesAndRecordsChanges(t *testing.T) {
 	s := NewRegistry().DefaultSession()
 	if err := s.SetCookie(Cookie{URL: "https://example.test/path", Name: "sid", Value: "1", Secure: true}); err != nil {

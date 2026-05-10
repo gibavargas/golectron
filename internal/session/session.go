@@ -62,6 +62,7 @@ type PermissionRequest struct {
 }
 
 type PermissionHandler func(PermissionRequest) bool
+type PermissionCheckHandler func(PermissionRequest) bool
 
 type CookieChangeCause string
 
@@ -98,6 +99,7 @@ type Session struct {
 	partition         string
 	persistent        bool
 	permissionHandler PermissionHandler
+	permissionCheck   PermissionCheckHandler
 	cookies           map[string]Cookie
 	cookieChanges     []CookieChange
 	cacheCleared      bool
@@ -125,7 +127,14 @@ func (s *Session) SetPermissionRequestHandler(handler PermissionHandler) {
 	s.permissionHandler = handler
 }
 
+func (s *Session) SetPermissionCheckHandler(handler PermissionCheckHandler) {
+	s.permissionCheck = handler
+}
+
 func (s *Session) CheckPermission(req PermissionRequest) bool {
+	if s.permissionCheck != nil {
+		return s.permissionCheck(req)
+	}
 	if s.permissionHandler == nil {
 		return false
 	}
@@ -133,6 +142,12 @@ func (s *Session) CheckPermission(req PermissionRequest) bool {
 }
 
 func (s *Session) RequestPermission(req PermissionRequest) error {
+	if s.permissionHandler != nil {
+		if s.permissionHandler(req) {
+			return nil
+		}
+		return fmt.Errorf("%w: %s", ErrPermissionDenied, req.Permission)
+	}
 	if !s.CheckPermission(req) {
 		return fmt.Errorf("%w: %s", ErrPermissionDenied, req.Permission)
 	}

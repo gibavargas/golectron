@@ -1345,6 +1345,9 @@ type sessionReport struct {
 	DefaultSameWithEmpty       bool   `json:"defaultSameWithEmpty"`
 	PersistStoragePathNonempty bool   `json:"persistStoragePathNonempty"`
 	MemoryStoragePathEmpty     bool   `json:"memoryStoragePathEmpty"`
+	PermissionCheckCalled      bool   `json:"permissionCheckCalled"`
+	PermissionRequestCalled    bool   `json:"permissionRequestCalled"`
+	PermissionRequestAllowed   bool   `json:"permissionRequestAllowed"`
 	CookieRoundTrip            bool   `json:"cookieRoundTrip"`
 	CookieCount                int    `json:"cookieCount"`
 	CookieOverwriteValue       bool   `json:"cookieOverwriteValue"`

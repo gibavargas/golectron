@@ -1167,6 +1167,9 @@ func TestRunSessionCheckReportsBasicSessionBehavior(t *testing.T) {
 		DefaultSameWithEmpty       bool   `json:"defaultSameWithEmpty"`
 		PersistStoragePathNonempty bool   `json:"persistStoragePathNonempty"`
 		MemoryStoragePathEmpty     bool   `json:"memoryStoragePathEmpty"`
+		PermissionCheckCalled      bool   `json:"permissionCheckCalled"`
+		PermissionRequestCalled    bool   `json:"permissionRequestCalled"`
+		PermissionRequestAllowed   bool   `json:"permissionRequestAllowed"`
 		CookieRoundTrip            bool   `json:"cookieRoundTrip"`
 		CookieCount                int    `json:"cookieCount"`
 		CookieOverwriteValue       bool   `json:"cookieOverwriteValue"`
@@ -1188,6 +1191,9 @@ func TestRunSessionCheckReportsBasicSessionBehavior(t *testing.T) {
 	}
 	if !payload.DefaultSameWithEmpty || !payload.PersistStoragePathNonempty || !payload.MemoryStoragePathEmpty {
 		t.Fatalf("session identity/partition flags are wrong: %#v", payload)
+	}
+	if !payload.PermissionCheckCalled || !payload.PermissionRequestCalled || !payload.PermissionRequestAllowed {
+		t.Fatalf("permission report = check %v request %v allowed %v, want true/true/true", payload.PermissionCheckCalled, payload.PermissionRequestCalled, payload.PermissionRequestAllowed)
 	}
 	if !payload.CookieRoundTrip || payload.CookieCount != 1 {
 		t.Fatalf("cookie report = roundTrip %v count %d, want true/1", payload.CookieRoundTrip, payload.CookieCount)

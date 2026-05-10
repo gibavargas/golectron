@@ -1,4 +1,8 @@
-const { app, session } = require('electron')
+const { app, BrowserWindow, session } = require('electron')
+
+app.on('window-all-closed', event => {
+  event.preventDefault()
+})
 
 app.whenReady().then(async () => {
   const defaultSession = session.defaultSession
@@ -10,6 +14,9 @@ app.whenReady().then(async () => {
     defaultSameWithEmpty: defaultSession === emptyPartition,
     persistStoragePathNonempty: Boolean(persistent.storagePath),
     memoryStoragePathEmpty: !inMemory.storagePath,
+    permissionCheckCalled: false,
+    permissionRequestCalled: false,
+    permissionRequestAllowed: false,
     cookieRoundTrip: false,
     cookieCount: 0,
     cookieOverwriteValue: false,
@@ -24,6 +31,40 @@ app.whenReady().then(async () => {
   }
 
   try {
+    defaultSession.setPermissionCheckHandler((_webContents, permission) => {
+      if (permission === 'notifications') {
+        report.permissionCheckCalled = true
+      }
+      return permission === 'notifications'
+    })
+    defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+      if (permission === 'notifications') {
+        report.permissionRequestCalled = true
+        report.permissionRequestAllowed = true
+      }
+      callback(permission === 'notifications')
+    })
+    const win = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        nodeIntegration: true,
+        contextIsolation: false
+      }
+    })
+    const permissionResultPromise = new Promise(resolve => {
+      win.webContents.once('console-message', details => {
+        try {
+          const payload = JSON.parse(details.message)
+          resolve(payload.permissionResult || '')
+        } catch {
+          resolve('')
+        }
+      })
+    })
+    await win.loadURL("data:text/html,<script>navigator.permissions.query({ name: 'notifications' }).then(() => Notification.requestPermission()).then(result => console.log(JSON.stringify({ permissionResult: result })))</script>")
+    await permissionResultPromise
+    win.destroy()
+
     const cookieChanges = []
     defaultSession.cookies.on('changed', (_event, cookie, cause, removed) => {
       if (cookie.name === 'sid') {
