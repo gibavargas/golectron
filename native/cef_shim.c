@@ -435,7 +435,6 @@ static void eg_cef_clear_settings(cef_settings_t* settings) {
   cef_string_clear(&settings->root_cache_path);
   cef_string_clear(&settings->resources_dir_path);
   cef_string_clear(&settings->locales_dir_path);
-  cef_string_clear(&settings->browser_subprocess_path);
 }
 
 static void eg_cef_reset_browser_state(void) {
@@ -523,9 +522,7 @@ eg_bridge_status eg_cef_shim_initialize(
       !eg_cef_set_cef_string(
           &request->settings.resources_path, &settings.resources_dir_path) ||
       !eg_cef_set_cef_string(
-          &request->settings.locales_path, &settings.locales_dir_path) ||
-      !eg_cef_set_cef_string(&request->settings.browser_subprocess_path,
-                             &settings.browser_subprocess_path)) {
+          &request->settings.locales_path, &settings.locales_dir_path)) {
     eg_cef_free_argv_storage(&storage);
     eg_cef_clear_settings(&settings);
     return EG_BRIDGE_STATUS_INVALID_REQUEST;

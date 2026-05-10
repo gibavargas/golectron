@@ -265,18 +265,16 @@ func NewCEFInitializeRequest(appDir string, args []string) (CEFInitializeRequest
 		return CEFInitializeRequest{}, err
 	}
 	resourcesPath, localesPath := cefResourcePaths()
-	browserSubprocessPath, _ := os.Executable()
 	return NormalizeCEFInitializeRequest(CEFInitializeRequest{
 		AppDir: absAppDir,
 		Args:   appendCEFBrowserProcessSwitches(args),
 		Settings: CEFSettings{
-			NoSandbox:             true,
-			CachePath:             cachePath,
-			LogSeverity:           CEFLogSeverityWarning,
-			ResourcesPath:         resourcesPath,
-			LocalesPath:           localesPath,
-			BrowserSubprocessPath: browserSubprocessPath,
-			DisableSignals:        true,
+			NoSandbox:      true,
+			CachePath:      cachePath,
+			LogSeverity:    CEFLogSeverityWarning,
+			ResourcesPath:  resourcesPath,
+			LocalesPath:    localesPath,
+			DisableSignals: true,
 		},
 	}), nil
 }
@@ -291,16 +289,6 @@ func cefCachePath(absAppDir string) string {
 }
 
 func cefResourcePaths() (string, string) {
-	if executable, err := os.Executable(); err == nil && executable != "" {
-		resourcesPath := filepath.Dir(executable)
-		localesPath := filepath.Join(resourcesPath, "locales")
-		if isFile(filepath.Join(resourcesPath, "resources.pak")) &&
-			isFile(filepath.Join(resourcesPath, "icudtl.dat")) &&
-			isDir(localesPath) {
-			return resourcesPath, localesPath
-		}
-	}
-
 	_, file, _, ok := runtime.Caller(0)
 	if !ok || file == "" {
 		return "", ""
@@ -316,11 +304,6 @@ func cefResourcePaths() (string, string) {
 func isDir(path string) bool {
 	info, err := os.Stat(path)
 	return err == nil && info.IsDir()
-}
-
-func isFile(path string) bool {
-	info, err := os.Stat(path)
-	return err == nil && info.Mode().IsRegular()
 }
 
 func appendCEFBrowserProcessSwitches(args []string) []string {
@@ -381,8 +364,6 @@ func initializeCEF(ctx context.Context, req CEFInitializeRequest) error {
 	defer resourcesPath.free()
 	localesPath := newCStringView(req.Settings.LocalesPath)
 	defer localesPath.free()
-	browserSubprocessPath := newCStringView(req.Settings.BrowserSubprocessPath)
-	defer browserSubprocessPath.free()
 
 	cReq := (*C.eg_cef_initialize_request)(C.calloc(1, C.size_t(unsafe.Sizeof(C.eg_cef_initialize_request{}))))
 	if cReq == nil {
@@ -398,7 +379,6 @@ func initializeCEF(ctx context.Context, req CEFInitializeRequest) error {
 	cReq.settings.log_severity = cLogSeverity(req.Settings.LogSeverity)
 	cReq.settings.resources_path = resourcesPath.view
 	cReq.settings.locales_path = localesPath.view
-	cReq.settings.browser_subprocess_path = browserSubprocessPath.view
 	cReq.settings.disable_signals = boolToCUint8(req.Settings.DisableSignals)
 
 	status := C.eg_cef_shim_initialize(nil, cReq)
