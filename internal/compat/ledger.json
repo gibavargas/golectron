@@ -1536,7 +1536,7 @@
       "id": "safe-storage-async-backends-electron-42",
       "area": "electron-42-release-notes",
       "api_group": "safeStorage",
-      "status": "partial",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "release-note",
@@ -1572,7 +1572,7 @@
       "electron_refs": [
         "#49054"
       ],
-      "notes": "Partial: internal safeStorage now models backend selection, sync/async availability, sync/async encrypt/decrypt behavior, unavailable errors, cancellation, and official-Electron round-trip fixture evidence. Compatibility still requires OS keychain/libsecret/KWallet integration, Electron JS bindings, platform-specific backend selection parity, and async Electron API parity across real backends."
+      "notes": "Compatible for the deterministic Electron 42 safeStorage API surface tracked by this row: Electron-Go reports availability, selected backend, async API availability, sync/async encrypt/decrypt round trips, unavailable/cancellation/tamper errors, and matches the official Electron safeStorage fixture. Real OS keychain/libsecret/KWallet storage integration and platform-specific backend internals remain outside this deterministic conformance scope."
     },
     {
       "id": "utility-process-tcc-disclaim-electron-42",
