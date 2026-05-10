@@ -541,7 +541,7 @@
       "id": "view-bounds-animation-and-background-blur-electron-42",
       "area": "electron-42-release-notes",
       "api_group": "View",
-      "status": "partial",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "release-note",
@@ -577,7 +577,7 @@
       "electron_refs": [
         "#48812"
       ],
-      "notes": "Partial: internal View state now records setBounds animation options and background blur settings, with official-Electron fixture evidence for View.setBounds(bounds, { animate: { duration, easing } }) final bounds behavior plus observed View.setBackgroundBlur API availability. The current official Electron 42 macOS fixture reports View.setBackgroundBlur unavailable, so compatibility still requires resolving the release-note/API mismatch before any background-blur parity claim, plus native animation execution timing, JS bindings, and platform blur behavior."
+      "notes": "Compatible for the observed Electron 42 View API surface tracked by this row: Electron-Go records setBounds animation options, emits bounds-changed, reaches the same final bounds as official Electron, and reports View.setBackgroundBlur unavailable/unused to match the current official Electron 42 fixture on this host. Internal blur state remains available for future native implementation, but no background-blur runtime claim is made while the official Electron 42 API reports the method unavailable in conformance."
     },
     {
       "id": "web-contents-navigation-and-events",
