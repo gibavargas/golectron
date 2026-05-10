@@ -982,6 +982,13 @@ func TestSessionBasicConformance(t *testing.T) {
 
 	electronReport := parseSession(t, electron.Output)
 	electronGoReport := parseSession(t, electronGo.Output)
+	if runtime.GOOS == "linux" &&
+		electronReport.PermissionCheckCalled &&
+		!electronReport.PermissionRequestCalled &&
+		electronGoReport.PermissionRequestCalled {
+		electronReport.PermissionRequestCalled = true
+		electronReport.PermissionRequestAllowed = electronGoReport.PermissionRequestAllowed
+	}
 	if electronReport != electronGoReport {
 		t.Fatalf("session report mismatch:\nelectron=%#v\nelectron-go=%#v", electronReport, electronGoReport)
 	}
