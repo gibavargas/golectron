@@ -12,6 +12,8 @@ import "C"
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"net/url"
 	"os"
@@ -258,7 +260,7 @@ func NewCEFInitializeRequest(appDir string, args []string) (CEFInitializeRequest
 	if err != nil {
 		return CEFInitializeRequest{}, err
 	}
-	cachePath := filepath.Join(absAppDir, ".electron-go", "cef-cache")
+	cachePath := cefCachePath(absAppDir)
 	if err := os.MkdirAll(cachePath, 0o755); err != nil {
 		return CEFInitializeRequest{}, err
 	}
@@ -271,6 +273,15 @@ func NewCEFInitializeRequest(appDir string, args []string) (CEFInitializeRequest
 			LogSeverity: CEFLogSeverityWarning,
 		},
 	}), nil
+}
+
+func cefCachePath(absAppDir string) string {
+	root, err := os.UserCacheDir()
+	if err != nil || root == "" {
+		root = os.TempDir()
+	}
+	sum := sha256.Sum256([]byte(absAppDir))
+	return filepath.Join(root, "electron-go", hex.EncodeToString(sum[:8]), "cef")
 }
 
 func appendCEFBrowserProcessSwitches(args []string) []string {
