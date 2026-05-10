@@ -95,9 +95,18 @@ static void CEF_CALLBACK eg_cef_on_before_command_line_processing(
     struct _cef_command_line_t* command_line) {
   (void)self;
   (void)process_type;
+  eg_cef_append_ascii_switch(command_line, "disable-background-networking");
+  eg_cef_append_ascii_switch(command_line, "disable-breakpad");
+  eg_cef_append_ascii_switch(command_line, "disable-component-update");
+  eg_cef_append_ascii_switch(command_line, "disable-default-apps");
+  eg_cef_append_ascii_switch(command_line, "disable-extensions");
   eg_cef_append_ascii_switch(command_line, "disable-gpu");
   eg_cef_append_ascii_switch(command_line, "disable-gpu-compositing");
   eg_cef_append_ascii_switch(command_line, "disable-dev-shm-usage");
+  eg_cef_append_ascii_switch(command_line, "disable-sync");
+  eg_cef_append_ascii_switch(command_line, "metrics-recording-only");
+  eg_cef_append_ascii_switch(command_line, "no-default-browser-check");
+  eg_cef_append_ascii_switch(command_line, "no-first-run");
 }
 
 static cef_browser_process_handler_t* eg_cef_make_browser_process_handler(void) {

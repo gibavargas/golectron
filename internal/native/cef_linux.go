@@ -29,11 +29,21 @@ var cefLastLoadError atomic.Int32
 var cefBrowserClosed atomic.Bool
 
 var cefBrowserProcessSwitches = []string{
+	"--disable-background-networking",
+	"--disable-breakpad",
+	"--disable-component-update",
+	"--disable-default-apps",
+	"--disable-extensions",
+	"--disable-features=AutofillServerCommunication,CertificateTransparencyComponentUpdater,MediaRouter,OptimizationHints",
 	"--disable-gpu",
 	"--disable-gpu-compositing",
 	"--disable-gpu-sandbox",
 	"--disable-dev-shm-usage",
+	"--disable-sync",
 	"--in-process-gpu",
+	"--metrics-recording-only",
+	"--no-default-browser-check",
+	"--no-first-run",
 	"--no-sandbox",
 }
 
