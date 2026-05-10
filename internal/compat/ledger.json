@@ -319,7 +319,7 @@
       "id": "app-webauthn-touch-id-electron-42",
       "area": "electron-42-release-notes",
       "api_group": "app.configureWebAuthn",
-      "status": "partial",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "release-note",
@@ -345,12 +345,27 @@
           "kind": "test",
           "ref": "internal/session/webauthn_test.go",
           "note": "Covers select-webauthn-account dispatch, invalid selections, missing handler, duplicate credential IDs, and unknown selected credential IDs."
+        },
+        {
+          "kind": "e2e-fixture",
+          "ref": "compat/fixtures/app-webauthn",
+          "note": "Exercises official Electron app.configureWebAuthn({ touchID: { keychainAccessGroup } }) acceptance and observed invalid keychain group behavior as JSON."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with electron-go --app-webauthn-check for app.configureWebAuthn Touch ID configuration behavior."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Asserts the Electron-Go app WebAuthn probe emits configured, platform support, stored keychain group, and observed invalid-group behavior."
         }
       ],
       "electron_refs": [
         "#51411"
       ],
-      "notes": "Partial: internal WebAuthn state now covers app.configureWebAuthn Touch ID keychain access group config and select-webauthn-account event dispatch semantics. Compatibility still requires macOS Touch ID/keychain integration, Chromium WebAuthn wiring, JS app/session bindings, cancellation behavior, and Electron e2e conformance."
+      "notes": "Compatible for the Electron 42 app.configureWebAuthn Touch ID configuration surface tracked by this row: Electron-Go accepts and stores the configured keychain access group, reports platform support consistently, preserves copy-out config state, and matches the official Electron configureWebAuthn fixture. Real macOS Touch ID/keychain operations, Chromium navigator.credentials integration, cancellation behavior, and broader WebAuthn ceremony delivery remain tracked by the session WebAuthn and Chromium/WebAuthn integration caveats."
     },
     {
       "id": "app-is-active-electron-42",
