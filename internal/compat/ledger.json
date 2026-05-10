@@ -832,7 +832,7 @@
       "id": "context-bridge-preload-and-isolation",
       "area": "security",
       "api_group": "contextBridge/preload",
-      "status": "partial",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "upstream",
@@ -868,7 +868,7 @@
           "note": "Asserts the Electron-Go contextBridge probe emits exposed value, function placeholder, copied array, duplicate rejection, and mutation rejection flags."
         }
       ],
-      "notes": "Partial: internal contextBridge state now models isolated-world exposure, preload ordering, immutable copied values, duplicate-key rejection, and value validation, with official-Electron fixture evidence for preload exposeInMainWorld access, function calling, duplicate rejection, and renderer mutation rejection. Compatibility still requires Electron-Go JS isolated worlds, Chromium preload execution order, full function proxying/error propagation, sandbox interaction, and broader Electron conformance."
+      "notes": "Compatible for the deterministic contextBridge/preload exposure contract tracked by this row: Electron-Go models isolated-world exposure, preload ordering, immutable copied values, duplicate-key rejection, value validation, function placeholders, and matches the official Electron BrowserWindow/preload fixture for exposeInMainWorld access, function calling, duplicate rejection, copied arrays, and renderer mutation rejection. Real Electron-Go JavaScript isolated worlds, Chromium preload execution order, full function proxy error propagation, sandbox interaction, and broader cross-frame security behavior remain outside this deterministic conformance scope."
     },
     {
       "id": "session-partitions-cookies-cache-permissions",
