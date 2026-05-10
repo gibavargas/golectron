@@ -723,6 +723,32 @@ func TestRunAppWebAuthnCheckReportsTouchIDConfig(t *testing.T) {
 	}
 }
 
+func TestRunGlobalShortcutCheckReportsRegistrationLifecycle(t *testing.T) {
+	var stdout bytes.Buffer
+	code := runWithOutput(t, []string{"electron-go", "--global-shortcut-check"}, &stdout, nil)
+	if code != 0 {
+		t.Fatalf("run(--global-shortcut-check) exit = %d, want 0", code)
+	}
+
+	var payload struct {
+		Registered           bool   `json:"registered"`
+		DuplicateRejected    bool   `json:"duplicateRejected"`
+		AliasRegistered      bool   `json:"aliasRegistered"`
+		Unregistered         bool   `json:"unregistered"`
+		UnregisterAllCleared bool   `json:"unregisterAllCleared"`
+		Error                string `json:"error,omitempty"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+		t.Fatalf("--global-shortcut-check output is not JSON: %v\n%s", err, stdout.String())
+	}
+	if payload.Error != "" {
+		t.Fatalf("globalShortcut error = %q", payload.Error)
+	}
+	if !payload.Registered || !payload.DuplicateRejected || !payload.AliasRegistered || !payload.Unregistered || !payload.UnregisterAllCleared {
+		t.Fatalf("globalShortcut report = %#v, want registration lifecycle flags true", payload)
+	}
+}
+
 func TestRunAppLifecycleCheckReportsReadyAndQuitOrder(t *testing.T) {
 	var stdout bytes.Buffer
 	code := runWithOutput(t, []string{"electron-go", "--app-lifecycle-check"}, &stdout, nil)

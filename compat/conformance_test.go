@@ -721,6 +721,29 @@ func TestGlobalShortcutSuspensionConformance(t *testing.T) {
 	}
 }
 
+func TestGlobalShortcutRegistrationConformance(t *testing.T) {
+	electronBin := os.Getenv("ELECTRON_BIN")
+	electronGoBin := os.Getenv("ELECTRON_GO_BIN")
+	if electronBin == "" || electronGoBin == "" {
+		t.Skip("set ELECTRON_BIN and ELECTRON_GO_BIN to run official Electron vs Electron-Go conformance")
+	}
+
+	electron := runFixture(t, electronBin, filepath.Join("fixtures", "global-shortcut-registration"))
+	electronGo := runCommand(t, electronGoBin, "--global-shortcut-check")
+	if electron.ExitCode != 0 {
+		t.Fatalf("official Electron globalShortcut registration fixture exit code = %d\nOutput:\n%s", electron.ExitCode, electron.Output)
+	}
+	if electronGo.ExitCode != 0 {
+		t.Fatalf("Electron-Go globalShortcut registration check exit code = %d\nOutput:\n%s", electronGo.ExitCode, electronGo.Output)
+	}
+
+	electronReport := parseGlobalShortcutRegistration(t, electron.Output)
+	electronGoReport := parseGlobalShortcutRegistration(t, electronGo.Output)
+	if electronReport != electronGoReport {
+		t.Fatalf("globalShortcut registration report mismatch:\nelectron=%#v\nelectron-go=%#v", electronReport, electronGoReport)
+	}
+}
+
 func TestMenuTemplateConformance(t *testing.T) {
 	electronBin := os.Getenv("ELECTRON_BIN")
 	electronGoBin := os.Getenv("ELECTRON_GO_BIN")
@@ -1244,6 +1267,15 @@ type globalShortcutSuspensionReport struct {
 	SuspendedAfterSet bool   `json:"suspendedAfterSet"`
 	ResumedAfterUnset bool   `json:"resumedAfterUnset"`
 	Error             string `json:"error,omitempty"`
+}
+
+type globalShortcutRegistrationReport struct {
+	Registered           bool   `json:"registered"`
+	DuplicateRejected    bool   `json:"duplicateRejected"`
+	AliasRegistered      bool   `json:"aliasRegistered"`
+	Unregistered         bool   `json:"unregistered"`
+	UnregisterAllCleared bool   `json:"unregisterAllCleared"`
+	Error                string `json:"error,omitempty"`
 }
 
 type menuReport struct {
@@ -1772,6 +1804,18 @@ func parseGlobalShortcutSuspension(t *testing.T, output string) globalShortcutSu
 	}
 	if report.Error != "" {
 		t.Fatalf("globalShortcut suspension report has error %q\n%s", report.Error, output)
+	}
+	return report
+}
+
+func parseGlobalShortcutRegistration(t *testing.T, output string) globalShortcutRegistrationReport {
+	t.Helper()
+	var report globalShortcutRegistrationReport
+	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+		t.Fatalf("globalShortcut registration output is not JSON: %v\n%s", err, output)
+	}
+	if report.Error != "" {
+		t.Fatalf("globalShortcut registration report has error %q\n%s", report.Error, output)
 	}
 	return report
 }

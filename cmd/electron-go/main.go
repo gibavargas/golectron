@@ -98,6 +98,7 @@ func run(argv []string, env []string) int {
 	appWebAuthnCheck := fs.Bool("app-webauthn-check", false, "print app.configureWebAuthn compatibility JSON")
 	appIsActiveCheck := fs.Bool("app-is-active-check", false, "print app.isActive() foreground-state compatibility JSON")
 	autoUpdaterCheck := fs.Bool("auto-updater-check", false, "print autoUpdater compatibility JSON")
+	globalShortcutCheck := fs.Bool("global-shortcut-check", false, "print globalShortcut registration compatibility JSON")
 	globalShortcutSuspensionCheck := fs.Bool("global-shortcut-suspension-check", false, "print globalShortcut suspension compatibility JSON")
 	menuCheck := fs.Bool("menu-check", false, "print menu template compatibility JSON")
 	nativeThemeCheck := fs.Bool("native-theme-check", false, "print nativeTheme compatibility JSON")
@@ -490,6 +491,20 @@ func run(argv []string, env []string) int {
 
 	if *autoUpdaterCheck {
 		report := autoUpdaterReport()
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(report); err != nil {
+			fmt.Fprintf(os.Stderr, "electron-go: %v\n", err)
+			return 1
+		}
+		if report.Error != "" {
+			return 1
+		}
+		return 0
+	}
+
+	if *globalShortcutCheck {
+		report := globalShortcutReport()
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		if err := enc.Encode(report); err != nil {
@@ -1045,6 +1060,15 @@ type globalShortcutSuspensionCheckReport struct {
 	SuspendedAfterSet bool   `json:"suspendedAfterSet"`
 	ResumedAfterUnset bool   `json:"resumedAfterUnset"`
 	Error             string `json:"error,omitempty"`
+}
+
+type globalShortcutCheckReport struct {
+	Registered           bool   `json:"registered"`
+	DuplicateRejected    bool   `json:"duplicateRejected"`
+	AliasRegistered      bool   `json:"aliasRegistered"`
+	Unregistered         bool   `json:"unregistered"`
+	UnregisterAllCleared bool   `json:"unregisterAllCleared"`
+	Error                string `json:"error,omitempty"`
 }
 
 type autoUpdaterCheckReport struct {
@@ -1813,6 +1837,30 @@ func appLifecycleReport() appLifecycleCheckReport {
 	if !app.Quit(0) {
 		report.Error = "second quit was cancelled"
 	}
+	return report
+}
+
+func globalShortcutReport() globalShortcutCheckReport {
+	registry := egglobalshortcut.NewRegistry()
+	report := globalShortcutCheckReport{}
+	registered, err := registry.Register("CommandOrControl+Alt+Shift+F19", func() {})
+	if err != nil {
+		return globalShortcutCheckReport{Error: err.Error()}
+	}
+	report.Registered = registered
+	duplicate, err := registry.Register("CmdOrCtrl+Option+Shift+F19", func() {})
+	if err != nil {
+		return globalShortcutCheckReport{Error: err.Error()}
+	}
+	report.DuplicateRejected = !duplicate
+	report.AliasRegistered = registry.IsRegistered("CmdOrCtrl+Option+Shift+F19")
+	registry.Unregister("CommandOrControl+Alt+Shift+F19")
+	report.Unregistered = !registry.IsRegistered("CmdOrCtrl+Option+Shift+F19")
+	if _, err := registry.Register("CommandOrControl+Alt+Shift+F19", func() {}); err != nil {
+		return globalShortcutCheckReport{Error: err.Error()}
+	}
+	registry.UnregisterAll()
+	report.UnregisterAllCleared = !registry.IsRegistered("CommandOrControl+Alt+Shift+F19")
 	return report
 }
 

@@ -1288,13 +1288,28 @@
           "kind": "test",
           "ref": "internal/globalshortcut/registry_test.go",
           "note": "Covers duplicate registration failure without callback replacement, canonical alias lookup, unregister, and callback trigger behavior."
+        },
+        {
+          "kind": "fixture",
+          "ref": "compat/fixtures/global-shortcut-registration",
+          "note": "Runs official Electron globalShortcut.register, duplicate alias rejection, isRegistered, unregister, and unregisterAll lifecycle as JSON with an uncommon accelerator."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron fixture output with Electron-Go --global-shortcut-check for registration lifecycle behavior on the current host."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Covers --global-shortcut-check JSON output for register, duplicate rejection, alias lookup, unregister, and unregisterAll."
         }
       ],
       "electron_refs": [
         "#49842",
         "#49988"
       ],
-      "notes": "Partial: accelerator parsing and in-process registration lifecycle now exist with Electron-style alias normalization and duplicate handling. Compatibility still requires native OS registration, platform denial behavior, Wayland GlobalShortcutsPortal support, JavaScript globalShortcut bindings, and app-ready lifecycle enforcement."
+      "notes": "Partial: accelerator parsing and in-process registration lifecycle now exist with Electron-style alias normalization, duplicate handling, unregister/unregisterAll, and official-Electron fixture evidence for the registration lifecycle on the current macOS host. Compatibility still requires a real native OS registration backend, platform denial behavior, Wayland GlobalShortcutsPortal support, JavaScript globalShortcut bindings, and app-ready lifecycle enforcement."
     },
     {
       "id": "global-shortcut-suspension-electron-42",
