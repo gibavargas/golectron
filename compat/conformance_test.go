@@ -1282,8 +1282,10 @@ type sessionReport struct {
 	CookieRemoveResolved       bool   `json:"cookieRemoveResolved"`
 	CookieRemoved              bool   `json:"cookieRemoved"`
 	CookieRemoveChange         bool   `json:"cookieRemoveChange"`
+	PartitionCookieIsolation   bool   `json:"partitionCookieIsolation"`
 	CacheClearResolved         bool   `json:"cacheClearResolved"`
 	StorageClearResolved       bool   `json:"storageClearResolved"`
+	StorageClearRemovedCookies bool   `json:"storageClearRemovedCookies"`
 	Error                      string `json:"error,omitempty"`
 }
 

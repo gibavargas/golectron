@@ -17,8 +17,10 @@ app.whenReady().then(async () => {
     cookieRemoveResolved: false,
     cookieRemoved: false,
     cookieRemoveChange: false,
+    partitionCookieIsolation: false,
     cacheClearResolved: false,
-    storageClearResolved: false
+    storageClearResolved: false,
+    storageClearRemovedCookies: false
   }
 
   try {
@@ -56,14 +58,40 @@ app.whenReady().then(async () => {
     report.cookieRemoved = afterRemove.length === 0
     report.cookieRemoveChange = cookieChanges.some(change => change.cause === 'explicit' && change.removed)
 
+    await persistent.cookies.set({
+      url: 'https://example.test/',
+      name: 'sid',
+      value: 'persist'
+    })
+    await inMemory.cookies.set({
+      url: 'https://example.test/',
+      name: 'sid',
+      value: 'memory'
+    })
+    const persistentCookies = await persistent.cookies.get({ url: 'https://example.test/', name: 'sid' })
+    const memoryCookies = await inMemory.cookies.get({ url: 'https://example.test/', name: 'sid' })
+    report.partitionCookieIsolation = persistentCookies.some(cookie => cookie.value === 'persist') &&
+      memoryCookies.some(cookie => cookie.value === 'memory') &&
+      afterRemove.length === 0
+
     await defaultSession.clearCache()
     report.cacheClearResolved = true
 
+    await defaultSession.cookies.set({
+      url: 'https://example.test/',
+      name: 'clearme',
+      value: '1'
+    })
     await defaultSession.clearStorageData({
       origins: ['https://example.test'],
       storages: ['cookies', 'localstorage']
     })
     report.storageClearResolved = true
+    const afterStorageClear = await defaultSession.cookies.get({
+      url: 'https://example.test/',
+      name: 'clearme'
+    })
+    report.storageClearRemovedCookies = afterStorageClear.length === 0
   } catch (error) {
     report.error = error && error.message ? error.message : String(error)
   }

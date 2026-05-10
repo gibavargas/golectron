@@ -1063,8 +1063,10 @@ type sessionCheckReport struct {
 	CookieRemoveResolved       bool   `json:"cookieRemoveResolved"`
 	CookieRemoved              bool   `json:"cookieRemoved"`
 	CookieRemoveChange         bool   `json:"cookieRemoveChange"`
+	PartitionCookieIsolation   bool   `json:"partitionCookieIsolation"`
 	CacheClearResolved         bool   `json:"cacheClearResolved"`
 	StorageClearResolved       bool   `json:"storageClearResolved"`
+	StorageClearRemovedCookies bool   `json:"storageClearRemovedCookies"`
 	Error                      string `json:"error,omitempty"`
 }
 
@@ -2164,9 +2166,28 @@ func sessionReport() sessionCheckReport {
 			break
 		}
 	}
+	if err := persistent.SetCookie(egsession.Cookie{URL: "https://example.test/", Name: "sid", Value: "persist"}); err != nil {
+		report.Error = err.Error()
+		return report
+	}
+	if err := inMemory.SetCookie(egsession.Cookie{URL: "https://example.test/", Name: "sid", Value: "memory"}); err != nil {
+		report.Error = err.Error()
+		return report
+	}
+	report.PartitionCookieIsolation = cookieValue(persistent.Cookies(), "sid") == "persist" &&
+		cookieValue(inMemory.Cookies(), "sid") == "memory" &&
+		len(defaultSession.Cookies()) == 0
 
 	defaultSession.ClearCache()
 	report.CacheClearResolved = defaultSession.CacheCleared()
+	if err := defaultSession.SetCookie(egsession.Cookie{
+		URL:   "https://example.test/",
+		Name:  "clearme",
+		Value: "1",
+	}); err != nil {
+		report.Error = err.Error()
+		return report
+	}
 	if err := defaultSession.ClearStorageData(egsession.ClearStorageOptions{
 		Origins:  []string{"https://example.test"},
 		Storages: []string{"cookies", "localstorage"},
@@ -2175,7 +2196,17 @@ func sessionReport() sessionCheckReport {
 		return report
 	}
 	report.StorageClearResolved = len(defaultSession.StorageClears()) == 1
+	report.StorageClearRemovedCookies = cookieValue(defaultSession.Cookies(), "clearme") == ""
 	return report
+}
+
+func cookieValue(cookies []egsession.Cookie, name string) string {
+	for _, cookie := range cookies {
+		if cookie.Name == name {
+			return cookie.Value
+		}
+	}
+	return ""
 }
 
 func sessionQuotasReport() sessionQuotasCheckReport {

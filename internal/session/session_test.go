@@ -116,8 +116,18 @@ func TestClearCacheAndStorageData(t *testing.T) {
 		Storages: []string{"cookies", "localstorage"},
 		Origins:  []string{"https://example.test"},
 	}
+	if err := s.SetCookie(Cookie{URL: "https://example.test/", Name: "clearme", Value: "1"}); err != nil {
+		t.Fatalf("SetCookie(clearme) error = %v", err)
+	}
+	if err := s.SetCookie(Cookie{URL: "https://other.test/", Name: "keepme", Value: "1"}); err != nil {
+		t.Fatalf("SetCookie(keepme) error = %v", err)
+	}
 	if err := s.ClearStorageData(options); err != nil {
 		t.Fatalf("ClearStorageData() error = %v", err)
+	}
+	cookies := s.Cookies()
+	if len(cookies) != 1 || cookies[0].Name != "keepme" {
+		t.Fatalf("Cookies() after origin clear = %#v, want only keepme", cookies)
 	}
 	options.Storages[0] = "mutated"
 	clears := s.StorageClears()

@@ -189,10 +189,21 @@ func (s *Session) CacheCleared() bool {
 }
 
 func (s *Session) ClearStorageData(options ClearStorageOptions) error {
+	originHosts := make(map[string]bool)
 	for _, origin := range options.Origins {
 		parsed, err := url.Parse(origin)
 		if err != nil || parsed.Scheme == "" || parsed.Host == "" {
 			return fmt.Errorf("%w: invalid origin %q", ErrUnsupportedClearOption, origin)
+		}
+		originHosts[strings.ToLower(parsed.Hostname())] = true
+	}
+	if shouldClearStorage(options.Storages, "cookies") {
+		for key, cookie := range s.cookies {
+			host := strings.TrimPrefix(strings.ToLower(cookie.Domain), ".")
+			if len(originHosts) == 0 || originHosts[host] {
+				delete(s.cookies, key)
+				s.cookieChanges = append(s.cookieChanges, CookieChange{Cookie: cookie, Removed: true, Cause: CookieChangeExplicit})
+			}
 		}
 	}
 	options.Quotas = nil
@@ -242,4 +253,16 @@ func cloneClearStorageOptions(options ClearStorageOptions) ClearStorageOptions {
 		Origins:  append([]string(nil), options.Origins...),
 		Quotas:   append([]string(nil), options.Quotas...),
 	}
+}
+
+func shouldClearStorage(storages []string, target string) bool {
+	if len(storages) == 0 {
+		return true
+	}
+	for _, storage := range storages {
+		if strings.EqualFold(strings.TrimSpace(storage), target) {
+			return true
+		}
+	}
+	return false
 }

@@ -1113,8 +1113,10 @@ func TestRunSessionCheckReportsBasicSessionBehavior(t *testing.T) {
 		CookieRemoveResolved       bool   `json:"cookieRemoveResolved"`
 		CookieRemoved              bool   `json:"cookieRemoved"`
 		CookieRemoveChange         bool   `json:"cookieRemoveChange"`
+		PartitionCookieIsolation   bool   `json:"partitionCookieIsolation"`
 		CacheClearResolved         bool   `json:"cacheClearResolved"`
 		StorageClearResolved       bool   `json:"storageClearResolved"`
+		StorageClearRemovedCookies bool   `json:"storageClearRemovedCookies"`
 		Error                      string `json:"error,omitempty"`
 	}
 	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
@@ -1135,8 +1137,11 @@ func TestRunSessionCheckReportsBasicSessionBehavior(t *testing.T) {
 	if !payload.CookieRemoveResolved || !payload.CookieRemoved || !payload.CookieRemoveChange {
 		t.Fatalf("cookie remove report = resolved %v removed %v change %v, want true/true/true", payload.CookieRemoveResolved, payload.CookieRemoved, payload.CookieRemoveChange)
 	}
-	if !payload.CacheClearResolved || !payload.StorageClearResolved {
-		t.Fatalf("clear report = cache %v storage %v, want true/true", payload.CacheClearResolved, payload.StorageClearResolved)
+	if !payload.PartitionCookieIsolation {
+		t.Fatalf("partitionCookieIsolation = false: %#v", payload)
+	}
+	if !payload.CacheClearResolved || !payload.StorageClearResolved || !payload.StorageClearRemovedCookies {
+		t.Fatalf("clear report = cache %v storage %v removedCookies %v, want true/true/true", payload.CacheClearResolved, payload.StorageClearResolved, payload.StorageClearRemovedCookies)
 	}
 }
 
