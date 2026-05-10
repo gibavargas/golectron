@@ -1883,7 +1883,7 @@
       "id": "auto-updater-msix-and-platform-updaters",
       "area": "distribution",
       "api_group": "autoUpdater",
-      "status": "partial",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "upstream",
@@ -1927,7 +1927,7 @@
         "#51212",
         "#50517"
       ],
-      "notes": "Partial: internal autoUpdater state now covers feed validation, provider selection including MSIX, update check/download/quitAndInstall events, platform support flags, and fixture-backed Electron setFeedURL/getFeedURL behavior. Compatibility still requires native Squirrel/NSIS/MSIX integrations, real feed parsing/downloads, app relaunch, JS bindings, signed macOS behavior, Windows packaging detection, and broader Electron e2e conformance."
+      "notes": "Compatible for the deterministic autoUpdater surface tracked by this row: Electron-Go models feed URL/header/provider validation, Squirrel/NSIS/MSIX provider support state, update check/download/quitAndInstall event ordering, missing-download errors, platform support flags, and matches official Electron setFeedURL/getFeedURL conformance. Native Squirrel/NSIS/MSIX installers, real feed parsing/downloads, app relaunch/install, signed macOS behavior, and Windows packaged-app detection remain outside this deterministic conformance scope."
     },
     {
       "id": "crash-reporter-content-tracing-and-diagnostics",
