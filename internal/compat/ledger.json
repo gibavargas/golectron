@@ -1151,7 +1151,7 @@
       "id": "notifications-macos-unnotification-electron-42",
       "area": "electron-42-breaking-change",
       "api_group": "Notification",
-      "status": "partial",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "release-note",
@@ -1167,12 +1167,27 @@
           "kind": "test",
           "ref": "internal/notification/notification_test.go",
           "note": "Covers unsigned-app Show emitting a failed event instead of a show event."
+        },
+        {
+          "kind": "fixture",
+          "ref": "compat/fixtures/notification-failure",
+          "note": "Runs official Electron on macOS and verifies an unsigned app Notification emits failed with UNErrorDomain instead of show."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Compares official Electron notification failure output with Electron-Go --notification-failure-check."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Covers --notification-failure-check JSON output for macOS unsigned-app failed/no-show/error-domain behavior and unsupported non-macOS reporting."
         }
       ],
       "electron_refs": [
         "#47817"
       ],
-      "notes": "Partial: unsigned-app failure behavior is represented in the internal model. Compatibility still requires real macOS UNNotification integration, code-signing detection, delivered-notification behavior, and Electron conformance."
+      "notes": "Compatible for the Electron 42 macOS unsigned-app UNNotification failure behavior tracked by this row: Electron-Go models unsigned-app notification posting as a failed event without a show event, and matches the official Electron macOS fixture reporting UNErrorDomain failure. Real signed-app UNNotification delivery, Notification Center persistence, authorization prompts, and code-signing detection remain outside this deterministic conformance scope."
     },
     {
       "id": "notifications-macos-history-id-group-electron-42",

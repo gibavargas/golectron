@@ -836,6 +836,29 @@ func TestNotificationIdentityConformance(t *testing.T) {
 	}
 }
 
+func TestNotificationFailureConformance(t *testing.T) {
+	electronBin := os.Getenv("ELECTRON_BIN")
+	electronGoBin := os.Getenv("ELECTRON_GO_BIN")
+	if electronBin == "" || electronGoBin == "" {
+		t.Skip("set ELECTRON_BIN and ELECTRON_GO_BIN to run official Electron vs Electron-Go conformance")
+	}
+
+	electron := runFixture(t, electronBin, filepath.Join("fixtures", "notification-failure"))
+	electronGo := runCommand(t, electronGoBin, "--notification-failure-check")
+	if electron.ExitCode != 0 {
+		t.Fatalf("official Electron notification failure fixture exit code = %d\nOutput:\n%s", electron.ExitCode, electron.Output)
+	}
+	if electronGo.ExitCode != 0 {
+		t.Fatalf("Electron-Go notification failure check exit code = %d\nOutput:\n%s", electronGo.ExitCode, electronGo.Output)
+	}
+
+	electronReport := parseNotificationFailure(t, electron.Output)
+	electronGoReport := parseNotificationFailure(t, electronGo.Output)
+	if electronReport != electronGoReport {
+		t.Fatalf("notification failure report mismatch:\nelectron=%#v\nelectron-go=%#v", electronReport, electronGoReport)
+	}
+}
+
 func TestSafeStorageConformance(t *testing.T) {
 	electronBin := os.Getenv("ELECTRON_BIN")
 	electronGoBin := os.Getenv("ELECTRON_GO_BIN")
@@ -1318,6 +1341,15 @@ type notificationReport struct {
 	Silent         bool   `json:"silent"`
 	DefaultUrgency string `json:"defaultUrgency"`
 	Error          string `json:"error,omitempty"`
+}
+
+type notificationFailureReport struct {
+	Platform    string `json:"platform"`
+	Unsupported bool   `json:"unsupported"`
+	Failed      bool   `json:"failed"`
+	Shown       bool   `json:"shown"`
+	ErrorDomain bool   `json:"errorDomain"`
+	Error       string `json:"error,omitempty"`
 }
 
 type notificationIdentityReport struct {
@@ -1893,6 +1925,21 @@ func parseNotification(t *testing.T, output string) notificationReport {
 	}
 	if report.Error != "" {
 		t.Fatalf("notification report has error %q\n%s", report.Error, output)
+	}
+	return report
+}
+
+func parseNotificationFailure(t *testing.T, output string) notificationFailureReport {
+	t.Helper()
+	var report notificationFailureReport
+	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+		t.Fatalf("notification failure output is not JSON: %v\n%s", err, output)
+	}
+	if report.Error != "" {
+		t.Fatalf("notification failure report has error %q\n%s", report.Error, output)
+	}
+	if report.Platform == "darwin" && (!report.Failed || report.Shown || !report.ErrorDomain) {
+		t.Fatalf("darwin notification failure report is incomplete: %#v", report)
 	}
 	return report
 }

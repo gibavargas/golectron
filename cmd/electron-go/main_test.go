@@ -1073,6 +1073,35 @@ func TestRunMenuCheckReportsTemplateNormalization(t *testing.T) {
 	}
 }
 
+func TestRunNotificationFailureCheckReportsMacUnsignedFailure(t *testing.T) {
+	var stdout bytes.Buffer
+	code := runWithOutput(t, []string{"electron-go", "--notification-failure-check"}, &stdout, nil)
+	if code != 0 {
+		t.Fatalf("run(--notification-failure-check) exit = %d, want 0", code)
+	}
+
+	var payload struct {
+		Platform    string `json:"platform"`
+		Unsupported bool   `json:"unsupported"`
+		Failed      bool   `json:"failed"`
+		Shown       bool   `json:"shown"`
+		ErrorDomain bool   `json:"errorDomain"`
+		Error       string `json:"error,omitempty"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+		t.Fatalf("--notification-failure-check output is not JSON: %v\n%s", err, stdout.String())
+	}
+	if payload.Error != "" {
+		t.Fatalf("notification failure error = %q", payload.Error)
+	}
+	if payload.Platform == "darwin" && (!payload.Failed || payload.Shown || !payload.ErrorDomain) {
+		t.Fatalf("darwin notification failure report = %#v, want failed/no show/error domain", payload)
+	}
+	if payload.Platform != "darwin" && !payload.Unsupported {
+		t.Fatalf("non-darwin notification failure report = %#v, want unsupported", payload)
+	}
+}
+
 func TestRunNativeThemeCheckReportsSnapshot(t *testing.T) {
 	var stdout bytes.Buffer
 	code := runWithOutput(t, []string{"electron-go", "--native-theme-check"}, &stdout, nil)

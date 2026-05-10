@@ -107,6 +107,7 @@ func run(argv []string, env []string) int {
 	nodeOptionsCheck := fs.Bool("node-options-check", false, "print embedded Node option compatibility JSON")
 	nodeVersionsCheck := fs.Bool("node-versions-check", false, "print process.versions compatibility JSON")
 	notificationCheck := fs.Bool("notification-check", false, "print notification compatibility JSON")
+	notificationFailureCheck := fs.Bool("notification-failure-check", false, "print macOS unsigned notification failure compatibility JSON")
 	notificationIdentityCheck := fs.Bool("notification-identity-check", false, "print Notification id/group compatibility JSON")
 	protocolCheck := fs.Bool("protocol-check", false, "print protocol registration compatibility JSON")
 	safeStorageCheck := fs.Bool("safe-storage-check", false, "print safeStorage compatibility JSON")
@@ -641,6 +642,20 @@ func run(argv []string, env []string) int {
 		return 0
 	}
 
+	if *notificationFailureCheck {
+		report := notificationFailureReport()
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(report); err != nil {
+			fmt.Fprintf(os.Stderr, "electron-go: %v\n", err)
+			return 1
+		}
+		if report.Error != "" {
+			return 1
+		}
+		return 0
+	}
+
 	if *notificationIdentityCheck {
 		report := notificationIdentityReport()
 		enc := json.NewEncoder(os.Stdout)
@@ -848,6 +863,15 @@ type notificationCheckReport struct {
 	Silent         bool   `json:"silent"`
 	DefaultUrgency string `json:"defaultUrgency"`
 	Error          string `json:"error,omitempty"`
+}
+
+type notificationFailureCheckReport struct {
+	Platform    string `json:"platform"`
+	Unsupported bool   `json:"unsupported"`
+	Failed      bool   `json:"failed"`
+	Shown       bool   `json:"shown"`
+	ErrorDomain bool   `json:"errorDomain"`
+	Error       string `json:"error,omitempty"`
 }
 
 type notificationIdentityCheckReport struct {
@@ -1293,6 +1317,37 @@ func notificationReport() notificationCheckReport {
 		Silent:         options.Silent,
 		DefaultUrgency: string(options.Urgency),
 	}
+}
+
+func notificationFailureReport() notificationFailureCheckReport {
+	platform := electronPlatform()
+	report := notificationFailureCheckReport{
+		Platform:    platform,
+		Unsupported: platform != "darwin",
+	}
+	if platform != "darwin" {
+		return report
+	}
+	notification, err := egnotification.New(egnotification.Options{
+		Title:       "Probe",
+		Body:        "Unsigned check",
+		UnsignedApp: true,
+	})
+	if err != nil {
+		report.Error = err.Error()
+		return report
+	}
+	notification.Show()
+	for _, event := range notification.Events() {
+		if event.Event == egnotification.EventFailed {
+			report.Failed = true
+			report.ErrorDomain = true
+		}
+		if event.Event == egnotification.EventShow {
+			report.Shown = true
+		}
+	}
+	return report
 }
 
 func notificationIdentityReport() notificationIdentityCheckReport {
