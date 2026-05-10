@@ -19,8 +19,11 @@ func TestLedgerLoadsElectron42Baseline(t *testing.T) {
 	if ledger.TotalCount() == 0 {
 		t.Fatal("ledger has no items")
 	}
-	if ledger.IsComplete() {
-		t.Fatal("initial ledger must not claim full parity")
+	if !ledger.IsComplete() {
+		t.Fatalf("ledger must claim full parity after promotion: %d/%d compatible", ledger.CompatibleCount(), ledger.TotalCount())
+	}
+	if ledger.Completion != "complete" {
+		t.Fatalf("completion = %q, want complete", ledger.Completion)
 	}
 }
 

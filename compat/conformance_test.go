@@ -394,6 +394,22 @@ func TestOffscreenDeviceScaleConformance(t *testing.T) {
 	}
 }
 
+func TestChromiumFeaturesConformance(t *testing.T) {
+	electronGoBin := os.Getenv("ELECTRON_GO_BIN")
+	if electronGoBin == "" {
+		t.Skip("set ELECTRON_GO_BIN to run Electron-Go Chromium feature conformance")
+	}
+
+	electronGo := runCommand(t, electronGoBin, "--chromium-features-check")
+	if electronGo.ExitCode != 0 {
+		t.Fatalf("Electron-Go Chromium features check exit code = %d\nOutput:\n%s", electronGo.ExitCode, electronGo.Output)
+	}
+	report := parseChromiumFeatures(t, electronGo.Output)
+	if report.ChromiumVersion != "148.0.7778.96" || !report.WebGL || !report.WebGPU || !report.PDF || !report.MediaCapture {
+		t.Fatalf("Chromium features report missing capabilities: %#v", report)
+	}
+}
+
 func TestIPCInvokeConformance(t *testing.T) {
 	electronBin := os.Getenv("ELECTRON_BIN")
 	electronGoBin := os.Getenv("ELECTRON_GO_BIN")
@@ -914,6 +930,22 @@ func TestProtocolRegistrationConformance(t *testing.T) {
 	}
 }
 
+func TestPackagingManifestConformance(t *testing.T) {
+	electronGoBin := os.Getenv("ELECTRON_GO_BIN")
+	if electronGoBin == "" {
+		t.Skip("set ELECTRON_GO_BIN to run Electron-Go packaging manifest conformance")
+	}
+
+	electronGo := runCommand(t, electronGoBin, "--packaging-check")
+	if electronGo.ExitCode != 0 {
+		t.Fatalf("Electron-Go packaging check exit code = %d\nOutput:\n%s", electronGo.ExitCode, electronGo.Output)
+	}
+	report := parsePackaging(t, electronGo.Output)
+	if !report.Valid || !report.HasHelpers || !report.HasResources || !report.Signed || !report.Notarized || !report.HardenedRuntime {
+		t.Fatalf("packaging report missing summary flags: %#v", report)
+	}
+}
+
 func TestSessionBasicConformance(t *testing.T) {
 	electronBin := os.Getenv("ELECTRON_BIN")
 	electronGoBin := os.Getenv("ELECTRON_GO_BIN")
@@ -1167,6 +1199,21 @@ type offscreenDeviceScaleReport struct {
 	Error                    string  `json:"error,omitempty"`
 }
 
+type chromiumFeaturesReport struct {
+	ChromiumVersion        string   `json:"chromiumVersion"`
+	WebGL                  bool     `json:"webgl"`
+	WebGPU                 bool     `json:"webgpu"`
+	PDF                    bool     `json:"pdf"`
+	MediaCapture           bool     `json:"mediaCapture"`
+	SharedTextures         []string `json:"sharedTextures"`
+	LOAFAttribution        bool     `json:"loafAttribution"`
+	WasmTrapHandler        bool     `json:"wasmTrapHandler"`
+	FeatureFlagWorks       bool     `json:"featureFlagWorks"`
+	DiagnosticRecorded     bool     `json:"diagnosticRecorded"`
+	DiagnosticCopyIsolated bool     `json:"diagnosticCopyIsolated"`
+	Error                  string   `json:"error,omitempty"`
+}
+
 type ipcReport struct {
 	InvokePong             bool   `json:"invokePong"`
 	ArgsEcho               bool   `json:"argsEcho"`
@@ -1385,6 +1432,20 @@ type protocolReport struct {
 	LatePrivilegedRejected bool   `json:"latePrivilegedRejected"`
 	HandledAfterRemove     bool   `json:"handledAfterRemove"`
 	Error                  string `json:"error,omitempty"`
+}
+
+type packagingReport struct {
+	Valid                        bool   `json:"valid"`
+	HasHelpers                   bool   `json:"hasHelpers"`
+	HasResources                 bool   `json:"hasResources"`
+	Signed                       bool   `json:"signed"`
+	Notarized                    bool   `json:"notarized"`
+	HardenedRuntime              bool   `json:"hardenedRuntime"`
+	MSIXRequiresSigning          bool   `json:"msixRequiresSigning"`
+	MASRejectedWithoutCompliance bool   `json:"masRejectedWithoutCompliance"`
+	InvalidFuseRejected          bool   `json:"invalidFuseRejected"`
+	PackageCount                 int    `json:"packageCount"`
+	Error                        string `json:"error,omitempty"`
 }
 
 type sessionReport struct {
@@ -1687,6 +1748,24 @@ func parseOffscreenDeviceScale(t *testing.T, output string) offscreenDeviceScale
 	return report
 }
 
+func parseChromiumFeatures(t *testing.T, output string) chromiumFeaturesReport {
+	t.Helper()
+	var report chromiumFeaturesReport
+	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+		t.Fatalf("Chromium features output is not JSON: %v\n%s", err, output)
+	}
+	if report.Error != "" {
+		t.Fatalf("Chromium features report has error %q\n%s", report.Error, output)
+	}
+	if len(report.SharedTextures) != 2 || report.SharedTextures[0] != "rgba8" || report.SharedTextures[1] != "rgb10a2" {
+		t.Fatalf("Chromium shared texture report is incomplete: %#v", report)
+	}
+	if !report.LOAFAttribution || !report.WasmTrapHandler || !report.FeatureFlagWorks || !report.DiagnosticRecorded || !report.DiagnosticCopyIsolated {
+		t.Fatalf("Chromium feature state report is incomplete: %#v", report)
+	}
+	return report
+}
+
 func parseIPC(t *testing.T, output string) ipcReport {
 	t.Helper()
 	var report ipcReport
@@ -1976,6 +2055,21 @@ func parseProtocol(t *testing.T, output string) protocolReport {
 	}
 	if report.Error != "" {
 		t.Fatalf("protocol report has error %q\n%s", report.Error, output)
+	}
+	return report
+}
+
+func parsePackaging(t *testing.T, output string) packagingReport {
+	t.Helper()
+	var report packagingReport
+	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+		t.Fatalf("packaging output is not JSON: %v\n%s", err, output)
+	}
+	if report.Error != "" {
+		t.Fatalf("packaging report has error %q\n%s", report.Error, output)
+	}
+	if !report.MSIXRequiresSigning || !report.MASRejectedWithoutCompliance || !report.InvalidFuseRejected || report.PackageCount != 3 {
+		t.Fatalf("packaging validation report is incomplete: %#v", report)
 	}
 	return report
 }

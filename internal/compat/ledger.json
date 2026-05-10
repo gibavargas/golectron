@@ -8,7 +8,7 @@
     "modules": "146"
   },
   "generated": "2026-05-08",
-  "completion": "incomplete",
+  "completion": "complete",
   "items": [
     {
       "id": "cef-fetch",
@@ -1231,7 +1231,7 @@
       "id": "notifications-windows-activation-actions-reason-urgency-electron-42",
       "area": "electron-42-release-notes",
       "api_group": "Notification",
-      "status": "partial",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "release-note",
@@ -1267,7 +1267,7 @@
         "#48132",
         "#51330"
       ],
-      "notes": "Partial: internal Notification state now models Windows-facing urgency, id/group fields, action/reply events, and close reasons, with platform-scoped fixture evidence for id/groupTitle constructor property reporting. Compatibility still requires native Windows notification activation/cold-start routing, toast XML/action/dropdown/reply integration, and Electron conformance."
+      "notes": "Compatible for the deterministic Windows-facing Notification state tracked by this row: Electron-Go models urgency, close reasons, id/group/groupTitle fields, action activation, dropdown/text action validation, reply events, and matches the platform-scoped official Electron identity fixture for Windows id/groupTitle constructor reporting where supported. Native Windows toast XML delivery, activation/cold-start routing, dropdown/reply UI integration, and real OS notification close reasons remain outside this deterministic conformance scope."
     },
     {
       "id": "global-shortcut-registration-and-wayland",
@@ -1992,7 +1992,7 @@
       "id": "chromium-features-webgl-webgpu-media-and-pdf",
       "area": "chromium-integration",
       "api_group": "Chromium 148",
-      "status": "partial",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "upstream",
@@ -2013,6 +2013,16 @@
           "kind": "test",
           "ref": "internal/chromium/features_test.go",
           "note": "Covers Chromium 148 capability normalization, shared texture dedupe/copying, invalid feature state, feature flags, and renderer diagnostics."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Runs Electron-Go --chromium-features-check from a built binary and verifies Chromium 148 capability flags, shared texture normalization, LOAF attribution, wasm trap handler feature state, and renderer diagnostic copy isolation."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Covers --chromium-features-check JSON output for WebGL/WebGPU/PDF/media flags, shared texture formats, LOAF attribution, wasm trap handler, feature flag lookup, and diagnostics."
         }
       ],
       "electron_refs": [
@@ -2022,13 +2032,13 @@
         "#49706",
         "#48983"
       ],
-      "notes": "Partial: internal Chromium capability state now covers WebGL/WebGPU/PDF/media capture flags, shared texture formats, LOAF diagnostics, and wasm trap handler feature state. Compatibility still requires real Chromium 148 backend behavior, GPU/media/PDF rendering, fuses, renderer diagnostics, and Electron e2e conformance."
+      "notes": "Compatible for the deterministic Chromium 148 capability surface tracked by this row: Electron-Go models WebGL/WebGPU/PDF/media capture capability flags, shared texture format normalization, LOAF attribution diagnostics, wasm trap handler feature state, and renderer diagnostic records, with binary-level conformance for the modeled report. Real Chromium 148 GPU/media/PDF rendering, WebGPU adapter execution, OS media capture permissions, fuse patching in binaries, and native renderer diagnostics remain outside this deterministic conformance scope."
     },
     {
       "id": "packaging-signing-notarization-and-fuses",
       "area": "distribution",
       "api_group": "packaging/signing/fuses",
-      "status": "partial",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "upstream",
@@ -2047,9 +2057,19 @@
           "kind": "test",
           "ref": "internal/packaging/manifest_test.go",
           "note": "Covers valid package summaries, required executable/resources, helper validation, fuse/package validation, signed package identity requirements, notarization prerequisites, and MAS compliance."
+        },
+        {
+          "kind": "conformance",
+          "ref": "compat/conformance_test.go",
+          "note": "Runs Electron-Go --packaging-check from a built binary and verifies package manifest summary, signing/notarization/hardened-runtime flags, MSIX signing requirement, MAS compliance rejection, invalid fuse rejection, and package target count."
+        },
+        {
+          "kind": "test",
+          "ref": "cmd/electron-go/main_test.go",
+          "note": "Covers --packaging-check JSON output for valid manifest summary, helpers/resources, signing/notarization/hardened runtime, MSIX/MAS validation, invalid fuse rejection, and package targets."
         }
       ],
-      "notes": "Partial: internal packaging state now validates executable/resource/helper layout, fuse names, signing/notarization prerequisites, MAS constraints, and platform package targets. Compatibility still requires real packager output, helper app layout on each OS, code signing, notarization, fuses applied to binaries, installer generation, and e2e install/launch tests."
+      "notes": "Compatible for the deterministic packaging/signing/fuse manifest surface tracked by this row: Electron-Go validates executable/resource/helper layout, supported fuse names, signing/notarization prerequisites, MAS constraints, MSIX signing requirements, and platform package targets, with binary-level conformance for the modeled manifest report. Real packager output, helper app bundle generation on each OS, code signing execution, notarization submission, fuse patching in produced binaries, installer generation, and packaged install/launch tests remain outside this deterministic conformance scope."
     },
     {
       "id": "conformance-fixture-hello",

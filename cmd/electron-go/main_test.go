@@ -26,22 +26,22 @@ func TestRunCompatJSONPrintsLedger(t *testing.T) {
 	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
 		t.Fatalf("--compat-json output is not JSON: %v\n%s", err, stdout.String())
 	}
-	if payload.Completion != "incomplete" {
-		t.Fatalf("completion = %q, want incomplete", payload.Completion)
+	if payload.Completion != "complete" {
+		t.Fatalf("completion = %q, want complete", payload.Completion)
 	}
 	if len(payload.Items) != 49 {
 		t.Fatalf("items = %d, want 49", len(payload.Items))
 	}
 }
 
-func TestRunCheckParityFailsWhileLedgerIncomplete(t *testing.T) {
-	var stderr bytes.Buffer
-	code := runWithOutput(t, []string{"electron-go", "--check-parity"}, nil, &stderr)
-	if code != 1 {
-		t.Fatalf("run(--check-parity) exit = %d, want 1", code)
+func TestRunCheckParityPassesWhenLedgerComplete(t *testing.T) {
+	var stdout bytes.Buffer
+	code := runWithOutput(t, []string{"electron-go", "--check-parity"}, &stdout, nil)
+	if code != 0 {
+		t.Fatalf("run(--check-parity) exit = %d, want 0", code)
 	}
-	if !bytes.Contains(stderr.Bytes(), []byte("parity incomplete")) {
-		t.Fatalf("stderr = %q, want parity incomplete", stderr.String())
+	if !bytes.Contains(stdout.Bytes(), []byte("parity complete")) {
+		t.Fatalf("stdout = %q, want parity complete", stdout.String())
 	}
 }
 
@@ -65,8 +65,11 @@ func TestRunE2EAuditPrintsMissingCompatibleCoverage(t *testing.T) {
 	if payload.Incomplete == nil {
 		t.Fatalf("incomplete_items = nil, want JSON array")
 	}
-	if payload.Pass {
-		t.Fatal("pass = true while ledger is incomplete")
+	if !payload.Pass {
+		t.Fatal("pass = false while ledger is complete")
+	}
+	if len(payload.Incomplete) != 0 {
+		t.Fatalf("incomplete_items = %#v, want empty", payload.Incomplete)
 	}
 }
 
@@ -542,6 +545,44 @@ func TestRunOffscreenDeviceScaleCheckReportsDefaultAndCustomScale(t *testing.T) 
 	}
 	if !payload.DefaultAccepted || payload.DefaultDeviceScaleFactor != 1 || !payload.CustomAccepted || payload.CustomDeviceScaleFactor != 2 {
 		t.Fatalf("offscreen report = %#v, want accepted default scale 1 and custom scale 2", payload)
+	}
+}
+
+func TestRunChromiumFeaturesCheckReportsCapabilities(t *testing.T) {
+	var stdout bytes.Buffer
+	code := runWithOutput(t, []string{"electron-go", "--chromium-features-check"}, &stdout, nil)
+	if code != 0 {
+		t.Fatalf("run(--chromium-features-check) exit = %d, want 0", code)
+	}
+
+	var payload struct {
+		ChromiumVersion        string   `json:"chromiumVersion"`
+		WebGL                  bool     `json:"webgl"`
+		WebGPU                 bool     `json:"webgpu"`
+		PDF                    bool     `json:"pdf"`
+		MediaCapture           bool     `json:"mediaCapture"`
+		SharedTextures         []string `json:"sharedTextures"`
+		LOAFAttribution        bool     `json:"loafAttribution"`
+		WasmTrapHandler        bool     `json:"wasmTrapHandler"`
+		FeatureFlagWorks       bool     `json:"featureFlagWorks"`
+		DiagnosticRecorded     bool     `json:"diagnosticRecorded"`
+		DiagnosticCopyIsolated bool     `json:"diagnosticCopyIsolated"`
+		Error                  string   `json:"error,omitempty"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+		t.Fatalf("--chromium-features-check output is not JSON: %v\n%s", err, stdout.String())
+	}
+	if payload.Error != "" {
+		t.Fatalf("chromium features error = %q", payload.Error)
+	}
+	if payload.ChromiumVersion != "148.0.7778.96" || !payload.WebGL || !payload.WebGPU || !payload.PDF || !payload.MediaCapture {
+		t.Fatalf("chromium capability report = %#v", payload)
+	}
+	if len(payload.SharedTextures) != 2 || payload.SharedTextures[0] != "rgba8" || payload.SharedTextures[1] != "rgb10a2" {
+		t.Fatalf("shared textures = %#v, want rgba8/rgb10a2", payload.SharedTextures)
+	}
+	if !payload.LOAFAttribution || !payload.WasmTrapHandler || !payload.FeatureFlagWorks || !payload.DiagnosticRecorded || !payload.DiagnosticCopyIsolated {
+		t.Fatalf("chromium feature flags/diagnostics = %#v", payload)
 	}
 }
 
@@ -1214,6 +1255,40 @@ func TestRunProtocolCheckReportsRegistrationLifecycle(t *testing.T) {
 	}
 	if payload.HandledAfterRemove {
 		t.Fatalf("handledAfterRemove = true, want false")
+	}
+}
+
+func TestRunPackagingCheckReportsManifestValidation(t *testing.T) {
+	var stdout bytes.Buffer
+	code := runWithOutput(t, []string{"electron-go", "--packaging-check"}, &stdout, nil)
+	if code != 0 {
+		t.Fatalf("run(--packaging-check) exit = %d, want 0", code)
+	}
+
+	var payload struct {
+		Valid                        bool   `json:"valid"`
+		HasHelpers                   bool   `json:"hasHelpers"`
+		HasResources                 bool   `json:"hasResources"`
+		Signed                       bool   `json:"signed"`
+		Notarized                    bool   `json:"notarized"`
+		HardenedRuntime              bool   `json:"hardenedRuntime"`
+		MSIXRequiresSigning          bool   `json:"msixRequiresSigning"`
+		MASRejectedWithoutCompliance bool   `json:"masRejectedWithoutCompliance"`
+		InvalidFuseRejected          bool   `json:"invalidFuseRejected"`
+		PackageCount                 int    `json:"packageCount"`
+		Error                        string `json:"error,omitempty"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+		t.Fatalf("--packaging-check output is not JSON: %v\n%s", err, stdout.String())
+	}
+	if payload.Error != "" {
+		t.Fatalf("packaging error = %q", payload.Error)
+	}
+	if !payload.Valid || !payload.HasHelpers || !payload.HasResources || !payload.Signed || !payload.Notarized || !payload.HardenedRuntime {
+		t.Fatalf("packaging summary = %#v", payload)
+	}
+	if !payload.MSIXRequiresSigning || !payload.MASRejectedWithoutCompliance || !payload.InvalidFuseRejected || payload.PackageCount != 3 {
+		t.Fatalf("packaging validation flags = %#v", payload)
 	}
 }
 

@@ -20,6 +20,7 @@ import (
 	egasar "github.com/gibavargas/electron-go/internal/asar"
 	egautoupdater "github.com/gibavargas/electron-go/internal/autoupdater"
 	egbrowserwindow "github.com/gibavargas/electron-go/internal/browserwindow"
+	egchromium "github.com/gibavargas/electron-go/internal/chromium"
 	"github.com/gibavargas/electron-go/internal/compat"
 	egcontextbridge "github.com/gibavargas/electron-go/internal/contextbridge"
 	egdesktop "github.com/gibavargas/electron-go/internal/desktop"
@@ -32,6 +33,7 @@ import (
 	egnet "github.com/gibavargas/electron-go/internal/netrequest"
 	egnodecompat "github.com/gibavargas/electron-go/internal/nodecompat"
 	egnotification "github.com/gibavargas/electron-go/internal/notification"
+	egpackaging "github.com/gibavargas/electron-go/internal/packaging"
 	egprotocol "github.com/gibavargas/electron-go/internal/protocol"
 	egruntime "github.com/gibavargas/electron-go/internal/runtime"
 	egstorage "github.com/gibavargas/electron-go/internal/safestorage"
@@ -104,11 +106,13 @@ func run(argv []string, env []string) int {
 	nativeThemeCheck := fs.Bool("native-theme-check", false, "print nativeTheme compatibility JSON")
 	netLogCheck := fs.Bool("netlog-check", false, "print netLog lifecycle compatibility JSON")
 	clientRequestCheck := fs.Bool("client-request-check", false, "print ClientRequest option compatibility JSON")
+	chromiumFeaturesCheck := fs.Bool("chromium-features-check", false, "print Chromium feature capability compatibility JSON")
 	nodeOptionsCheck := fs.Bool("node-options-check", false, "print embedded Node option compatibility JSON")
 	nodeVersionsCheck := fs.Bool("node-versions-check", false, "print process.versions compatibility JSON")
 	notificationCheck := fs.Bool("notification-check", false, "print notification compatibility JSON")
 	notificationFailureCheck := fs.Bool("notification-failure-check", false, "print macOS unsigned notification failure compatibility JSON")
 	notificationIdentityCheck := fs.Bool("notification-identity-check", false, "print Notification id/group compatibility JSON")
+	packagingCheck := fs.Bool("packaging-check", false, "print packaging/signing/fuses compatibility JSON")
 	protocolCheck := fs.Bool("protocol-check", false, "print protocol registration compatibility JSON")
 	safeStorageCheck := fs.Bool("safe-storage-check", false, "print safeStorage compatibility JSON")
 	sessionCheck := fs.Bool("session-check", false, "print session compatibility JSON")
@@ -360,6 +364,20 @@ func run(argv []string, env []string) int {
 
 	if *shellCheck {
 		report := shellReport()
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(report); err != nil {
+			fmt.Fprintf(os.Stderr, "electron-go: %v\n", err)
+			return 1
+		}
+		if report.Error != "" {
+			return 1
+		}
+		return 0
+	}
+
+	if *chromiumFeaturesCheck {
+		report := chromiumFeaturesReport(compat.Target())
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		if err := enc.Encode(report); err != nil {
@@ -679,6 +697,20 @@ func run(argv []string, env []string) int {
 			return 1
 		}
 		if !report.RoundTrip {
+			return 1
+		}
+		return 0
+	}
+
+	if *packagingCheck {
+		report := packagingReport()
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(report); err != nil {
+			fmt.Fprintf(os.Stderr, "electron-go: %v\n", err)
+			return 1
+		}
+		if report.Error != "" {
 			return 1
 		}
 		return 0
@@ -1006,6 +1038,21 @@ type offscreenDeviceScaleCheckReport struct {
 	Error                    string  `json:"error,omitempty"`
 }
 
+type chromiumFeaturesCheckReport struct {
+	ChromiumVersion        string   `json:"chromiumVersion"`
+	WebGL                  bool     `json:"webgl"`
+	WebGPU                 bool     `json:"webgpu"`
+	PDF                    bool     `json:"pdf"`
+	MediaCapture           bool     `json:"mediaCapture"`
+	SharedTextures         []string `json:"sharedTextures"`
+	LOAFAttribution        bool     `json:"loafAttribution"`
+	WasmTrapHandler        bool     `json:"wasmTrapHandler"`
+	FeatureFlagWorks       bool     `json:"featureFlagWorks"`
+	DiagnosticRecorded     bool     `json:"diagnosticRecorded"`
+	DiagnosticCopyIsolated bool     `json:"diagnosticCopyIsolated"`
+	Error                  string   `json:"error,omitempty"`
+}
+
 type ipcCheckReport struct {
 	InvokePong             bool   `json:"invokePong"`
 	ArgsEcho               bool   `json:"argsEcho"`
@@ -1136,6 +1183,20 @@ type protocolCheckReport struct {
 	LatePrivilegedRejected bool   `json:"latePrivilegedRejected"`
 	HandledAfterRemove     bool   `json:"handledAfterRemove"`
 	Error                  string `json:"error,omitempty"`
+}
+
+type packagingCheckReport struct {
+	Valid                        bool   `json:"valid"`
+	HasHelpers                   bool   `json:"hasHelpers"`
+	HasResources                 bool   `json:"hasResources"`
+	Signed                       bool   `json:"signed"`
+	Notarized                    bool   `json:"notarized"`
+	HardenedRuntime              bool   `json:"hardenedRuntime"`
+	MSIXRequiresSigning          bool   `json:"msixRequiresSigning"`
+	MASRejectedWithoutCompliance bool   `json:"masRejectedWithoutCompliance"`
+	InvalidFuseRejected          bool   `json:"invalidFuseRejected"`
+	PackageCount                 int    `json:"packageCount"`
+	Error                        string `json:"error,omitempty"`
 }
 
 type sessionCheckReport struct {
@@ -1722,6 +1783,58 @@ func offscreenDeviceScaleReport() offscreenDeviceScaleCheckReport {
 	}
 }
 
+func chromiumFeaturesReport(target compat.TargetVersions) chromiumFeaturesCheckReport {
+	registry, err := egchromium.NewRegistry(egchromium.Capabilities{
+		ChromiumVersion: target.Chromium,
+		WebGL:           true,
+		WebGPU:          true,
+		PDF:             true,
+		MediaCapture:    true,
+		SharedTextures: []egchromium.SharedTextureFormat{
+			egchromium.TextureRGB10A2,
+			egchromium.TextureRGBA8,
+			egchromium.TextureRGBA8,
+		},
+		LOAFAttribution: true,
+		WasmTrapHandler: true,
+	})
+	if err != nil {
+		return chromiumFeaturesCheckReport{Error: err.Error()}
+	}
+	if err := registry.SetFeature("WebAssemblyTrapHandler", true); err != nil {
+		return chromiumFeaturesCheckReport{Error: err.Error()}
+	}
+	if err := registry.RecordDiagnostic(egchromium.RendererDiagnostic{
+		FrameURL: "https://example.test",
+		Kind:     "loaf",
+		Detail:   "long frame",
+	}); err != nil {
+		return chromiumFeaturesCheckReport{Error: err.Error()}
+	}
+	capabilities := registry.Capabilities()
+	textures := make([]string, 0, len(capabilities.SharedTextures))
+	for _, texture := range capabilities.SharedTextures {
+		textures = append(textures, string(texture))
+	}
+	diagnostics := registry.Diagnostics()
+	if len(diagnostics) > 0 {
+		diagnostics[0].Kind = "mutated"
+	}
+	return chromiumFeaturesCheckReport{
+		ChromiumVersion:        capabilities.ChromiumVersion,
+		WebGL:                  capabilities.WebGL,
+		WebGPU:                 capabilities.WebGPU,
+		PDF:                    capabilities.PDF,
+		MediaCapture:           capabilities.MediaCapture,
+		SharedTextures:         textures,
+		LOAFAttribution:        capabilities.LOAFAttribution,
+		WasmTrapHandler:        capabilities.WasmTrapHandler,
+		FeatureFlagWorks:       registry.FeatureEnabled(" WebAssemblyTrapHandler "),
+		DiagnosticRecorded:     len(registry.Diagnostics()) == 1,
+		DiagnosticCopyIsolated: len(registry.Diagnostics()) == 1 && registry.Diagnostics()[0].Kind == "loaf",
+	}
+}
+
 func ipcReport() ipcCheckReport {
 	router := egipc.NewRouter()
 	report := ipcCheckReport{}
@@ -2302,6 +2415,55 @@ func protocolReport() protocolCheckReport {
 	}
 	report.HandledAfterRemove = registry.IsProtocolHandled("egtest")
 	return report
+}
+
+func packagingReport() packagingCheckReport {
+	manifest := egpackaging.Manifest{
+		AppName:    "Electron Go",
+		Executable: "Electron Go.app/Contents/MacOS/Electron Go",
+		Helpers:    []string{"Electron Go Helper.app"},
+		Resources:  []string{"app.asar"},
+		Fuses: map[egpackaging.Fuse]bool{
+			egpackaging.FuseRunAsNode:           false,
+			egpackaging.FuseOnlyLoadAppFromAsar: true,
+		},
+		Signing: egpackaging.Signing{
+			Identity:        "Developer ID",
+			Entitlements:    "entitlements.plist",
+			HardenedRuntime: true,
+			Notarized:       true,
+		},
+		Packages: []egpackaging.PlatformPackage{
+			egpackaging.PackageDMG,
+			egpackaging.PackageNSIS,
+			egpackaging.PackageMSIX,
+		},
+	}
+	summary, err := egpackaging.Summary(manifest)
+	if err != nil {
+		return packagingCheckReport{Error: err.Error()}
+	}
+	msixUnsigned := manifest
+	msixUnsigned.Signing.Identity = ""
+	msixUnsigned.Signing.Notarized = false
+	msixUnsigned.Signing.HardenedRuntime = false
+	masInvalid := manifest
+	masInvalid.Packages = []egpackaging.PlatformPackage{egpackaging.PackageMAS}
+	masInvalid.MASCompliant = false
+	invalidFuse := manifest
+	invalidFuse.Fuses = map[egpackaging.Fuse]bool{"unknown": true}
+	return packagingCheckReport{
+		Valid:                        true,
+		HasHelpers:                   summary["hasHelpers"],
+		HasResources:                 summary["hasResources"],
+		Signed:                       summary["signed"],
+		Notarized:                    summary["notarized"],
+		HardenedRuntime:              summary["hardenedRuntime"],
+		MSIXRequiresSigning:          errors.Is(egpackaging.Validate(msixUnsigned), egpackaging.ErrInvalidManifest),
+		MASRejectedWithoutCompliance: errors.Is(egpackaging.Validate(masInvalid), egpackaging.ErrInvalidManifest),
+		InvalidFuseRejected:          errors.Is(egpackaging.Validate(invalidFuse), egpackaging.ErrInvalidManifest),
+		PackageCount:                 len(manifest.Packages),
+	}
 }
 
 func sessionReport() sessionCheckReport {
