@@ -264,13 +264,17 @@ func NewCEFInitializeRequest(appDir string, args []string) (CEFInitializeRequest
 	if err := os.MkdirAll(cachePath, 0o755); err != nil {
 		return CEFInitializeRequest{}, err
 	}
+	resourcesPath, localesPath := cefResourcePaths()
 	return NormalizeCEFInitializeRequest(CEFInitializeRequest{
 		AppDir: absAppDir,
 		Args:   appendCEFBrowserProcessSwitches(args),
 		Settings: CEFSettings{
-			NoSandbox:   true,
-			CachePath:   cachePath,
-			LogSeverity: CEFLogSeverityWarning,
+			NoSandbox:      true,
+			CachePath:      cachePath,
+			LogSeverity:    CEFLogSeverityWarning,
+			ResourcesPath:  resourcesPath,
+			LocalesPath:    localesPath,
+			DisableSignals: true,
 		},
 	}), nil
 }
@@ -282,6 +286,24 @@ func cefCachePath(absAppDir string) string {
 	}
 	sum := sha256.Sum256([]byte(absAppDir))
 	return filepath.Join(root, "electron-go", hex.EncodeToString(sum[:8]), "cef")
+}
+
+func cefResourcePaths() (string, string) {
+	_, file, _, ok := runtime.Caller(0)
+	if !ok || file == "" {
+		return "", ""
+	}
+	resourcesPath := filepath.Clean(filepath.Join(filepath.Dir(file), "..", "..", "native", "cef", "current", "Resources"))
+	localesPath := filepath.Join(resourcesPath, "locales")
+	if !isDir(resourcesPath) || !isDir(localesPath) {
+		return "", ""
+	}
+	return resourcesPath, localesPath
+}
+
+func isDir(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
 }
 
 func appendCEFBrowserProcessSwitches(args []string) []string {
@@ -338,6 +360,10 @@ func initializeCEF(ctx context.Context, req CEFInitializeRequest) error {
 	defer appDir.free()
 	cachePath := newCStringView(req.Settings.CachePath)
 	defer cachePath.free()
+	resourcesPath := newCStringView(req.Settings.ResourcesPath)
+	defer resourcesPath.free()
+	localesPath := newCStringView(req.Settings.LocalesPath)
+	defer localesPath.free()
 
 	cReq := (*C.eg_cef_initialize_request)(C.calloc(1, C.size_t(unsafe.Sizeof(C.eg_cef_initialize_request{}))))
 	if cReq == nil {
@@ -351,6 +377,9 @@ func initializeCEF(ctx context.Context, req CEFInitializeRequest) error {
 	cReq.settings.no_sandbox = boolToCUint8(req.Settings.NoSandbox)
 	cReq.settings.cache_path = cachePath.view
 	cReq.settings.log_severity = cLogSeverity(req.Settings.LogSeverity)
+	cReq.settings.resources_path = resourcesPath.view
+	cReq.settings.locales_path = localesPath.view
+	cReq.settings.disable_signals = boolToCUint8(req.Settings.DisableSignals)
 
 	status := C.eg_cef_shim_initialize(nil, cReq)
 	if status != C.EG_BRIDGE_STATUS_RUNNING {
