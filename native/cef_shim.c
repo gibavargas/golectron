@@ -511,7 +511,8 @@ eg_bridge_status eg_cef_shim_initialize(
   settings.no_sandbox = request->settings.no_sandbox ? 1 : 0;
   settings.log_severity =
       eg_cef_to_log_severity(request->settings.log_severity);
-  if (!eg_cef_set_cef_string(&request->app_dir, &settings.root_cache_path) ||
+  if (!eg_cef_set_cef_string(
+          &request->settings.cache_path, &settings.root_cache_path) ||
       !eg_cef_set_cef_string(
           &request->settings.cache_path, &settings.cache_path)) {
     eg_cef_free_argv_storage(&storage);
