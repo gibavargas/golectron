@@ -1,4 +1,4 @@
-const { app, Menu } = require('electron')
+const { app, Menu, Tray, nativeImage } = require('electron')
 
 app.whenReady().then(() => {
   const report = {
@@ -8,7 +8,15 @@ app.whenReady().then(() => {
     checkboxLabel: '',
     checkboxChecked: false,
     submenuFound: false,
-    submenuRole: ''
+    submenuRole: '',
+    applicationMenuSet: false,
+    applicationMenuRetrieved: false,
+    trayCreated: false,
+    trayTitleSet: false,
+    trayToolTipSet: false,
+    trayContextMenuSet: false,
+    dynamicLabelUpdated: false,
+    dynamicEnabledUpdated: false
   }
 
   try {
@@ -28,6 +36,26 @@ app.whenReady().then(() => {
     report.checkboxChecked = items[2].checked
     report.submenuFound = Boolean(submenuItem)
     report.submenuRole = submenuItem ? submenuItem.role : ''
+    items[0].label = 'Open File'
+    items[0].enabled = false
+    report.dynamicLabelUpdated = items[0].label === 'Open File'
+    report.dynamicEnabledUpdated = items[0].enabled === false
+
+    Menu.setApplicationMenu(menu)
+    const applicationMenu = Menu.getApplicationMenu()
+    report.applicationMenuSet = true
+    report.applicationMenuRetrieved = Boolean(applicationMenu && applicationMenu.items.length === items.length)
+
+    const trayImage = nativeImage.createFromDataURL('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lH9rqAAAAABJRU5ErkJggg==')
+    const tray = new Tray(trayImage)
+    report.trayCreated = !tray.isDestroyed()
+    tray.setTitle('EG')
+    report.trayTitleSet = true
+    tray.setToolTip('Tooltip')
+    report.trayToolTipSet = true
+    tray.setContextMenu(menu)
+    report.trayContextMenuSet = true
+    tray.destroy()
   } catch (error) {
     report.error = error && error.message ? error.message : String(error)
   }

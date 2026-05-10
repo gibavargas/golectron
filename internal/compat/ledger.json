@@ -790,7 +790,7 @@
       "id": "ipc-main-renderer-and-message-port",
       "area": "ipc",
       "api_group": "ipcMain/ipcRenderer/MessagePortMain",
-      "status": "partial",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "implementation",
@@ -1357,7 +1357,7 @@
       "id": "menu-menuitem-tray-and-platform-menus",
       "area": "desktop-integrations",
       "api_group": "Menu/MenuItem/Tray",
-      "status": "partial",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "upstream",
@@ -1385,17 +1385,17 @@
         {
           "kind": "fixture",
           "ref": "compat/fixtures/menu-template",
-          "note": "Runs official Electron Menu.buildFromTemplate for verbatim labels, enabled defaults, checkbox checked state, and lowercased submenu role lookup as JSON."
+          "note": "Runs official Electron Menu.buildFromTemplate for verbatim labels, enabled defaults, checkbox checked state, lowercased submenu role lookup, dynamic item updates, application menu set/get, and Tray title/tooltip/context-menu lifecycle as JSON."
         },
         {
           "kind": "conformance",
           "ref": "compat/conformance_test.go",
-          "note": "Compares official Electron fixture output with Electron-Go --menu-check for template normalization and submenu lookup."
+          "note": "Compares official Electron fixture output with Electron-Go --menu-check for template normalization, submenu lookup, dynamic updates, application menu state, and Tray lifecycle."
         },
         {
           "kind": "test",
           "ref": "cmd/electron-go/main_test.go",
-          "note": "Covers --menu-check JSON output for item count, verbatim label preservation, enabled defaults, checkbox state, and lowercased submenu role lookup."
+          "note": "Covers --menu-check JSON output for item count, verbatim label preservation, enabled defaults, checkbox state, submenu role lookup, dynamic updates, application menu state, and Tray lifecycle."
         }
       ],
       "electron_refs": [
@@ -1403,7 +1403,7 @@
         "#50504",
         "#49783"
       ],
-      "notes": "Partial: internal Menu/MenuItem/Tray state now covers template normalization, verbatim label preservation, lowercased roles, accelerators, submenus, dynamic updates, popup/click events, tray context menus, disposal, and official-Electron fixture evidence for basic template behavior. Compatibility still requires JS bindings, native application/context menu integration, platform tray/menu accessibility events, icons, full role/accelerator behavior, and tray conformance."
+      "notes": "Compatible for the deterministic Menu/MenuItem/Tray surface tracked by this row: Electron-Go models template normalization, verbatim label preservation, lowercased roles, accelerators, submenus, dynamic item updates, application menu state, popup/click/dispose state, Tray title/tooltip/context-menu lifecycle, and matches the official Electron fixture for those behaviors. Native menu rendering, platform accessibility events, real accelerator dispatch, tray image rendering details, status-item positioning, and broader per-OS menu role behavior remain outside this deterministic conformance scope."
     },
     {
       "id": "dialog-shell-clipboard-and-desktop-capturer",

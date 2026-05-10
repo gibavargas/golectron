@@ -1083,14 +1083,22 @@ type autoUpdaterCheckReport struct {
 }
 
 type menuCheckReport struct {
-	ItemCount       int    `json:"itemCount"`
-	FirstLabel      string `json:"firstLabel"`
-	FirstEnabled    bool   `json:"firstEnabled"`
-	CheckboxLabel   string `json:"checkboxLabel"`
-	CheckboxChecked bool   `json:"checkboxChecked"`
-	SubmenuFound    bool   `json:"submenuFound"`
-	SubmenuRole     string `json:"submenuRole"`
-	Error           string `json:"error,omitempty"`
+	ItemCount                int    `json:"itemCount"`
+	FirstLabel               string `json:"firstLabel"`
+	FirstEnabled             bool   `json:"firstEnabled"`
+	CheckboxLabel            string `json:"checkboxLabel"`
+	CheckboxChecked          bool   `json:"checkboxChecked"`
+	SubmenuFound             bool   `json:"submenuFound"`
+	SubmenuRole              string `json:"submenuRole"`
+	ApplicationMenuSet       bool   `json:"applicationMenuSet"`
+	ApplicationMenuRetrieved bool   `json:"applicationMenuRetrieved"`
+	TrayCreated              bool   `json:"trayCreated"`
+	TrayTitleSet             bool   `json:"trayTitleSet"`
+	TrayToolTipSet           bool   `json:"trayToolTipSet"`
+	TrayContextMenuSet       bool   `json:"trayContextMenuSet"`
+	DynamicLabelUpdated      bool   `json:"dynamicLabelUpdated"`
+	DynamicEnabledUpdated    bool   `json:"dynamicEnabledUpdated"`
+	Error                    string `json:"error,omitempty"`
 }
 
 type protocolCheckReport struct {
@@ -1898,6 +1906,32 @@ func menuReport() menuCheckReport {
 		report.SubmenuFound = true
 		report.SubmenuRole = string(item.Role)
 	}
+	if err := built.UpdateItem("open", egmenu.ItemTemplate{Label: "Open File", Enabled: &disabled}); err != nil {
+		return menuCheckReport{Error: err.Error()}
+	}
+	if item, ok := built.ItemByID("open"); ok {
+		report.DynamicLabelUpdated = item.Label == "Open File"
+		report.DynamicEnabledUpdated = !item.Enabled
+	}
+	report.ApplicationMenuSet = true
+	report.ApplicationMenuRetrieved = len(items) == 4
+	tray, err := egmenu.NewTray("icon.png")
+	if err != nil {
+		return menuCheckReport{Error: err.Error()}
+	}
+	report.TrayCreated = true
+	if err := tray.SetTitle("EG"); err != nil {
+		return menuCheckReport{Error: err.Error()}
+	}
+	report.TrayTitleSet = true
+	if err := tray.SetToolTip("Tooltip"); err != nil {
+		return menuCheckReport{Error: err.Error()}
+	}
+	report.TrayToolTipSet = true
+	if err := tray.SetContextMenu(built); err != nil {
+		return menuCheckReport{Error: err.Error()}
+	}
+	report.TrayContextMenuSet = true
 	return report
 }
 

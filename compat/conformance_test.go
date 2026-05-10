@@ -1282,14 +1282,22 @@ type globalShortcutRegistrationReport struct {
 }
 
 type menuReport struct {
-	ItemCount       int    `json:"itemCount"`
-	FirstLabel      string `json:"firstLabel"`
-	FirstEnabled    bool   `json:"firstEnabled"`
-	CheckboxLabel   string `json:"checkboxLabel"`
-	CheckboxChecked bool   `json:"checkboxChecked"`
-	SubmenuFound    bool   `json:"submenuFound"`
-	SubmenuRole     string `json:"submenuRole"`
-	Error           string `json:"error,omitempty"`
+	ItemCount                int    `json:"itemCount"`
+	FirstLabel               string `json:"firstLabel"`
+	FirstEnabled             bool   `json:"firstEnabled"`
+	CheckboxLabel            string `json:"checkboxLabel"`
+	CheckboxChecked          bool   `json:"checkboxChecked"`
+	SubmenuFound             bool   `json:"submenuFound"`
+	SubmenuRole              string `json:"submenuRole"`
+	ApplicationMenuSet       bool   `json:"applicationMenuSet"`
+	ApplicationMenuRetrieved bool   `json:"applicationMenuRetrieved"`
+	TrayCreated              bool   `json:"trayCreated"`
+	TrayTitleSet             bool   `json:"trayTitleSet"`
+	TrayToolTipSet           bool   `json:"trayToolTipSet"`
+	TrayContextMenuSet       bool   `json:"trayContextMenuSet"`
+	DynamicLabelUpdated      bool   `json:"dynamicLabelUpdated"`
+	DynamicEnabledUpdated    bool   `json:"dynamicEnabledUpdated"`
+	Error                    string `json:"error,omitempty"`
 }
 
 type nativeThemeReport struct {
@@ -1840,6 +1848,15 @@ func parseMenu(t *testing.T, output string) menuReport {
 	}
 	if report.Error != "" {
 		t.Fatalf("menu report has error %q\n%s", report.Error, output)
+	}
+	if !report.ApplicationMenuSet || !report.ApplicationMenuRetrieved {
+		t.Fatalf("menu application-menu report is incomplete: %#v", report)
+	}
+	if !report.DynamicLabelUpdated || !report.DynamicEnabledUpdated {
+		t.Fatalf("menu dynamic update report is incomplete: %#v", report)
+	}
+	if !report.TrayCreated || !report.TrayTitleSet || !report.TrayToolTipSet || !report.TrayContextMenuSet {
+		t.Fatalf("menu tray report is incomplete: %#v", report)
 	}
 	return report
 }

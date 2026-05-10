@@ -1030,14 +1030,22 @@ func TestRunMenuCheckReportsTemplateNormalization(t *testing.T) {
 	}
 
 	var payload struct {
-		ItemCount       int    `json:"itemCount"`
-		FirstLabel      string `json:"firstLabel"`
-		FirstEnabled    bool   `json:"firstEnabled"`
-		CheckboxLabel   string `json:"checkboxLabel"`
-		CheckboxChecked bool   `json:"checkboxChecked"`
-		SubmenuFound    bool   `json:"submenuFound"`
-		SubmenuRole     string `json:"submenuRole"`
-		Error           string `json:"error,omitempty"`
+		ItemCount                int    `json:"itemCount"`
+		FirstLabel               string `json:"firstLabel"`
+		FirstEnabled             bool   `json:"firstEnabled"`
+		CheckboxLabel            string `json:"checkboxLabel"`
+		CheckboxChecked          bool   `json:"checkboxChecked"`
+		SubmenuFound             bool   `json:"submenuFound"`
+		SubmenuRole              string `json:"submenuRole"`
+		ApplicationMenuSet       bool   `json:"applicationMenuSet"`
+		ApplicationMenuRetrieved bool   `json:"applicationMenuRetrieved"`
+		TrayCreated              bool   `json:"trayCreated"`
+		TrayTitleSet             bool   `json:"trayTitleSet"`
+		TrayToolTipSet           bool   `json:"trayToolTipSet"`
+		TrayContextMenuSet       bool   `json:"trayContextMenuSet"`
+		DynamicLabelUpdated      bool   `json:"dynamicLabelUpdated"`
+		DynamicEnabledUpdated    bool   `json:"dynamicEnabledUpdated"`
+		Error                    string `json:"error,omitempty"`
 	}
 	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
 		t.Fatalf("--menu-check output is not JSON: %v\n%s", err, stdout.String())
@@ -1053,6 +1061,15 @@ func TestRunMenuCheckReportsTemplateNormalization(t *testing.T) {
 	}
 	if !payload.SubmenuFound || payload.SubmenuRole != "toggledevtools" {
 		t.Fatalf("menu submenu report = %#v", payload)
+	}
+	if !payload.DynamicLabelUpdated || !payload.DynamicEnabledUpdated {
+		t.Fatalf("dynamic menu update report = label %v enabled %v, want true/true", payload.DynamicLabelUpdated, payload.DynamicEnabledUpdated)
+	}
+	if !payload.ApplicationMenuSet || !payload.ApplicationMenuRetrieved {
+		t.Fatalf("application menu report = set %v retrieved %v, want true/true", payload.ApplicationMenuSet, payload.ApplicationMenuRetrieved)
+	}
+	if !payload.TrayCreated || !payload.TrayTitleSet || !payload.TrayToolTipSet || !payload.TrayContextMenuSet {
+		t.Fatalf("tray report = %#v, want created/title/tooltip/context menu", payload)
 	}
 }
 
