@@ -1043,6 +1043,52 @@ type fixtureResult struct {
 	Output   string
 }
 
+func jsonPayload(t *testing.T, output string) []byte {
+	t.Helper()
+	for start, r := range output {
+		if r != '{' {
+			continue
+		}
+		depth := 0
+		inString := false
+		escaped := false
+		for end := start; end < len(output); end++ {
+			ch := output[end]
+			if inString {
+				if escaped {
+					escaped = false
+					continue
+				}
+				if ch == '\\' {
+					escaped = true
+					continue
+				}
+				if ch == '"' {
+					inString = false
+				}
+				continue
+			}
+			switch ch {
+			case '"':
+				inString = true
+			case '{':
+				depth++
+			case '}':
+				depth--
+				if depth == 0 {
+					payload := []byte(output[start : end+1])
+					if json.Valid(payload) {
+						return payload
+					}
+					break
+				}
+			}
+		}
+	}
+	t.Fatalf("output does not contain a JSON object:\n%s", output)
+	return nil
+}
+
 type appActivityReport struct {
 	Platform  string `json:"platform"`
 	Supported bool   `json:"supported"`
@@ -1583,7 +1629,7 @@ func parseAppActivity(t *testing.T, output string) appActivityReport {
 func parseClipboard(t *testing.T, output string) clipboardReport {
 	t.Helper()
 	var report clipboardReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("clipboard output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -1595,7 +1641,7 @@ func parseClipboard(t *testing.T, output string) clipboardReport {
 func parseClipboardFormats(t *testing.T, output string) clipboardFormatsReport {
 	t.Helper()
 	var report clipboardFormatsReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("clipboard formats output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -1607,7 +1653,7 @@ func parseClipboardFormats(t *testing.T, output string) clipboardFormatsReport {
 func parseShell(t *testing.T, output string) shellReport {
 	t.Helper()
 	var report shellReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("shell output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -1619,7 +1665,7 @@ func parseShell(t *testing.T, output string) shellReport {
 func parseContentTracing(t *testing.T, output string) contentTracingReport {
 	t.Helper()
 	var report contentTracingReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("contentTracing output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -1631,7 +1677,7 @@ func parseContentTracing(t *testing.T, output string) contentTracingReport {
 func parseCrashReporter(t *testing.T, output string) crashReporterReport {
 	t.Helper()
 	var report crashReporterReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("crashReporter output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -1643,7 +1689,7 @@ func parseCrashReporter(t *testing.T, output string) crashReporterReport {
 func parseBrowserWindowOptions(t *testing.T, output string) browserWindowOptionsReport {
 	t.Helper()
 	var report browserWindowOptionsReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("BrowserWindow options output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -1667,7 +1713,7 @@ func parseBrowserWindowMethods(t *testing.T, output string) browserWindowMethods
 func parseViewTree(t *testing.T, output string) viewTreeReport {
 	t.Helper()
 	var report viewTreeReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("View tree output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -1679,7 +1725,7 @@ func parseViewTree(t *testing.T, output string) viewTreeReport {
 func parseViewAnimation(t *testing.T, output string) viewAnimationReport {
 	t.Helper()
 	var report viewAnimationReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("View animation output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -1691,7 +1737,7 @@ func parseViewAnimation(t *testing.T, output string) viewAnimationReport {
 func parseWebContentsNavigation(t *testing.T, output string) webContentsNavigationReport {
 	t.Helper()
 	var report webContentsNavigationReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("webContents navigation output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -1703,7 +1749,7 @@ func parseWebContentsNavigation(t *testing.T, output string) webContentsNavigati
 func parseWebContentsDevToolsTarget(t *testing.T, output string) webContentsDevToolsTargetReport {
 	t.Helper()
 	var report webContentsDevToolsTargetReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("webContents DevTools target output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -1715,7 +1761,7 @@ func parseWebContentsDevToolsTarget(t *testing.T, output string) webContentsDevT
 func parseWebContentsPrint(t *testing.T, output string) webContentsPrintReport {
 	t.Helper()
 	var report webContentsPrintReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("webContents print output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -1727,7 +1773,7 @@ func parseWebContentsPrint(t *testing.T, output string) webContentsPrintReport {
 func parseFocusOnNavigation(t *testing.T, output string) focusOnNavigationReport {
 	t.Helper()
 	var report focusOnNavigationReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("focusOnNavigation output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -1739,7 +1785,7 @@ func parseFocusOnNavigation(t *testing.T, output string) focusOnNavigationReport
 func parseOffscreenDeviceScale(t *testing.T, output string) offscreenDeviceScaleReport {
 	t.Helper()
 	var report offscreenDeviceScaleReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("offscreen device scale output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -1751,7 +1797,7 @@ func parseOffscreenDeviceScale(t *testing.T, output string) offscreenDeviceScale
 func parseChromiumFeatures(t *testing.T, output string) chromiumFeaturesReport {
 	t.Helper()
 	var report chromiumFeaturesReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("Chromium features output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -1792,7 +1838,7 @@ func lastJSONLine(output string) string {
 func parseContextBridge(t *testing.T, output string) contextBridgeReport {
 	t.Helper()
 	var report contextBridgeReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("contextBridge output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -1804,7 +1850,7 @@ func parseContextBridge(t *testing.T, output string) contextBridgeReport {
 func parseAppLifecycle(t *testing.T, output string) appLifecycleReport {
 	t.Helper()
 	var report appLifecycleReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("app lifecycle output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -1819,7 +1865,7 @@ func parseAppLifecycle(t *testing.T, output string) appLifecycleReport {
 func parseAppPaths(t *testing.T, output string) appPathsReport {
 	t.Helper()
 	var report appPathsReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("app paths output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -1858,7 +1904,7 @@ func writeAsarFixtureArchive(t *testing.T) string {
 func parseAppWebAuthn(t *testing.T, output string) appWebAuthnReport {
 	t.Helper()
 	var report appWebAuthnReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("app WebAuthn output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -1870,7 +1916,7 @@ func parseAppWebAuthn(t *testing.T, output string) appWebAuthnReport {
 func parseAutoUpdater(t *testing.T, output string) autoUpdaterReport {
 	t.Helper()
 	var report autoUpdaterReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("autoUpdater output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -1882,7 +1928,7 @@ func parseAutoUpdater(t *testing.T, output string) autoUpdaterReport {
 func parseNodeTransformTypes(t *testing.T, output string) nodeTransformTypesReport {
 	t.Helper()
 	var report nodeTransformTypesReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("node transform-types output is not JSON: %v\n%s", err, output)
 	}
 	if report.Node == "" {
@@ -1894,7 +1940,7 @@ func parseNodeTransformTypes(t *testing.T, output string) nodeTransformTypesRepo
 func parseNodeVersions(t *testing.T, output string) nodeVersionsReport {
 	t.Helper()
 	var report nodeVersionsReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("node versions output is not JSON: %v\n%s", err, output)
 	}
 	if report.Electron == "" || report.Chrome == "" || report.Node == "" || report.V8 == "" || report.Modules == "" {
@@ -1906,7 +1952,7 @@ func parseNodeVersions(t *testing.T, output string) nodeVersionsReport {
 func parseNetLog(t *testing.T, output string) netLogReport {
 	t.Helper()
 	var report netLogReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("netLog output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -1918,7 +1964,7 @@ func parseNetLog(t *testing.T, output string) netLogReport {
 func parseClientRequest(t *testing.T, output string) clientRequestReport {
 	t.Helper()
 	var report clientRequestReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("ClientRequest output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -1930,7 +1976,7 @@ func parseClientRequest(t *testing.T, output string) clientRequestReport {
 func parseGlobalShortcutSuspension(t *testing.T, output string) globalShortcutSuspensionReport {
 	t.Helper()
 	var report globalShortcutSuspensionReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("globalShortcut suspension output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -1942,7 +1988,7 @@ func parseGlobalShortcutSuspension(t *testing.T, output string) globalShortcutSu
 func parseGlobalShortcutRegistration(t *testing.T, output string) globalShortcutRegistrationReport {
 	t.Helper()
 	var report globalShortcutRegistrationReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("globalShortcut registration output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -1954,7 +2000,7 @@ func parseGlobalShortcutRegistration(t *testing.T, output string) globalShortcut
 func parseMenu(t *testing.T, output string) menuReport {
 	t.Helper()
 	var report menuReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("menu output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -1975,7 +2021,7 @@ func parseMenu(t *testing.T, output string) menuReport {
 func parseNativeTheme(t *testing.T, output string) nativeThemeReport {
 	t.Helper()
 	var report nativeThemeReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("nativeTheme output is not JSON: %v\n%s", err, output)
 	}
 	if report.Platform == "" {
@@ -1999,7 +2045,7 @@ func parseNativeTheme(t *testing.T, output string) nativeThemeReport {
 func parseNotification(t *testing.T, output string) notificationReport {
 	t.Helper()
 	var report notificationReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("notification output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -2011,7 +2057,7 @@ func parseNotification(t *testing.T, output string) notificationReport {
 func parseNotificationFailure(t *testing.T, output string) notificationFailureReport {
 	t.Helper()
 	var report notificationFailureReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("notification failure output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -2026,7 +2072,7 @@ func parseNotificationFailure(t *testing.T, output string) notificationFailureRe
 func parseNotificationIdentity(t *testing.T, output string) notificationIdentityReport {
 	t.Helper()
 	var report notificationIdentityReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("notification identity output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -2038,7 +2084,7 @@ func parseNotificationIdentity(t *testing.T, output string) notificationIdentity
 func parseSafeStorage(t *testing.T, output string) safeStorageReport {
 	t.Helper()
 	var report safeStorageReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("safeStorage output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -2050,7 +2096,7 @@ func parseSafeStorage(t *testing.T, output string) safeStorageReport {
 func parseProtocol(t *testing.T, output string) protocolReport {
 	t.Helper()
 	var report protocolReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("protocol output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -2062,7 +2108,7 @@ func parseProtocol(t *testing.T, output string) protocolReport {
 func parsePackaging(t *testing.T, output string) packagingReport {
 	t.Helper()
 	var report packagingReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("packaging output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -2077,7 +2123,7 @@ func parsePackaging(t *testing.T, output string) packagingReport {
 func parseSession(t *testing.T, output string) sessionReport {
 	t.Helper()
 	var report sessionReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("session output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -2089,7 +2135,7 @@ func parseSession(t *testing.T, output string) sessionReport {
 func parseSessionQuotas(t *testing.T, output string) sessionQuotasReport {
 	t.Helper()
 	var report sessionQuotasReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("session quotas output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -2101,7 +2147,7 @@ func parseSessionQuotas(t *testing.T, output string) sessionQuotasReport {
 func parseSessionWebAuthn(t *testing.T, output string) sessionWebAuthnReport {
 	t.Helper()
 	var report sessionWebAuthnReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("session WebAuthn output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
@@ -2113,7 +2159,7 @@ func parseSessionWebAuthn(t *testing.T, output string) sessionWebAuthnReport {
 func parseUtilityProcess(t *testing.T, output string) utilityProcessReport {
 	t.Helper()
 	var report utilityProcessReport
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &report); err != nil {
+	if err := json.Unmarshal(jsonPayload(t, output), &report); err != nil {
 		t.Fatalf("utilityProcess output is not JSON: %v\n%s", err, output)
 	}
 	if report.Error != "" {
