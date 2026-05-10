@@ -1054,8 +1054,11 @@ type sessionCheckReport struct {
 	MemoryStoragePathEmpty     bool   `json:"memoryStoragePathEmpty"`
 	CookieRoundTrip            bool   `json:"cookieRoundTrip"`
 	CookieCount                int    `json:"cookieCount"`
+	CookieOverwriteValue       bool   `json:"cookieOverwriteValue"`
+	CookieOverwriteChange      bool   `json:"cookieOverwriteChange"`
 	CookieRemoveResolved       bool   `json:"cookieRemoveResolved"`
 	CookieRemoved              bool   `json:"cookieRemoved"`
+	CookieRemoveChange         bool   `json:"cookieRemoveChange"`
 	CacheClearResolved         bool   `json:"cacheClearResolved"`
 	StorageClearResolved       bool   `json:"storageClearResolved"`
 	Error                      string `json:"error,omitempty"`
@@ -2098,11 +2101,26 @@ func sessionReport() sessionCheckReport {
 		report.Error = err.Error()
 		return report
 	}
+	if err := defaultSession.SetCookie(egsession.Cookie{
+		URL:   "https://example.test/",
+		Name:  "sid",
+		Value: "2",
+	}); err != nil {
+		report.Error = err.Error()
+		return report
+	}
 	cookies := defaultSession.Cookies()
 	report.CookieCount = len(cookies)
 	for _, cookie := range cookies {
-		if cookie.Name == "sid" && cookie.Value == "1" {
+		if cookie.Name == "sid" && cookie.Value == "2" {
 			report.CookieRoundTrip = true
+			break
+		}
+	}
+	report.CookieOverwriteValue = report.CookieCount == 1 && report.CookieRoundTrip
+	for _, change := range defaultSession.CookieChanges() {
+		if change.Cookie.Name == "sid" && change.Cause == egsession.CookieChangeOverwrite && change.Removed {
+			report.CookieOverwriteChange = true
 			break
 		}
 	}
@@ -2112,6 +2130,12 @@ func sessionReport() sessionCheckReport {
 	}
 	report.CookieRemoveResolved = true
 	report.CookieRemoved = len(defaultSession.Cookies()) == 0
+	for _, change := range defaultSession.CookieChanges() {
+		if change.Cookie.Name == "sid" && change.Cause == egsession.CookieChangeExplicit && change.Removed {
+			report.CookieRemoveChange = true
+			break
+		}
+	}
 
 	defaultSession.ClearCache()
 	report.CacheClearResolved = defaultSession.CacheCleared()

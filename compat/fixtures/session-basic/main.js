@@ -12,24 +12,40 @@ app.whenReady().then(async () => {
     memoryStoragePathEmpty: !inMemory.storagePath,
     cookieRoundTrip: false,
     cookieCount: 0,
+    cookieOverwriteValue: false,
+    cookieOverwriteChange: false,
     cookieRemoveResolved: false,
     cookieRemoved: false,
+    cookieRemoveChange: false,
     cacheClearResolved: false,
     storageClearResolved: false
   }
 
   try {
+    const cookieChanges = []
+    defaultSession.cookies.on('changed', (_event, cookie, cause, removed) => {
+      if (cookie.name === 'sid') {
+        cookieChanges.push({ value: cookie.value, cause, removed })
+      }
+    })
     await defaultSession.cookies.set({
       url: 'https://example.test/',
       name: 'sid',
       value: '1'
+    })
+    await defaultSession.cookies.set({
+      url: 'https://example.test/',
+      name: 'sid',
+      value: '2'
     })
     const cookies = await defaultSession.cookies.get({
       url: 'https://example.test/',
       name: 'sid'
     })
     report.cookieCount = cookies.length
-    report.cookieRoundTrip = cookies.some(cookie => cookie.name === 'sid' && cookie.value === '1')
+    report.cookieRoundTrip = cookies.some(cookie => cookie.name === 'sid' && cookie.value === '2')
+    report.cookieOverwriteValue = cookies.length === 1 && cookies[0].value === '2'
+    report.cookieOverwriteChange = cookieChanges.some(change => change.cause === 'overwrite' && change.removed)
 
     await defaultSession.cookies.remove('https://example.test/', 'sid')
     report.cookieRemoveResolved = true
@@ -38,6 +54,7 @@ app.whenReady().then(async () => {
       name: 'sid'
     })
     report.cookieRemoved = afterRemove.length === 0
+    report.cookieRemoveChange = cookieChanges.some(change => change.cause === 'explicit' && change.removed)
 
     await defaultSession.clearCache()
     report.cacheClearResolved = true

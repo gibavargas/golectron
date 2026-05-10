@@ -73,7 +73,7 @@ func TestCookieStoreNormalizesAndRecordsChanges(t *testing.T) {
 		t.Fatalf("SetCookie(overwrite) error = %v", err)
 	}
 	changes := s.CookieChanges()
-	if len(changes) != 2 || changes[0].Cause != CookieChangeExplicit || changes[1].Cause != CookieChangeOverwrite {
+	if len(changes) != 3 || changes[0].Cause != CookieChangeExplicit || changes[1].Cause != CookieChangeOverwrite || !changes[1].Removed || changes[2].Cause != CookieChangeExplicit {
 		t.Fatalf("CookieChanges() = %#v", changes)
 	}
 	if err := s.DeleteCookie("https://example.test/", "sid"); err != nil {
@@ -83,7 +83,7 @@ func TestCookieStoreNormalizesAndRecordsChanges(t *testing.T) {
 		t.Fatalf("Cookies() after delete = %#v, want empty", s.Cookies())
 	}
 	changes = s.CookieChanges()
-	if len(changes) != 3 || !changes[2].Removed {
+	if len(changes) != 4 || !changes[3].Removed || changes[3].Cause != CookieChangeExplicit {
 		t.Fatalf("delete change = %#v", changes)
 	}
 }

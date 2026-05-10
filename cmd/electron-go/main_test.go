@@ -1098,8 +1098,11 @@ func TestRunSessionCheckReportsBasicSessionBehavior(t *testing.T) {
 		MemoryStoragePathEmpty     bool   `json:"memoryStoragePathEmpty"`
 		CookieRoundTrip            bool   `json:"cookieRoundTrip"`
 		CookieCount                int    `json:"cookieCount"`
+		CookieOverwriteValue       bool   `json:"cookieOverwriteValue"`
+		CookieOverwriteChange      bool   `json:"cookieOverwriteChange"`
 		CookieRemoveResolved       bool   `json:"cookieRemoveResolved"`
 		CookieRemoved              bool   `json:"cookieRemoved"`
+		CookieRemoveChange         bool   `json:"cookieRemoveChange"`
 		CacheClearResolved         bool   `json:"cacheClearResolved"`
 		StorageClearResolved       bool   `json:"storageClearResolved"`
 		Error                      string `json:"error,omitempty"`
@@ -1116,8 +1119,11 @@ func TestRunSessionCheckReportsBasicSessionBehavior(t *testing.T) {
 	if !payload.CookieRoundTrip || payload.CookieCount != 1 {
 		t.Fatalf("cookie report = roundTrip %v count %d, want true/1", payload.CookieRoundTrip, payload.CookieCount)
 	}
-	if !payload.CookieRemoveResolved || !payload.CookieRemoved {
-		t.Fatalf("cookie remove report = resolved %v removed %v, want true/true", payload.CookieRemoveResolved, payload.CookieRemoved)
+	if !payload.CookieOverwriteValue || !payload.CookieOverwriteChange {
+		t.Fatalf("cookie overwrite report = value %v change %v, want true/true", payload.CookieOverwriteValue, payload.CookieOverwriteChange)
+	}
+	if !payload.CookieRemoveResolved || !payload.CookieRemoved || !payload.CookieRemoveChange {
+		t.Fatalf("cookie remove report = resolved %v removed %v change %v, want true/true/true", payload.CookieRemoveResolved, payload.CookieRemoved, payload.CookieRemoveChange)
 	}
 	if !payload.CacheClearResolved || !payload.StorageClearResolved {
 		t.Fatalf("clear report = cache %v storage %v, want true/true", payload.CacheClearResolved, payload.StorageClearResolved)

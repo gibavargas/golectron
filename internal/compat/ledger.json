@@ -868,30 +868,30 @@
         {
           "kind": "implementation",
           "ref": "internal/session/session.go",
-          "note": "Adds default/fromPartition session registry state, persist: partition detection, cookie store mutation events, permission request handler state, cache clearing state, and clearStorageData option recording."
+          "note": "Adds default/fromPartition session registry state, persist: partition detection, cookie store mutation events including overwrite/remove causes, permission request handler state, cache clearing state, and clearStorageData option recording."
         },
         {
           "kind": "test",
           "ref": "internal/session/session_test.go",
-          "note": "Covers default and partition identity, persistent vs in-memory sessions, permission allow/deny, cookie normalization/overwrite/delete events, validation failures, cache clearing, and clearStorageData recording."
+          "note": "Covers default and partition identity, persistent vs in-memory sessions, permission allow/deny, cookie normalization, Electron-style overwrite/delete change events, validation failures, cache clearing, and clearStorageData recording."
         },
         {
           "kind": "fixture",
           "ref": "compat/fixtures/session-basic",
-          "note": "Runs official Electron default/fromPartition identity, persistent vs in-memory partition shape, cookie set/get/remove, clearCache, and clearStorageData resolution as JSON."
+          "note": "Runs official Electron default/fromPartition identity, persistent vs in-memory partition shape, cookie set/get/overwrite/remove plus changed-event causes, clearCache, and clearStorageData resolution as JSON."
         },
         {
           "kind": "conformance",
           "ref": "compat/conformance_test.go",
-          "note": "Compares official Electron fixture output with Electron-Go --session-check for basic session partition, cookie set/get/remove, and clearing behavior."
+          "note": "Compares official Electron fixture output with Electron-Go --session-check for basic session partition, cookie set/get/overwrite/remove changed events, and clearing behavior."
         },
         {
           "kind": "test",
           "ref": "cmd/electron-go/main_test.go",
-          "note": "Covers --session-check JSON output for default/partition flags, cookie set/get/remove, cache clear, and storage clear recording."
+          "note": "Covers --session-check JSON output for default/partition flags, cookie set/get/overwrite/remove change flags, cache clear, and storage clear recording."
         }
       ],
-      "notes": "Partial: internal session state now covers default/fromPartition identity, persistent partition detection, cookie store events, permission request handlers, cache clear state, clearStorageData recording, and official-Electron fixture evidence for basic session cookie set/get/remove behavior. Compatibility still requires Chromium-backed storage, JS bindings, spellchecker, proxy, preconnect, netLog, device permission handlers, and exact Electron cookie/storage semantics."
+      "notes": "Partial: internal session state now covers default/fromPartition identity, persistent partition detection, cookie store events including overwrite/remove causes, permission request handlers, cache clear state, clearStorageData recording, and official-Electron fixture evidence for basic session cookie set/get/overwrite/remove behavior. Compatibility still requires Chromium-backed storage, JS bindings, spellchecker, proxy, preconnect, netLog, device permission handlers, and exact Electron cookie/storage semantics."
     },
     {
       "id": "session-clear-storage-data-quotas-removal-electron-42",

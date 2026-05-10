@@ -145,12 +145,11 @@ func (s *Session) SetCookie(cookie Cookie) error {
 		return err
 	}
 	key := cookieKey(normalized)
-	cause := CookieChangeExplicit
-	if _, ok := s.cookies[key]; ok {
-		cause = CookieChangeOverwrite
+	if existing, ok := s.cookies[key]; ok {
+		s.cookieChanges = append(s.cookieChanges, CookieChange{Cookie: existing, Removed: true, Cause: CookieChangeOverwrite})
 	}
 	s.cookies[key] = normalized
-	s.cookieChanges = append(s.cookieChanges, CookieChange{Cookie: normalized, Cause: cause})
+	s.cookieChanges = append(s.cookieChanges, CookieChange{Cookie: normalized, Cause: CookieChangeExplicit})
 	return nil
 }
 

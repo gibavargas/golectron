@@ -1273,8 +1273,11 @@ type sessionReport struct {
 	MemoryStoragePathEmpty     bool   `json:"memoryStoragePathEmpty"`
 	CookieRoundTrip            bool   `json:"cookieRoundTrip"`
 	CookieCount                int    `json:"cookieCount"`
+	CookieOverwriteValue       bool   `json:"cookieOverwriteValue"`
+	CookieOverwriteChange      bool   `json:"cookieOverwriteChange"`
 	CookieRemoveResolved       bool   `json:"cookieRemoveResolved"`
 	CookieRemoved              bool   `json:"cookieRemoved"`
+	CookieRemoveChange         bool   `json:"cookieRemoveChange"`
 	CacheClearResolved         bool   `json:"cacheClearResolved"`
 	StorageClearResolved       bool   `json:"storageClearResolved"`
 	Error                      string `json:"error,omitempty"`
