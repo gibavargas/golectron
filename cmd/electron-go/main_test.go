@@ -1065,8 +1065,14 @@ func TestRunNativeThemeCheckReportsSnapshot(t *testing.T) {
 
 	var payload struct {
 		Platform                          string `json:"platform"`
+		SupportsNativeThemeCore           bool   `json:"supportsNativeThemeCore"`
 		ShouldDifferentiateWithoutColor   bool   `json:"shouldDifferentiateWithoutColor"`
 		SupportsDifferentiateWithoutColor bool   `json:"supportsDifferentiateWithoutColor"`
+		ScreenPrimaryDisplayAvailable     bool   `json:"screenPrimaryDisplayAvailable"`
+		ScreenScaleFactorPositive         bool   `json:"screenScaleFactorPositive"`
+		PowerMonitorIdleStateAvailable    bool   `json:"powerMonitorIdleStateAvailable"`
+		PowerMonitorIdleTimeNonNegative   bool   `json:"powerMonitorIdleTimeNonNegative"`
+		SystemPreferencesAvailable        bool   `json:"systemPreferencesAvailable"`
 	}
 	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
 		t.Fatalf("--native-theme-check output is not JSON: %v\n%s", err, stdout.String())
@@ -1074,8 +1080,17 @@ func TestRunNativeThemeCheckReportsSnapshot(t *testing.T) {
 	if payload.Platform == "" {
 		t.Fatal("platform is empty")
 	}
+	if !payload.SupportsNativeThemeCore {
+		t.Fatalf("supportsNativeThemeCore = false: %#v", payload)
+	}
 	if !payload.SupportsDifferentiateWithoutColor && payload.ShouldDifferentiateWithoutColor {
 		t.Fatalf("unsupported platform reported shouldDifferentiateWithoutColor=true: %#v", payload)
+	}
+	if !payload.ScreenPrimaryDisplayAvailable || !payload.ScreenScaleFactorPositive {
+		t.Fatalf("screen report = primary %v scale %v, want true/true", payload.ScreenPrimaryDisplayAvailable, payload.ScreenScaleFactorPositive)
+	}
+	if !payload.PowerMonitorIdleStateAvailable || !payload.PowerMonitorIdleTimeNonNegative {
+		t.Fatalf("powerMonitor report = state %v time %v, want true/true", payload.PowerMonitorIdleStateAvailable, payload.PowerMonitorIdleTimeNonNegative)
 	}
 }
 

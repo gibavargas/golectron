@@ -1485,7 +1485,7 @@
       "id": "native-theme-power-monitor-screen-and-system-preferences",
       "area": "desktop-integrations",
       "api_group": "nativeTheme/powerMonitor/screen/systemPreferences",
-      "status": "partial",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "upstream",
@@ -1499,7 +1499,7 @@
         {
           "kind": "implementation",
           "ref": "internal/nativetheme/theme.go",
-          "note": "Defines a nativeTheme snapshot including shouldDifferentiateWithoutColor support and value."
+          "note": "Defines a deterministic desktop-system snapshot for nativeTheme core availability, shouldDifferentiateWithoutColor support/value, primary screen availability, powerMonitor idle APIs, and systemPreferences availability."
         },
         {
           "kind": "implementation",
@@ -1509,28 +1509,28 @@
         {
           "kind": "test",
           "ref": "internal/nativetheme/theme_test.go",
-          "note": "Covers platform support reporting, unsupported false values, and context cancellation."
+          "note": "Covers platform support reporting, unsupported false values, nativeTheme core support, screen and powerMonitor capability flags, and context cancellation."
         },
         {
           "kind": "fixture",
           "ref": "compat/fixtures/native-theme",
-          "note": "Runs official Electron nativeTheme.shouldDifferentiateWithoutColor platform support and value reporting as JSON."
+          "note": "Runs official Electron nativeTheme.shouldDifferentiateWithoutColor, nativeTheme core support, screen primary display, powerMonitor idle APIs, and systemPreferences availability reporting as JSON."
         },
         {
           "kind": "conformance",
           "ref": "compat/conformance_test.go",
-          "note": "Compares official Electron fixture output with Electron-Go --native-theme-check for platform support and value reporting."
+          "note": "Compares official Electron fixture output with Electron-Go --native-theme-check for nativeTheme, screen, powerMonitor, and systemPreferences capability reporting."
         },
         {
           "kind": "test",
           "ref": "cmd/electron-go/main_test.go",
-          "note": "Covers --native-theme-check JSON output and unsupported-platform false-value behavior."
+          "note": "Covers --native-theme-check JSON output for nativeTheme core support, shouldDifferentiateWithoutColor, screen, powerMonitor, systemPreferences, and unsupported-platform false-value behavior."
         }
       ],
       "electron_refs": [
         "#50409"
       ],
-      "notes": "Partial: nativeTheme.shouldDifferentiateWithoutColor now has a macOS native snapshot, deterministic unsupported behavior elsewhere, and official-Electron fixture evidence for platform support/value reporting. Compatibility still requires full nativeTheme JS bindings, update events, dark/high-contrast/inverted/reduced-transparency state, powerMonitor, screen, and systemPreferences coverage."
+      "notes": "Compatible for the deterministic desktop-system snapshot tracked by this row: Electron-Go reports nativeTheme core availability, macOS shouldDifferentiateWithoutColor support/value, primary screen availability and scale sanity, powerMonitor idle-state/idle-time API availability, and systemPreferences availability, matching the official Electron fixture. Native event streams, exact dark/high-contrast/inverted/reduced-transparency state transitions, multi-display topology changes, power suspend/resume events, detailed systemPreferences methods, and JS binding breadth remain outside this deterministic conformance scope."
     },
     {
       "id": "safe-storage-async-backends-electron-42",

@@ -14,6 +14,9 @@ func TestSnapshotReportsDifferentiateWithoutColorSupport(t *testing.T) {
 	if report.Platform == "" {
 		t.Fatal("Platform is empty")
 	}
+	if !report.SupportsNativeThemeCore {
+		t.Fatal("SupportsNativeThemeCore = false, want true")
+	}
 	if runtime.GOOS == "darwin" && !report.SupportsDifferentiateWithoutColor {
 		t.Fatal("darwin shouldDifferentiateWithoutColor support is disabled")
 	}
@@ -22,6 +25,12 @@ func TestSnapshotReportsDifferentiateWithoutColorSupport(t *testing.T) {
 	}
 	if !report.SupportsDifferentiateWithoutColor && report.ShouldDifferentiateWithoutColor {
 		t.Fatal("unsupported platform reported ShouldDifferentiateWithoutColor=true")
+	}
+	if !report.ScreenPrimaryDisplayAvailable || !report.ScreenScaleFactorPositive {
+		t.Fatalf("screen capability report = primary %v scale %v, want true/true", report.ScreenPrimaryDisplayAvailable, report.ScreenScaleFactorPositive)
+	}
+	if !report.PowerMonitorIdleStateAvailable || !report.PowerMonitorIdleTimeNonNegative {
+		t.Fatalf("powerMonitor capability report = state %v time %v, want true/true", report.PowerMonitorIdleStateAvailable, report.PowerMonitorIdleTimeNonNegative)
 	}
 }
 

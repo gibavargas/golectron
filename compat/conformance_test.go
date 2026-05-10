@@ -1294,8 +1294,14 @@ type menuReport struct {
 
 type nativeThemeReport struct {
 	Platform                          string `json:"platform"`
+	SupportsNativeThemeCore           bool   `json:"supportsNativeThemeCore"`
 	ShouldDifferentiateWithoutColor   bool   `json:"shouldDifferentiateWithoutColor"`
 	SupportsDifferentiateWithoutColor bool   `json:"supportsDifferentiateWithoutColor"`
+	ScreenPrimaryDisplayAvailable     bool   `json:"screenPrimaryDisplayAvailable"`
+	ScreenScaleFactorPositive         bool   `json:"screenScaleFactorPositive"`
+	PowerMonitorIdleStateAvailable    bool   `json:"powerMonitorIdleStateAvailable"`
+	PowerMonitorIdleTimeNonNegative   bool   `json:"powerMonitorIdleTimeNonNegative"`
+	SystemPreferencesAvailable        bool   `json:"systemPreferencesAvailable"`
 }
 
 type notificationReport struct {
@@ -1847,8 +1853,17 @@ func parseNativeTheme(t *testing.T, output string) nativeThemeReport {
 	if report.Platform == "" {
 		t.Fatalf("nativeTheme platform is empty: %#v", report)
 	}
+	if !report.SupportsNativeThemeCore {
+		t.Fatalf("nativeTheme core support is false: %#v", report)
+	}
 	if !report.SupportsDifferentiateWithoutColor && report.ShouldDifferentiateWithoutColor {
 		t.Fatalf("unsupported nativeTheme reported shouldDifferentiateWithoutColor=true: %#v", report)
+	}
+	if !report.ScreenPrimaryDisplayAvailable || !report.ScreenScaleFactorPositive {
+		t.Fatalf("nativeTheme screen capability report is incomplete: %#v", report)
+	}
+	if !report.PowerMonitorIdleStateAvailable || !report.PowerMonitorIdleTimeNonNegative {
+		t.Fatalf("nativeTheme powerMonitor capability report is incomplete: %#v", report)
 	}
 	return report
 }
