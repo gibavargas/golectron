@@ -37,9 +37,6 @@ typedef struct eg_cef_settings {
   uint8_t no_sandbox;
   eg_string_view cache_path;
   eg_cef_log_severity log_severity;
-  eg_string_view resources_path;
-  eg_string_view locales_path;
-  uint8_t disable_signals;
 } eg_cef_settings;
 
 typedef struct eg_cef_execute_process_request {
