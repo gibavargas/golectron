@@ -39,6 +39,7 @@ typedef struct eg_cef_settings {
   eg_cef_log_severity log_severity;
   eg_string_view resources_path;
   eg_string_view locales_path;
+  eg_string_view browser_subprocess_path;
   uint8_t disable_signals;
 } eg_cef_settings;
 

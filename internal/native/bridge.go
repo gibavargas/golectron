@@ -48,12 +48,13 @@ const (
 // thread; callbacks crossing this boundary must be short-lived, non-blocking,
 // and must not retain Go pointers after returning.
 type CEFSettings struct {
-	NoSandbox      bool
-	CachePath      string
-	LogSeverity    CEFLogSeverity
-	ResourcesPath  string
-	LocalesPath    string
-	DisableSignals bool
+	NoSandbox             bool
+	CachePath             string
+	LogSeverity           CEFLogSeverity
+	ResourcesPath         string
+	LocalesPath           string
+	BrowserSubprocessPath string
+	DisableSignals        bool
 }
 
 type CEFInitializeRequest struct {
@@ -176,6 +177,9 @@ func ValidateCEFInitializeRequest(req CEFInitializeRequest) error {
 	}
 	if req.Settings.LocalesPath != "" && strings.TrimSpace(req.Settings.LocalesPath) == "" {
 		return fmt.Errorf("CEF locales path must not be blank")
+	}
+	if req.Settings.BrowserSubprocessPath != "" && strings.TrimSpace(req.Settings.BrowserSubprocessPath) == "" {
+		return fmt.Errorf("CEF browser subprocess path must not be blank")
 	}
 	return validateCEFLogSeverity(req.Settings.LogSeverity)
 }
