@@ -95,3 +95,61 @@ func TestRouterRejectsInvalidHandlers(t *testing.T) {
 		t.Fatalf("Invoke(empty channel) error = %v, want ErrChannelRequired", err)
 	}
 }
+
+func TestMessageChannelQueuesUntilStart(t *testing.T) {
+	port1, port2 := NewMessageChannel()
+	var got []any
+	port1.OnMessage(func(event MessageEvent) {
+		got = append(got, event.Data)
+	})
+
+	if err := port2.PostMessage("queued"); err != nil {
+		t.Fatalf("PostMessage() error = %v", err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("message delivered before Start: %#v", got)
+	}
+	port1.Start()
+	if len(got) != 1 || got[0] != "queued" {
+		t.Fatalf("got messages %#v, want [queued]", got)
+	}
+}
+
+func TestMessageChannelTransfersPorts(t *testing.T) {
+	port1, port2 := NewMessageChannel()
+	transferred1, transferred2 := NewMessageChannel()
+	var transferred *MessagePort
+	port1.OnMessage(func(event MessageEvent) {
+		if len(event.Ports) == 1 {
+			transferred = event.Ports[0]
+		}
+	})
+	port1.Start()
+
+	if err := port2.PostMessage("take-port", transferred1); err != nil {
+		t.Fatalf("PostMessage(with port) error = %v", err)
+	}
+	if transferred == nil {
+		t.Fatal("transferred port missing")
+	}
+
+	var got any
+	transferred2.OnMessage(func(event MessageEvent) {
+		got = event.Data
+	})
+	transferred2.Start()
+	if err := transferred.PostMessage("through-transfer"); err != nil {
+		t.Fatalf("transferred PostMessage() error = %v", err)
+	}
+	if got != "through-transfer" {
+		t.Fatalf("transferred message = %v, want through-transfer", got)
+	}
+}
+
+func TestMessagePortCloseRejectsPostMessage(t *testing.T) {
+	_, port2 := NewMessageChannel()
+	port2.Close()
+	if err := port2.PostMessage("closed"); !errors.Is(err, ErrPortClosed) {
+		t.Fatalf("PostMessage(closed) error = %v, want ErrPortClosed", err)
+	}
+}

@@ -1087,14 +1087,16 @@ type offscreenDeviceScaleReport struct {
 }
 
 type ipcReport struct {
-	InvokePong         bool   `json:"invokePong"`
-	ArgsEcho           bool   `json:"argsEcho"`
-	OnceFirst          bool   `json:"onceFirst"`
-	OnceSecondRejected bool   `json:"onceSecondRejected"`
-	RemovedRejected    bool   `json:"removedRejected"`
-	DuplicateRejected  bool   `json:"duplicateRejected"`
-	MissingRejected    bool   `json:"missingRejected"`
-	Error              string `json:"error,omitempty"`
+	InvokePong             bool   `json:"invokePong"`
+	ArgsEcho               bool   `json:"argsEcho"`
+	OnceFirst              bool   `json:"onceFirst"`
+	OnceSecondRejected     bool   `json:"onceSecondRejected"`
+	RemovedRejected        bool   `json:"removedRejected"`
+	DuplicateRejected      bool   `json:"duplicateRejected"`
+	MissingRejected        bool   `json:"missingRejected"`
+	MessagePortRoundTrip   bool   `json:"messagePortRoundTrip"`
+	TransferredPortMessage bool   `json:"transferredPortMessage"`
+	Error                  string `json:"error,omitempty"`
 }
 
 type contextBridgeReport struct {

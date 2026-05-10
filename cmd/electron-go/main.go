@@ -938,14 +938,16 @@ type offscreenDeviceScaleCheckReport struct {
 }
 
 type ipcCheckReport struct {
-	InvokePong         bool   `json:"invokePong"`
-	ArgsEcho           bool   `json:"argsEcho"`
-	OnceFirst          bool   `json:"onceFirst"`
-	OnceSecondRejected bool   `json:"onceSecondRejected"`
-	RemovedRejected    bool   `json:"removedRejected"`
-	DuplicateRejected  bool   `json:"duplicateRejected"`
-	MissingRejected    bool   `json:"missingRejected"`
-	Error              string `json:"error,omitempty"`
+	InvokePong             bool   `json:"invokePong"`
+	ArgsEcho               bool   `json:"argsEcho"`
+	OnceFirst              bool   `json:"onceFirst"`
+	OnceSecondRejected     bool   `json:"onceSecondRejected"`
+	RemovedRejected        bool   `json:"removedRejected"`
+	DuplicateRejected      bool   `json:"duplicateRejected"`
+	MissingRejected        bool   `json:"missingRejected"`
+	MessagePortRoundTrip   bool   `json:"messagePortRoundTrip"`
+	TransferredPortMessage bool   `json:"transferredPortMessage"`
+	Error                  string `json:"error,omitempty"`
 }
 
 type contextBridgeCheckReport struct {
@@ -1606,6 +1608,22 @@ func ipcReport() ipcCheckReport {
 	report.RemovedRejected = errors.Is(err, egipc.ErrNoHandler)
 	_, err = router.Invoke(context.Background(), egipc.Message{Channel: "fixture:missing"})
 	report.MissingRejected = errors.Is(err, egipc.ErrNoHandler)
+	port1, port2 := egipc.NewMessageChannel()
+	port1.OnMessage(func(event egipc.MessageEvent) {
+		report.MessagePortRoundTrip = event.Data == "from-port2"
+	})
+	if err := port2.PostMessage("from-port2"); err != nil {
+		return ipcCheckReport{Error: err.Error()}
+	}
+	port1.Start()
+	rendererPort, mainPort := egipc.NewMessageChannel()
+	mainPort.OnMessage(func(event egipc.MessageEvent) {
+		report.TransferredPortMessage = event.Data == "from-renderer-port"
+	})
+	mainPort.Start()
+	if err := rendererPort.PostMessage("from-renderer-port"); err != nil {
+		return ipcCheckReport{Error: err.Error()}
+	}
 	return report
 }
 

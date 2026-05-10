@@ -780,17 +780,17 @@
         {
           "kind": "implementation",
           "ref": "internal/ipc",
-          "note": "Router supports Electron-style handle, handleOnce, removeHandler, duplicate-handler rejection, missing-handler errors, frame-scoped messages, and invoke replies."
+          "note": "Router supports Electron-style handle, handleOnce, removeHandler, duplicate-handler rejection, missing-handler errors, frame-scoped messages, invoke replies, and a MessageChannel/MessagePort model with queued delivery, start, close, and transferred ports."
         },
         {
           "kind": "test",
           "ref": "internal/ipc/router_test.go",
-          "note": "Covers invoke replies, duplicate rejection, once-handler removal before invocation, removeHandler, and invalid channel/handler errors."
+          "note": "Covers invoke replies, duplicate rejection, once-handler removal before invocation, removeHandler, invalid channel/handler errors, MessagePort queued delivery, transferred port messaging, and closed-port rejection."
         },
         {
           "kind": "e2e-fixture",
           "ref": "compat/fixtures/ipc-invoke",
-          "note": "Exercises official Electron ipcMain.handle, handleOnce, removeHandler, duplicate handler rejection, ipcRenderer.invoke replies, argument passing, and missing-handler rejection."
+          "note": "Exercises official Electron ipcMain.handle, handleOnce, removeHandler, duplicate handler rejection, ipcRenderer.invoke replies, argument passing, missing-handler rejection, MessageChannelMain delivery, and ipcRenderer.postMessage transferred ports."
         },
         {
           "kind": "conformance",
@@ -800,7 +800,7 @@
         {
           "kind": "test",
           "ref": "cmd/electron-go/main_test.go",
-          "note": "Asserts the Electron-Go IPC probe emits invoke, argument echo, once-handler, remove-handler, duplicate, and missing-handler flags."
+          "note": "Asserts the Electron-Go IPC probe emits invoke, argument echo, once-handler, remove-handler, duplicate, missing-handler, MessagePort round-trip, and transferred-port flags."
         },
         {
           "kind": "upstream",
@@ -811,7 +811,7 @@
           "ref": "electron/docs/api/ipc-renderer.md"
         }
       ],
-      "notes": "Partial: internal IPC routing now covers invoke replies, argument passing, handleOnce, removeHandler, duplicate-handler rejection, missing-handler rejection, and has official-Electron fixture evidence for that ipcMain/ipcRenderer.invoke subset. Compatibility still requires JavaScript bindings in Electron-Go, structured clone parity, full invoke/handle error semantics, frame routing, transferables, MessagePortMain, and security constraints."
+      "notes": "Partial: internal IPC routing now covers invoke replies, argument passing, handleOnce, removeHandler, duplicate-handler rejection, missing-handler rejection, queued MessagePort delivery, close behavior, and transferred ports, with official-Electron fixture evidence for the modeled ipcMain/ipcRenderer.invoke and MessagePort subset. Compatibility still requires JavaScript bindings in Electron-Go, structured clone parity, full invoke/handle error semantics, frame routing, transferable ownership/lifetime parity, MessagePortMain edge cases, and security constraints."
     },
     {
       "id": "context-bridge-preload-and-isolation",

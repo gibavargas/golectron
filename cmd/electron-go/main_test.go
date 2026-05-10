@@ -524,14 +524,16 @@ func TestRunIPCCheckReportsInvokeAndHandlerContract(t *testing.T) {
 	}
 
 	var payload struct {
-		InvokePong         bool   `json:"invokePong"`
-		ArgsEcho           bool   `json:"argsEcho"`
-		OnceFirst          bool   `json:"onceFirst"`
-		OnceSecondRejected bool   `json:"onceSecondRejected"`
-		RemovedRejected    bool   `json:"removedRejected"`
-		DuplicateRejected  bool   `json:"duplicateRejected"`
-		MissingRejected    bool   `json:"missingRejected"`
-		Error              string `json:"error,omitempty"`
+		InvokePong             bool   `json:"invokePong"`
+		ArgsEcho               bool   `json:"argsEcho"`
+		OnceFirst              bool   `json:"onceFirst"`
+		OnceSecondRejected     bool   `json:"onceSecondRejected"`
+		RemovedRejected        bool   `json:"removedRejected"`
+		DuplicateRejected      bool   `json:"duplicateRejected"`
+		MissingRejected        bool   `json:"missingRejected"`
+		MessagePortRoundTrip   bool   `json:"messagePortRoundTrip"`
+		TransferredPortMessage bool   `json:"transferredPortMessage"`
+		Error                  string `json:"error,omitempty"`
 	}
 	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
 		t.Fatalf("--ipc-check output is not JSON: %v\n%s", err, stdout.String())
@@ -539,7 +541,7 @@ func TestRunIPCCheckReportsInvokeAndHandlerContract(t *testing.T) {
 	if payload.Error != "" {
 		t.Fatalf("ipc error = %q", payload.Error)
 	}
-	if !payload.InvokePong || !payload.ArgsEcho || !payload.OnceFirst || !payload.OnceSecondRejected || !payload.RemovedRejected || !payload.DuplicateRejected || !payload.MissingRejected {
+	if !payload.InvokePong || !payload.ArgsEcho || !payload.OnceFirst || !payload.OnceSecondRejected || !payload.RemovedRejected || !payload.DuplicateRejected || !payload.MissingRejected || !payload.MessagePortRoundTrip || !payload.TransferredPortMessage {
 		t.Fatalf("ipc report = %#v, want all contract flags true", payload)
 	}
 }

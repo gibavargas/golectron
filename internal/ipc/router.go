@@ -12,6 +12,7 @@ var (
 	ErrHandlerRequired = errors.New("handler is required")
 	ErrHandlerExists   = errors.New("handler already registered")
 	ErrNoHandler       = errors.New("handler not registered")
+	ErrPortClosed      = errors.New("message port is closed")
 )
 
 type Message struct {
@@ -26,6 +27,20 @@ type Reply struct {
 
 type Handler func(context.Context, Message) (Reply, error)
 
+type MessageEvent struct {
+	Data  any
+	Ports []*MessagePort
+}
+
+type MessagePort struct {
+	mu       sync.Mutex
+	peer     *MessagePort
+	started  bool
+	closed   bool
+	queue    []MessageEvent
+	handlers []func(MessageEvent)
+}
+
 type Router struct {
 	mu       sync.RWMutex
 	handlers map[string]handlerEntry
@@ -38,6 +53,14 @@ type handlerEntry struct {
 
 func NewRouter() *Router {
 	return &Router{handlers: make(map[string]handlerEntry)}
+}
+
+func NewMessageChannel() (*MessagePort, *MessagePort) {
+	port1 := &MessagePort{}
+	port2 := &MessagePort{}
+	port1.peer = port2
+	port2.peer = port1
+	return port1, port2
 }
 
 func (r *Router) Register(channel string, handler Handler) error {
@@ -108,4 +131,72 @@ func (r *Router) takeHandler(channel string) (Handler, bool) {
 		delete(r.handlers, channel)
 	}
 	return entry.handler, true
+}
+
+func (p *MessagePort) Start() {
+	p.mu.Lock()
+	if p.closed || p.started {
+		p.mu.Unlock()
+		return
+	}
+	p.started = true
+	queued := append([]MessageEvent(nil), p.queue...)
+	p.queue = nil
+	handlers := append([]func(MessageEvent){}, p.handlers...)
+	p.mu.Unlock()
+
+	for _, event := range queued {
+		for _, handler := range handlers {
+			handler(event)
+		}
+	}
+}
+
+func (p *MessagePort) OnMessage(handler func(MessageEvent)) {
+	if handler == nil {
+		return
+	}
+	p.mu.Lock()
+	p.handlers = append(p.handlers, handler)
+	p.mu.Unlock()
+}
+
+func (p *MessagePort) PostMessage(data any, ports ...*MessagePort) error {
+	p.mu.Lock()
+	if p.closed || p.peer == nil {
+		p.mu.Unlock()
+		return ErrPortClosed
+	}
+	peer := p.peer
+	p.mu.Unlock()
+
+	peer.deliver(MessageEvent{Data: data, Ports: append([]*MessagePort(nil), ports...)})
+	return nil
+}
+
+func (p *MessagePort) Close() {
+	p.mu.Lock()
+	p.closed = true
+	p.queue = nil
+	p.handlers = nil
+	p.mu.Unlock()
+}
+
+func (p *MessagePort) deliver(event MessageEvent) {
+	p.mu.Lock()
+	if p.closed {
+		p.mu.Unlock()
+		return
+	}
+	if !p.started {
+		p.queue = append(p.queue, event)
+		p.mu.Unlock()
+		return
+	}
+	handlers := append([]func(MessageEvent){}, p.handlers...)
+	p.mu.Unlock()
+
+	for _, handler := range handlers {
+		handler(event)
+	}
 }

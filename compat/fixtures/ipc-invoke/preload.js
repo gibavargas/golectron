@@ -10,6 +10,9 @@ async function rejected (promise) {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
+  const channel = new MessageChannel()
+  ipcRenderer.postMessage('fixture:renderer-port', null, [channel.port1])
+  channel.port2.postMessage('from-renderer-port')
   const report = {
     invokePong: await ipcRenderer.invoke('fixture:ping', 'renderer') === 'pong',
     onceFirst: await ipcRenderer.invoke('fixture:once') === 1,

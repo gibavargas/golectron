@@ -1,7 +1,20 @@
-const { app, BrowserWindow, ipcMain } = require('electron')
+const { app, BrowserWindow, MessageChannelMain, ipcMain } = require('electron')
 const path = require('node:path')
 
-app.whenReady().then(() => {
+function waitForMainMessagePort () {
+  return new Promise((resolve) => {
+    const { port1, port2 } = new MessageChannelMain()
+    port1.once('message', (event) => {
+      port1.close()
+      port2.close()
+      resolve(event.data === 'from-port2')
+    })
+    port2.postMessage('from-port2')
+    port1.start()
+  })
+}
+
+app.whenReady().then(async () => {
   const report = {
     invokePong: false,
     argsEcho: false,
@@ -9,7 +22,9 @@ app.whenReady().then(() => {
     onceSecondRejected: false,
     removedRejected: false,
     duplicateRejected: false,
-    missingRejected: false
+    missingRejected: false,
+    messagePortRoundTrip: await waitForMainMessagePort(),
+    transferredPortMessage: false
   }
 
   ipcMain.handle('fixture:ping', (_event, value) => {
@@ -28,6 +43,14 @@ app.whenReady().then(() => {
   })
   ipcMain.handle('fixture:gone', () => 'gone')
   ipcMain.removeHandler('fixture:gone')
+  ipcMain.once('fixture:renderer-port', (event) => {
+    const [port] = event.ports
+    port.once('message', (messageEvent) => {
+      report.transferredPortMessage = messageEvent.data === 'from-renderer-port'
+      port.close()
+    })
+    port.start()
+  })
   ipcMain.once('fixture:done', (_event, rendererReport) => {
     Object.assign(report, rendererReport)
     console.log(JSON.stringify(report))
