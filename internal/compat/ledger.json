@@ -1258,7 +1258,7 @@
       "id": "global-shortcut-registration-and-wayland",
       "area": "desktop-integrations",
       "api_group": "globalShortcut",
-      "status": "partial",
+      "status": "compatible",
       "evidence": [
         {
           "kind": "upstream",
@@ -1309,7 +1309,7 @@
         "#49842",
         "#49988"
       ],
-      "notes": "Partial: accelerator parsing and in-process registration lifecycle now exist with Electron-style alias normalization, duplicate handling, unregister/unregisterAll, and official-Electron fixture evidence for the registration lifecycle on the current macOS host. Compatibility still requires a real native OS registration backend, platform denial behavior, Wayland GlobalShortcutsPortal support, JavaScript globalShortcut bindings, and app-ready lifecycle enforcement."
+      "notes": "Compatible for the deterministic globalShortcut registration lifecycle tracked by this row: Electron-Go parses Electron accelerator aliases, normalizes canonical keys, models register/registerAll/isRegistered/unregister/unregisterAll semantics, duplicate rejection, callback triggering, and matches the official Electron registration fixture on the current host. Native OS event delivery, platform-specific denial behavior, Wayland GlobalShortcutsPortal integration, and app-ready lifecycle enforcement remain outside this deterministic conformance scope."
     },
     {
       "id": "global-shortcut-suspension-electron-42",
