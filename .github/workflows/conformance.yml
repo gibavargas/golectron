@@ -70,9 +70,7 @@ jobs:
         run: tools/fetch_cef.sh
 
       - name: Build Electron-Go CEF binary
-        run: |
-          go build -tags electron_go_cef -o bin/electron-go ./cmd/electron-go
-          go build -tags electron_go_cef -o bin/electron-go-helper ./cmd/electron-go-helper
+        run: go build -tags electron_go_cef -o bin/electron-go ./cmd/electron-go
 
       - name: Run official Electron hello fixture
         run: xvfb-run -a timeout 30 /tmp/electron-go-conformance/node_modules/.bin/electron compat/fixtures/benchmark-hello
