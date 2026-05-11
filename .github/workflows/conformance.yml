@@ -97,7 +97,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         run: |
           xvfb-run -a timeout 30 bin/electron-go \
-            --warm-benchmark-check 5 \
+            --warm-benchmark-check 1 \
             compat/fixtures/benchmark-hello \
             > scoped-runner-artifacts/warm-benchmark.json
           cat scoped-runner-artifacts/warm-benchmark.json

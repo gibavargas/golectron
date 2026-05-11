@@ -246,7 +246,7 @@ func TestWarmRunReusesInitializedMainPlanBridge(t *testing.T) {
 		Environment:     []string{"ELECTRON_GO_BENCHMARK_TRACE=1"},
 	})
 
-	report, err := rt.WarmRun(context.Background(), 3)
+	report, err := rt.WarmRun(context.Background(), 1)
 	if err != nil {
 		t.Fatalf("WarmRun() error = %v", err)
 	}
@@ -256,11 +256,11 @@ func TestWarmRunReusesInitializedMainPlanBridge(t *testing.T) {
 	if !bridge.initialized || !bridge.shutdown {
 		t.Fatalf("initialized/shutdown = %t/%t, want true/true", bridge.initialized, bridge.shutdown)
 	}
-	if report.Iterations != 3 || len(report.Samples) != 3 {
-		t.Fatalf("report iterations/samples = %d/%d, want 3/3", report.Iterations, len(report.Samples))
+	if report.Iterations != 1 || len(report.Samples) != 1 {
+		t.Fatalf("report iterations/samples = %d/%d, want 1/1", report.Iterations, len(report.Samples))
 	}
-	if report.Summary.Successes != 3 || report.Summary.Failures != 0 {
-		t.Fatalf("summary = %#v, want 3 successes", report.Summary)
+	if report.Summary.Successes != 1 || report.Summary.Failures != 0 {
+		t.Fatalf("summary = %#v, want 1 success", report.Summary)
 	}
 	for _, sample := range report.Samples {
 		if sample.ExitCode != 0 {
@@ -269,6 +269,20 @@ func TestWarmRunReusesInitializedMainPlanBridge(t *testing.T) {
 		if _, ok := sample.StartupTraceMS["app_ready"]; !ok {
 			t.Fatalf("sample trace = %#v, want app_ready", sample.StartupTraceMS)
 		}
+	}
+}
+
+func TestWarmRunRejectsRepeatedCEFWindowLoops(t *testing.T) {
+	dir := scopedMainApp(t)
+	rt := New(Options{
+		AppDir:          dir,
+		ElectronVersion: "42.0.0",
+		Bridge:          &mainPlanBridgeFake{browserID: 77},
+	})
+
+	_, err := rt.WarmRun(context.Background(), 2)
+	if err == nil || !strings.Contains(err.Error(), "one visible window") {
+		t.Fatalf("WarmRun(iterations=2) error = %v, want clear unsupported repeated-loop error", err)
 	}
 }
 

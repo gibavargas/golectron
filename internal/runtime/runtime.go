@@ -222,6 +222,9 @@ func (r *Runtime) WarmRun(ctx context.Context, iterations int) (WarmRunReport, e
 	if iterations <= 0 {
 		return WarmRunReport{}, fmt.Errorf("warm run iterations must be positive")
 	}
+	if iterations > 1 {
+		return WarmRunReport{}, fmt.Errorf("warm run currently supports one visible window per CEF initialization")
+	}
 	bridge, ok := r.bridge.(mainPlanBridge)
 	if !ok {
 		return WarmRunReport{}, fmt.Errorf("warm run requires native main-plan bridge")
