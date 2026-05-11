@@ -95,7 +95,7 @@
         {
           "kind": "implementation",
           "ref": "native/cef_shim.c",
-          "note": "Calls cef_execute_process, cef_initialize with no_sandbox=1 and LOGSEVERITY_ERROR, and cef_shutdown through the real CEF C API."
+          "note": "Calls cef_execute_process, cef_initialize with no_sandbox=1 and LOGSEVERITY_DISABLE, and cef_shutdown through the real CEF C API."
         },
         {
           "kind": "test",
@@ -103,7 +103,7 @@
           "note": "Ubuntu 22.04 workflow runs xvfb-run -a bin/electron-go --cef-init-check after linking libcef.so."
         }
       ],
-      "notes": "Atomic dependency for runtime-process-model. Acceptance: xvfb-run -a bin/electron-go --cef-init-check calls real cef_execute_process before flag parsing, cef_initialize returns 1 on the locked OS thread with no_sandbox=1 and LOGSEVERITY_ERROR, cef_shutdown runs, and no BrowserWindow or CEF message loop is created."
+      "notes": "Atomic dependency for runtime-process-model. Acceptance: xvfb-run -a bin/electron-go --cef-init-check calls real cef_execute_process before flag parsing, cef_initialize returns 1 on the locked OS thread with no_sandbox=1 and LOGSEVERITY_DISABLE, cef_shutdown runs, and no BrowserWindow or CEF message loop is created."
     },
     {
       "id": "browser-window-open",
