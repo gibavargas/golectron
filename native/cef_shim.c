@@ -89,27 +89,6 @@ static void eg_cef_append_ascii_switch(
   }
 }
 
-static void eg_cef_append_ascii_switch_with_value(
-    struct _cef_command_line_t* command_line,
-    const char* name,
-    const char* value) {
-  if (!command_line || !command_line->append_switch_with_value || !name ||
-      !value) {
-    return;
-  }
-  cef_string_t switch_name;
-  cef_string_t switch_value;
-  memset(&switch_name, 0, sizeof(switch_name));
-  memset(&switch_value, 0, sizeof(switch_value));
-  if (cef_string_from_ascii(name, strlen(name), &switch_name) &&
-      cef_string_from_ascii(value, strlen(value), &switch_value)) {
-    command_line->append_switch_with_value(
-        command_line, &switch_name, &switch_value);
-  }
-  cef_string_clear(&switch_name);
-  cef_string_clear(&switch_value);
-}
-
 static int eg_cef_set_ascii_string(const char* source, cef_string_t* target) {
   if (!source || !target) {
     return 1;
@@ -128,10 +107,6 @@ static void CEF_CALLBACK eg_cef_on_before_command_line_processing(
   eg_cef_append_ascii_switch(command_line, "disable-component-update");
   eg_cef_append_ascii_switch(command_line, "disable-default-apps");
   eg_cef_append_ascii_switch(command_line, "disable-extensions");
-  eg_cef_append_ascii_switch_with_value(
-      command_line, "disable-features",
-      "AutofillServerCommunication,CertificateTransparencyComponentUpdater,"
-      "MediaRouter,OptimizationHints");
   eg_cef_append_ascii_switch(command_line, "disable-gpu");
   eg_cef_append_ascii_switch(command_line, "disable-dev-shm-usage");
   eg_cef_append_ascii_switch(command_line, "disable-sync");
