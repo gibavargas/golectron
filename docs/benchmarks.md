@@ -103,7 +103,9 @@ The runner currently records:
   when the runtime executes the benchmark fixture main script and
   `ELECTRON_GO_BENCHMARK_TRACE=1` is set;
 - median summaries for Electron-Go native startup traces and any emitted
-  fixture-level benchmark traces.
+  fixture-level benchmark traces. Startup traces are diagnostic and should be
+  captured separately from headline timing comparisons because
+  `ELECTRON_GO_STARTUP_TRACE=1` instruments only Electron-Go.
 
 It does not yet measure time to first visible paint, IPC latency, idle CPU,
 package size, binary size, or build/package time. Do not cite those metrics from
@@ -127,10 +129,10 @@ successful alternating-order iterations on Ubuntu 22.04:
   `create_browser=45ms`, `message_loop=103ms`, `cef_shutdown=26ms`,
   `total_native_start=302ms`.
 
-Fixture-level phase traces are diagnostic and should be collected in explicit
-trace runs. The normal headline benchmark keeps fixture tracing disabled to
-avoid adding JavaScript and console-output work to only one side of the
-comparison.
+Fixture-level phase traces and Electron-Go native startup traces are diagnostic
+and should be collected in explicit trace runs. The normal headline benchmark
+keeps runtime-specific tracing disabled to avoid adding console-output work to
+only one side of the comparison.
 
 The previous fixed-order default run
 `https://github.com/gibavargas/electron-go/actions/runs/25647836158` on commit

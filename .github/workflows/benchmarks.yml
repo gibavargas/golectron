@@ -80,8 +80,6 @@ jobs:
           xvfb-run -a timeout 30 bin/electron-go compat/fixtures/benchmark-hello
 
       - name: Compare hello startup against official Electron
-        env:
-          ELECTRON_GO_STARTUP_TRACE: "1"
         run: |
           mkdir -p benchmark-artifacts
           xvfb-run -a go run ./tools/benchmarks \
@@ -96,8 +94,19 @@ jobs:
             --electron-go bin/electron-go \
             --require-faster process_tree_rss_peak_median_kb
 
+      - name: Capture Electron-Go startup trace
+        env:
+          ELECTRON_GO_STARTUP_TRACE: "1"
+        run: |
+          xvfb-run -a go run ./tools/benchmarks \
+            --fixture ./compat/fixtures/benchmark-hello \
+            --iterations 5 \
+            --timeout 30s \
+            --output benchmark-artifacts/electron-go-startup-trace-linux.json \
+            --electron-go bin/electron-go
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: hello-linux-benchmark
-          path: benchmark-artifacts/hello-linux.json
+          path: benchmark-artifacts/*.json
