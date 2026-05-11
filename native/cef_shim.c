@@ -462,13 +462,38 @@ static int eg_cef_configure_api_version(void) {
   return cef_api_hash(CEF_API_VERSION, 0) != NULL;
 }
 
-static void eg_cef_clear_argv_storage(eg_cef_argv_storage* storage) {
+static void eg_cef_free_argv_storage(eg_cef_argv_storage* storage) {
   if (!storage || !storage->argv) {
     return;
+  }
+  for (int i = 0; i < storage->argc; i++) {
+    free(storage->argv[i]);
   }
   free(storage->argv);
   storage->argv = NULL;
   storage->argc = 0;
+}
+
+static int eg_cef_copy_string_view(const eg_string_view* source, char** target) {
+  if (!target) {
+    return 0;
+  }
+  *target = NULL;
+  if (!source || !source->data || source->len == 0) {
+    *target = (char*)calloc(1, 1);
+    return *target != NULL;
+  }
+  if (source->len > (uint64_t)SIZE_MAX - 1) {
+    return 0;
+  }
+  char* copy = (char*)malloc((size_t)source->len + 1);
+  if (!copy) {
+    return 0;
+  }
+  memcpy(copy, source->data, (size_t)source->len);
+  copy[(size_t)source->len] = '\0';
+  *target = copy;
+  return 1;
 }
 
 static int eg_cef_make_main_args(
@@ -493,11 +518,10 @@ static int eg_cef_make_main_args(
   }
   storage->argc = (int)argc;
   for (int i = 0; i < storage->argc; i++) {
-    if (!argv[i].data) {
-      eg_cef_clear_argv_storage(storage);
+    if (!eg_cef_copy_string_view(&argv[i], &storage->argv[i])) {
+      eg_cef_free_argv_storage(storage);
       return 0;
     }
-    storage->argv[i] = (char*)argv[i].data;
   }
   out_args->argc = storage->argc;
   out_args->argv = storage->argv;
@@ -583,13 +607,13 @@ eg_bridge_status eg_cef_shim_execute_process(
 
   cef_app_t* app = eg_cef_make_app();
   if (!app) {
-    eg_cef_clear_argv_storage(&storage);
+    eg_cef_free_argv_storage(&storage);
     out_result->status = EG_BRIDGE_STATUS_FAILED;
     return EG_BRIDGE_STATUS_FAILED;
   }
 
   int exit_code = cef_execute_process(&main_args, app, NULL);
-  eg_cef_clear_argv_storage(&storage);
+  eg_cef_free_argv_storage(&storage);
 
   out_result->exit_code = exit_code;
   out_result->status =
@@ -630,20 +654,20 @@ eg_bridge_status eg_cef_shim_initialize(
       !eg_cef_set_cef_string(
           &request->settings.cache_path, &settings.cache_path) ||
       !eg_cef_set_ascii_string("/dev/null", &settings.log_file)) {
-    eg_cef_clear_argv_storage(&storage);
+    eg_cef_free_argv_storage(&storage);
     eg_cef_clear_settings(&settings);
     return EG_BRIDGE_STATUS_INVALID_REQUEST;
   }
 
   cef_app_t* app = eg_cef_make_app();
   if (!app) {
-    eg_cef_clear_argv_storage(&storage);
+    eg_cef_free_argv_storage(&storage);
     eg_cef_clear_settings(&settings);
     return EG_BRIDGE_STATUS_FAILED;
   }
 
   int ok = cef_initialize(&main_args, &settings, app, NULL);
-  eg_cef_clear_argv_storage(&storage);
+  eg_cef_free_argv_storage(&storage);
   eg_cef_clear_settings(&settings);
   if (ok != 1) {
     return EG_BRIDGE_STATUS_FAILED;
