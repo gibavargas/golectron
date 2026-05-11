@@ -313,7 +313,7 @@ func NewCEFInitializeRequest(appDir string, args []string) (CEFInitializeRequest
 		return CEFInitializeRequest{}, err
 	}
 	cachePath := cefCachePath(absAppDir)
-	if err := os.MkdirAll(cachePath, 0o755); err != nil {
+	if err := ensureCEFCachePath(cachePath); err != nil {
 		return CEFInitializeRequest{}, err
 	}
 	return NormalizeCEFInitializeRequest(CEFInitializeRequest{
@@ -325,6 +325,18 @@ func NewCEFInitializeRequest(appDir string, args []string) (CEFInitializeRequest
 			LogSeverity: CEFLogSeverityError,
 		},
 	}), nil
+}
+
+func ensureCEFCachePath(path string) error {
+	if info, err := os.Stat(path); err == nil {
+		if info.IsDir() {
+			return nil
+		}
+		return fmt.Errorf("CEF cache path is not a directory: %s", path)
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	return os.MkdirAll(path, 0o755)
 }
 
 func cefCachePath(absAppDir string) string {
