@@ -56,6 +56,7 @@ type mainPlanBridge interface {
 
 const StartupTraceEnv = "ELECTRON_GO_STARTUP_TRACE"
 const VerboseEnv = "ELECTRON_GO_VERBOSE"
+const ScopedMainRunnerEnv = "ELECTRON_GO_ENABLE_SCOPED_MAIN_RUNNER"
 
 type SubprocessRequest struct {
 	Args        []string
@@ -192,35 +193,42 @@ func (r *Runtime) Run(ctx context.Context) error {
 }
 
 func (r *Runtime) startBridge(ctx context.Context, req native.StartRequest) (*native.StartResult, error) {
-	if bridge, ok := r.bridge.(mainPlanBridge); ok {
-		plan, err := mainrunner.ParseFile(req.MainPath)
-		if err == nil {
-			if err := bridge.InitializeForStart(ctx, req); err != nil {
-				return nil, err
-			}
-			execResult, execErr := mainrunner.Execute(ctx, plan, bridge, mainrunner.ExecuteOptions{
-				Environment: r.environment,
-				Out:         r.out,
-			})
-			shutdownErr := bridge.Shutdown(ctx)
-			if execErr != nil {
-				return nil, execErr
-			}
-			if shutdownErr != nil {
-				return nil, shutdownErr
-			}
-			return &native.StartResult{
-				PID:            os.Getpid(),
-				WindowCount:    1,
-				Status:         native.StatusStopped,
-				BridgeRevision: fmt.Sprintf("abi-%d-mainrunner", native.CurrentABIRevision),
-				Platform:       goruntime.GOOS,
-				StartupTraceMS: execResult.TraceMS,
-			}, nil
+	if envEnabled(r.environment, ScopedMainRunnerEnv) {
+		if bridge, ok := r.bridge.(mainPlanBridge); ok {
+			return r.startMainPlanBridge(ctx, req, bridge)
 		}
-		if !errors.Is(err, mainrunner.ErrUnsupportedScript) {
+	}
+	return r.bridge.Start(ctx, req)
+}
+
+func (r *Runtime) startMainPlanBridge(ctx context.Context, req native.StartRequest, bridge mainPlanBridge) (*native.StartResult, error) {
+	plan, err := mainrunner.ParseFile(req.MainPath)
+	if err == nil {
+		if err := bridge.InitializeForStart(ctx, req); err != nil {
 			return nil, err
 		}
+		execResult, execErr := mainrunner.Execute(ctx, plan, bridge, mainrunner.ExecuteOptions{
+			Environment: r.environment,
+			Out:         r.out,
+		})
+		shutdownErr := bridge.Shutdown(ctx)
+		if execErr != nil {
+			return nil, execErr
+		}
+		if shutdownErr != nil {
+			return nil, shutdownErr
+		}
+		return &native.StartResult{
+			PID:            os.Getpid(),
+			WindowCount:    1,
+			Status:         native.StatusStopped,
+			BridgeRevision: fmt.Sprintf("abi-%d-mainrunner", native.CurrentABIRevision),
+			Platform:       goruntime.GOOS,
+			StartupTraceMS: execResult.TraceMS,
+		}, nil
+	}
+	if !errors.Is(err, mainrunner.ErrUnsupportedScript) {
+		return nil, err
 	}
 	return r.bridge.Start(ctx, req)
 }

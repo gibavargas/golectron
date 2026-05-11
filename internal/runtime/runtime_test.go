@@ -156,7 +156,7 @@ func TestRuntimeUsesMainPlanBridgeForSupportedMain(t *testing.T) {
 		AppDir:          dir,
 		ElectronVersion: "42.0.0",
 		Bridge:          bridge,
-		Environment:     []string{"ELECTRON_GO_BENCHMARK_TRACE=1", "ELECTRON_GO_STARTUP_TRACE=1"},
+		Environment:     []string{"ELECTRON_GO_ENABLE_SCOPED_MAIN_RUNNER=1", "ELECTRON_GO_BENCHMARK_TRACE=1", "ELECTRON_GO_STARTUP_TRACE=1"},
 		Out:             &out,
 	})
 
