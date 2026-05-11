@@ -125,24 +125,25 @@ this runner until they are implemented.
 ### Latest Linux Hello Result
 
 PR benchmark run
-`https://github.com/gibavargas/electron-go/actions/runs/25669057296` on commit
-`d721798` measured the `compat/fixtures/benchmark-hello` fixture with five
-successful alternating-order iterations on Ubuntu 22.04:
+`https://github.com/gibavargas/electron-go/actions/runs/25669399901` on commit
+`b7a5521` measured the scoped runtime path for the
+`compat/fixtures/benchmark-hello` fixture with five successful
+alternating-order iterations on Ubuntu 22.04:
 
-- median wall-clock startup: Electron-Go `421ms`, Electron `542ms`
-  (`electron_go_over_electron = 0.7768`, about `1.29x` faster);
+- median wall-clock startup: Electron-Go `428ms`, Electron `560ms`
+  (`electron_go_over_electron = 0.7643`, about `1.31x` faster);
 - median paired wall-clock startup ratio:
-  `electron_go_over_electron_median = 0.7774` across five successful pairs;
-- median process-tree peak RSS: Electron-Go `247436KB`, Electron `604932KB`
-  (`electron_go_over_electron = 0.4090`, about `2.44x` lighter);
+  `electron_go_over_electron_median = 0.7659` across five successful pairs;
+- median process-tree peak RSS: Electron-Go `248212KB`, Electron `601068KB`
+  (`electron_go_over_electron = 0.4130`, about `2.42x` lighter);
 - paired process-tree peak RSS ratio:
-  `electron_go_over_electron_median = 0.4124` across five successful pairs;
-- median root max RSS: Electron-Go `247188KB`, Electron `212612KB`
-  (`electron_go_over_electron = 1.1626`, Electron-Go is heavier for this
+  `electron_go_over_electron_median = 0.4100` across five successful pairs;
+- median root max RSS: Electron-Go `247232KB`, Electron `211724KB`
+  (`electron_go_over_electron = 1.1677`, Electron-Go is heavier for this
   process-only metric).
-- separate Electron-Go startup-trace medians: `cef_initialize=157ms`,
-  `create_browser=51ms`, `message_loop=132ms`, `cef_shutdown=34ms`,
-  `total_native_start=376ms`.
+- separate Electron-Go scoped startup-trace medians: `app_ready=0ms`,
+  `window_created=52ms`, `load_start=176ms`, `did_finish_load=176ms`,
+  `quit_requested=176ms`.
 
 Newer Electron-Go startup traces may also include diagnostic message-loop split
 fields such as `message_loop_to_load_end`, `load_end_to_before_close`, and
