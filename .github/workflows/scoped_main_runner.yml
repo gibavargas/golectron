@@ -1,0 +1,68 @@
+name: Scoped Main Runner Probe
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.x"
+
+      - name: Install browser runtime dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            libgtk-3-0 \
+            libgdk-pixbuf2.0-0 \
+            libglib2.0-0 \
+            libnss3 \
+            libnspr4 \
+            libatk1.0-0 \
+            libatk-bridge2.0-0 \
+            libcups2 \
+            libdrm2 \
+            libxkbcommon0 \
+            libxcomposite1 \
+            libxdamage1 \
+            libxfixes3 \
+            libxrandr2 \
+            libgbm1 \
+            libasound2 \
+            xvfb
+
+      - name: Fetch and stage CEF
+        run: tools/fetch_cef.sh
+
+      - name: Build Electron-Go CEF binary
+        run: go build -tags electron_go_cef -o bin/electron-go ./cmd/electron-go
+
+      - name: Run stable default fixture path
+        run: xvfb-run -a timeout 30 bin/electron-go compat/fixtures/benchmark-hello
+
+      - name: Run opt-in scoped main runner
+        env:
+          ELECTRON_GO_ENABLE_SCOPED_MAIN_RUNNER: "1"
+          ELECTRON_GO_BENCHMARK_TRACE: "1"
+          ELECTRON_GO_STARTUP_TRACE: "1"
+        run: |
+          mkdir -p scoped-runner-artifacts
+          set +e
+          xvfb-run -a timeout 30 bin/electron-go compat/fixtures/benchmark-hello > scoped-runner-artifacts/scoped-main-runner.log 2>&1
+          status="$?"
+          echo "${status}" > scoped-runner-artifacts/scoped-main-runner.status
+          cat scoped-runner-artifacts/scoped-main-runner.log
+          exit "${status}"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: scoped-main-runner-probe
+          path: scoped-runner-artifacts/*
