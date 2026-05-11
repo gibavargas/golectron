@@ -43,6 +43,7 @@ type Sample struct {
 	MaxRSSKB               int64            `json:"max_rss_kb,omitempty"`
 	ProcessTreeRSSPeakKB   int64            `json:"process_tree_rss_peak_kb,omitempty"`
 	StartupTraceMS         map[string]int64 `json:"startup_trace_ms,omitempty"`
+	BenchmarkTraceMS       map[string]int64 `json:"benchmark_trace_ms,omitempty"`
 	Error                  string           `json:"error,omitempty"`
 	TimedOut               bool             `json:"timed_out,omitempty"`
 	TimeToolUsed           string           `json:"time_tool_used,omitempty"`
@@ -231,6 +232,7 @@ func runSample(args []string, fixture string, timeout time.Duration, iteration i
 		sample.MaxRSSKB = parseMaxRSSKB(output.String(), runtime.GOOS)
 	}
 	sample.StartupTraceMS = parseStartupTraceMS(output.String())
+	sample.BenchmarkTraceMS = parseTraceMS(output.String(), "benchmark-trace:")
 	if err != nil {
 		sample.Error = strings.TrimSpace(output.String())
 		if sample.Error == "" {
@@ -241,7 +243,10 @@ func runSample(args []string, fixture string, timeout time.Duration, iteration i
 }
 
 func parseStartupTraceMS(output string) map[string]int64 {
-	const marker = "electron-go-startup-trace:"
+	return parseTraceMS(output, "electron-go-startup-trace:")
+}
+
+func parseTraceMS(output, marker string) map[string]int64 {
 	for _, line := range strings.Split(output, "\n") {
 		_, payload, ok := strings.Cut(line, marker)
 		if !ok {

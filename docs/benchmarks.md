@@ -82,10 +82,12 @@ The runner currently records:
 - duration and RSS ratios when both `--electron` and `--electron-go` are present.
 - optional CI gating with `--require-faster` for specific lower-is-better
   metrics.
+- optional fixture-level `benchmark-trace:` phase timings emitted by benchmark
+  fixtures, such as app readiness, window creation, load start, and load finish.
 
-It does not yet measure time to first window, IPC latency, window creation time,
-navigation/load time, idle CPU, package size, binary size, or build/package time.
-Do not cite those metrics from this runner until they are implemented.
+It does not yet measure time to first visible paint, IPC latency, idle CPU,
+package size, binary size, or build/package time. Do not cite those metrics from
+this runner until they are implemented.
 
 ### Latest Linux Hello Result
 

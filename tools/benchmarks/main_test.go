@@ -73,6 +73,15 @@ func TestParseStartupTraceMS(t *testing.T) {
 	}
 }
 
+func TestParseTraceMS(t *testing.T) {
+	output := "noise\n" +
+		"benchmark-trace: {\"app_ready\":12,\"did_finish_load\":89}\n"
+	got := parseTraceMS(output, "benchmark-trace:")
+	if got["app_ready"] != 12 || got["did_finish_load"] != 89 {
+		t.Fatalf("parseTraceMS() = %#v", got)
+	}
+}
+
 func TestComputeComparisons(t *testing.T) {
 	results := []CommandResult{
 		{
