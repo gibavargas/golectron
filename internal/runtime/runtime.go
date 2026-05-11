@@ -46,6 +46,7 @@ type Runtime struct {
 }
 
 const StartupTraceEnv = "ELECTRON_GO_STARTUP_TRACE"
+const VerboseEnv = "ELECTRON_GO_VERBOSE"
 
 type SubprocessRequest struct {
 	Args        []string
@@ -140,7 +141,10 @@ func (r *Runtime) Run(ctx context.Context) error {
 		return err
 	}
 	r.state = StateMetadataReady
-	fmt.Fprintf(r.out, "electron-go: loaded %s %s\n", meta.Name, meta.Version)
+	verbose := envEnabled(r.environment, VerboseEnv)
+	if verbose {
+		fmt.Fprintf(r.out, "electron-go: loaded %s %s\n", meta.Name, meta.Version)
+	}
 
 	req := native.NormalizeStartRequest(native.StartRequest{
 		AppDir:          meta.Dir,
@@ -165,7 +169,9 @@ func (r *Runtime) Run(ctx context.Context) error {
 	}
 
 	r.state = StateRunning
-	fmt.Fprintf(r.out, "electron-go: running pid=%d windows=%d chromium=%s node=%s v8=%s\n", result.PID, result.WindowCount, result.Chromium, result.Node, result.V8)
+	if verbose {
+		fmt.Fprintf(r.out, "electron-go: running pid=%d windows=%d chromium=%s node=%s v8=%s\n", result.PID, result.WindowCount, result.Chromium, result.Node, result.V8)
+	}
 	if envEnabled(r.environment, StartupTraceEnv) && len(result.StartupTraceMS) > 0 {
 		payload, err := json.Marshal(result.StartupTraceMS)
 		if err == nil {

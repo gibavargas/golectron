@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"os"
@@ -73,6 +74,80 @@ func TestRuntimeStartsBridge(t *testing.T) {
 	}
 }
 
+func TestRuntimeIsQuietByDefault(t *testing.T) {
+	dir := fixtureApp(t)
+	var out bytes.Buffer
+	rt := New(Options{
+		AppDir:          dir,
+		ElectronVersion: "42.0.0",
+		Bridge: bridgeFunc(func(context.Context, native.StartRequest) (*native.StartResult, error) {
+			return &native.StartResult{PID: 100, WindowCount: 1}, nil
+		}),
+		Out: &out,
+	})
+
+	if err := rt.Run(context.Background()); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if out.String() != "" {
+		t.Fatalf("stdout = %q, want quiet default", out.String())
+	}
+}
+
+func TestRuntimeVerboseEnvReportsStatus(t *testing.T) {
+	dir := fixtureApp(t)
+	var out bytes.Buffer
+	rt := New(Options{
+		AppDir:          dir,
+		ElectronVersion: "42.0.0",
+		Bridge: bridgeFunc(func(context.Context, native.StartRequest) (*native.StartResult, error) {
+			return &native.StartResult{PID: 100, WindowCount: 1, Chromium: "148.0.7778.96", Node: "24.15.0", V8: "14.8.178.14"}, nil
+		}),
+		Environment: []string{"ELECTRON_GO_VERBOSE=1"},
+		Out:         &out,
+	})
+
+	if err := rt.Run(context.Background()); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "electron-go: loaded fixture 1.0.0") {
+		t.Fatalf("stdout = %q, want loaded status", got)
+	}
+	if !strings.Contains(got, "electron-go: running pid=100 windows=1") {
+		t.Fatalf("stdout = %q, want running status", got)
+	}
+}
+
+func TestRuntimeStartupTraceStillPrintsWhenQuiet(t *testing.T) {
+	dir := fixtureApp(t)
+	var out bytes.Buffer
+	rt := New(Options{
+		AppDir:          dir,
+		ElectronVersion: "42.0.0",
+		Bridge: bridgeFunc(func(context.Context, native.StartRequest) (*native.StartResult, error) {
+			return &native.StartResult{
+				PID:            100,
+				WindowCount:    1,
+				StartupTraceMS: map[string]int64{"cef_initialize": 12},
+			}, nil
+		}),
+		Environment: []string{"ELECTRON_GO_STARTUP_TRACE=1"},
+		Out:         &out,
+	})
+
+	if err := rt.Run(context.Background()); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	got := out.String()
+	if strings.Contains(got, "electron-go: loaded") || strings.Contains(got, "electron-go: running") {
+		t.Fatalf("stdout = %q, want only startup trace", got)
+	}
+	if !strings.Contains(got, `electron-go-startup-trace: {"cef_initialize":12}`) {
+		t.Fatalf("stdout = %q, want startup trace", got)
+	}
+}
+
 func TestExtractNodeOptions(t *testing.T) {
 	if got := ExtractNodeOptions([]string{"electron-go", "--experimental-transform-types", "."}); !got.ExperimentalTransformTypes {
 		t.Fatal("ExperimentalTransformTypes = false, want true")
@@ -85,6 +160,9 @@ func TestExtractNodeOptions(t *testing.T) {
 func TestEnvEnabled(t *testing.T) {
 	if !envEnabled([]string{"ELECTRON_GO_STARTUP_TRACE=1"}, StartupTraceEnv) {
 		t.Fatal("envEnabled() = false, want true")
+	}
+	if !envEnabled([]string{"ELECTRON_GO_VERBOSE=1"}, VerboseEnv) {
+		t.Fatal("envEnabled() = false for verbose, want true")
 	}
 	if envEnabled([]string{"ELECTRON_GO_STARTUP_TRACE=0"}, StartupTraceEnv) {
 		t.Fatal("envEnabled() = true for 0, want false")
