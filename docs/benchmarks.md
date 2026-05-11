@@ -213,6 +213,14 @@ runtime initialization from window startup, not as the cold-start headline
 metric. The artifact may include headless Chromium diagnostic output before the
 JSON payload.
 
+Manual conformance run
+`https://github.com/gibavargas/electron-go/actions/runs/25674943300` on commit
+`ccb7136` revalidated the current pushed branch after the CEF signal-handler
+startup change and evidence update. The workflow passed the official Electron
+fixture, Electron-Go fixture, scoped main-runner probe, warm scoped benchmark
+probe, scoped benchmark fixture conformance gate, scoped hello IPC/preload gate,
+runtime-process-model gate, and full Go conformance suite.
+
 The earlier alternating-order run
 `https://github.com/gibavargas/electron-go/actions/runs/25649084479` on commit
 `46be416` measured Electron-Go `405ms` vs Electron `532ms` before adding the
