@@ -108,7 +108,6 @@ static void CEF_CALLBACK eg_cef_on_before_command_line_processing(
   eg_cef_append_ascii_switch(command_line, "disable-default-apps");
   eg_cef_append_ascii_switch(command_line, "disable-extensions");
   eg_cef_append_ascii_switch(command_line, "disable-gpu");
-  eg_cef_append_ascii_switch(command_line, "disable-gpu-compositing");
   eg_cef_append_ascii_switch(command_line, "disable-dev-shm-usage");
   eg_cef_append_ascii_switch(command_line, "disable-sync");
   eg_cef_append_ascii_switch(command_line, "metrics-recording-only");
