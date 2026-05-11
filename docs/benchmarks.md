@@ -10,6 +10,15 @@ The benchmark runner launches the same fixture with official Electron and
 Electron-Go, repeats each command, and emits JSON with raw samples, summaries,
 and ratios when both runs are present.
 
+The current CEF-backed Electron-Go app path does not execute the fixture
+`main.js` the way official Electron does. For `compat/fixtures/benchmark-hello`,
+official Electron runs `main.js`, waits for `app.whenReady()`, constructs a
+`BrowserWindow`, loads `index.html`, and quits after `did-finish-load`.
+Electron-Go currently loads the fixture `index.html` directly through the native
+CEF bootstrap and closes from native load callbacks. Treat the headline number
+as CEF bootstrap-to-loaded-window evidence, not proof of full Electron
+main-process app startup parity.
+
 Run a timing-only comparison:
 
 ```sh

@@ -94,3 +94,16 @@ go run ./cmd/electron-go --check-parity
 
 both pass, and the platform conformance suite passes against the latest stable
 official Electron baseline.
+
+`--check-parity` covers the 49-item compatibility ledger. It is not, by itself,
+proof that every Electron application-runtime behavior is implemented. The
+runtime fixture comparisons at the top of `compat/conformance_test.go` remain
+explicitly gated until their underlying runtime features land:
+
+- `TestHelloFixtureConformance` requires
+  `ELECTRON_GO_ENABLE_IPC_CONFORMANCE=1` after IPC/preload parity is ready.
+- `TestBenchmarkHelloFixtureConformance` requires
+  `ELECTRON_GO_ENABLE_RUNTIME_FIXTURE_CONFORMANCE=1` after native
+  Chromium/Node/V8 main-process runtime parity is ready.
+
+Do not claim full Electron app-runtime parity while either gate is skipped.
