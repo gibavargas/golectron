@@ -66,6 +66,10 @@ type BrowserWindowCreateRequest struct {
 	Width       int
 	Height      int
 	Show        bool
+	// AutoCloseOnLoad preserves the current bootstrap behavior where a CEF
+	// BrowserWindow closes after the main frame loads. Runtime-driven windows
+	// should leave this false and close from app/BrowserWindow lifecycle calls.
+	AutoCloseOnLoad bool
 }
 
 type BrowserWindowLoadRequest struct {

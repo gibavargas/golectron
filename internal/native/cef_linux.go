@@ -89,11 +89,12 @@ func (b CEFBridge) Start(ctx context.Context, req StartRequest) (*StartResult, e
 	mark("resolve_app_url", stageStart)
 	stageStart = time.Now()
 	if err := createBrowserWindow(ctx, BrowserWindowCreateRequest{
-		ABIRevision: CurrentABIRevision,
-		URL:         loadURL,
-		Width:       800,
-		Height:      600,
-		Show:        true,
+		ABIRevision:     CurrentABIRevision,
+		URL:             loadURL,
+		Width:           800,
+		Height:          600,
+		Show:            true,
+		AutoCloseOnLoad: true,
 	}); err != nil {
 		_ = shutdownCEF(ctx)
 		return nil, err
@@ -207,11 +208,12 @@ func CheckRuntimeProcessModel(ctx context.Context, appDir string, args []string)
 	} else {
 		initialized = true
 		if err := createBrowserWindow(ctx, BrowserWindowCreateRequest{
-			ABIRevision: CurrentABIRevision,
-			URL:         loadURL,
-			Width:       800,
-			Height:      600,
-			Show:        true,
+			ABIRevision:     CurrentABIRevision,
+			URL:             loadURL,
+			Width:           800,
+			Height:          600,
+			Show:            true,
+			AutoCloseOnLoad: true,
 		}); err != nil {
 			lifecycleErr = err
 		} else if err := runMessageLoop(ctx); err != nil {
@@ -396,6 +398,7 @@ func createBrowserWindow(ctx context.Context, req BrowserWindowCreateRequest) er
 	cReq.width = C.int32_t(req.Width)
 	cReq.height = C.int32_t(req.Height)
 	cReq.show = boolToCUint8(req.Show)
+	cReq.auto_close_on_load = boolToCUint8(req.AutoCloseOnLoad)
 
 	out := (*C.eg_browser_window_result)(C.calloc(1, C.size_t(unsafe.Sizeof(C.eg_browser_window_result{}))))
 	if out == nil {

@@ -30,6 +30,7 @@ static int g_load_complete = 0;
 static int g_load_failed = 0;
 static int g_close_requested = 0;
 static int g_browser_closed = 0;
+static int g_auto_close_on_load = 1;
 static int g_static_handlers_initialized = 0;
 static cef_app_t g_static_app;
 static cef_browser_process_handler_t g_static_browser_process_handler;
@@ -226,7 +227,9 @@ static void CEF_CALLBACK eg_cef_on_load_end(
   g_load_complete = 1;
   g_browser_id = eg_cef_browser_id(browser);
   goOnBrowserLoadEnd(g_browser_id, httpStatusCode);
-  eg_cef_request_close_browser(browser);
+  if (g_auto_close_on_load) {
+    eg_cef_request_close_browser(browser);
+  }
 }
 
 static void CEF_CALLBACK eg_cef_on_load_error(
@@ -267,7 +270,9 @@ static void CEF_CALLBACK eg_cef_on_loading_state_change(
   g_load_complete = 1;
   g_browser_id = eg_cef_browser_id(browser);
   goOnBrowserLoadEnd(g_browser_id, 0);
-  eg_cef_request_close_browser(browser);
+  if (g_auto_close_on_load) {
+    eg_cef_request_close_browser(browser);
+  }
 }
 
 static cef_load_handler_t* eg_cef_make_load_handler(void) {
@@ -471,6 +476,7 @@ static void eg_cef_reset_browser_state(void) {
   g_load_failed = 0;
   g_close_requested = 0;
   g_browser_closed = 0;
+  g_auto_close_on_load = 1;
   eg_cef_release_browser_ref();
 }
 
@@ -584,6 +590,7 @@ eg_bridge_status eg_cef_shim_create_browser_sync(
   out_result->status = EG_BRIDGE_STATUS_STARTING;
   out_result->browser_id = 0;
   eg_cef_reset_browser_state();
+  g_auto_close_on_load = request->auto_close_on_load ? 1 : 0;
 
   if (!g_client) {
     g_client = eg_cef_make_client();

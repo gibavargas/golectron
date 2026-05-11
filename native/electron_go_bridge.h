@@ -66,6 +66,7 @@ typedef struct eg_browser_window_create_request {
   int32_t width;
   int32_t height;
   uint8_t show;
+  uint8_t auto_close_on_load;
 } eg_browser_window_create_request;
 
 typedef struct eg_browser_window_load_request {
