@@ -297,11 +297,28 @@ func appendCEFBrowserProcessSwitches(args []string) []string {
 		}
 	}
 	if !hasSwitch(out, "--browser-subprocess-path") {
-		if executable, err := os.Executable(); err == nil && executable != "" {
-			out = append(out, "--browser-subprocess-path="+executable)
+		if subprocessPath := cefBrowserSubprocessPath(); subprocessPath != "" {
+			out = append(out, "--browser-subprocess-path="+subprocessPath)
 		}
 	}
 	return out
+}
+
+func cefBrowserSubprocessPath() string {
+	executable, err := os.Executable()
+	if err != nil || executable == "" {
+		return ""
+	}
+	helperPath := filepath.Join(filepath.Dir(executable), "electron-go-helper")
+	if isExecutableFile(helperPath) {
+		return helperPath
+	}
+	return executable
+}
+
+func isExecutableFile(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.Mode().IsRegular() && info.Mode()&0o111 != 0
 }
 
 func switchSet(args []string) map[string]struct{} {

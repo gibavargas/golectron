@@ -72,7 +72,9 @@ jobs:
         run: tools/fetch_cef.sh
 
       - name: Build Electron-Go CEF binary
-        run: go build -tags electron_go_cef -o bin/electron-go ./cmd/electron-go
+        run: |
+          go build -tags electron_go_cef -o bin/electron-go ./cmd/electron-go
+          go build -tags electron_go_cef -o bin/electron-go-helper ./cmd/electron-go-helper
 
       - name: Warm benchmark commands
         run: |

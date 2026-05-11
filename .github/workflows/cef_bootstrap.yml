@@ -56,7 +56,9 @@ jobs:
         run: test -f bin/libcef.so
 
       - name: Build CEF-linked binary
-        run: go build -tags electron_go_cef -o bin/electron-go ./cmd/electron-go
+        run: |
+          go build -tags electron_go_cef -o bin/electron-go ./cmd/electron-go
+          go build -tags electron_go_cef -o bin/electron-go-helper ./cmd/electron-go-helper
 
       - name: Verify libcef linkage
         run: ldd bin/electron-go | grep "libcef.so => .*bin/libcef.so"
