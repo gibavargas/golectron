@@ -52,27 +52,29 @@ type Sample struct {
 }
 
 type Summary struct {
-	Successes                         int     `json:"successes"`
-	Failures                          int     `json:"failures"`
-	DurationMinMS                     int64   `json:"duration_min_ms,omitempty"`
-	DurationMedianMS                  int64   `json:"duration_median_ms,omitempty"`
-	DurationMeanMS                    float64 `json:"duration_mean_ms,omitempty"`
-	DurationMaxMS                     int64   `json:"duration_max_ms,omitempty"`
-	MaxRSSMinKB                       int64   `json:"max_rss_min_kb,omitempty"`
-	MaxRSSMedianKB                    int64   `json:"max_rss_median_kb,omitempty"`
-	MaxRSSMeanKB                      float64 `json:"max_rss_mean_kb,omitempty"`
-	MaxRSSMaxKB                       int64   `json:"max_rss_max_kb,omitempty"`
-	MaxRSSSamples                     int     `json:"max_rss_samples,omitempty"`
-	MaxRSSAvailable                   bool    `json:"max_rss_available"`
-	MaxRSSUnsupportedOS               bool    `json:"max_rss_unsupported_os,omitempty"`
-	ProcessTreeRSSPeakMinKB           int64   `json:"process_tree_rss_peak_min_kb,omitempty"`
-	ProcessTreeRSSPeakMedianKB        int64   `json:"process_tree_rss_peak_median_kb,omitempty"`
-	ProcessTreeRSSPeakMeanKB          float64 `json:"process_tree_rss_peak_mean_kb,omitempty"`
-	ProcessTreeRSSPeakMaxKB           int64   `json:"process_tree_rss_peak_max_kb,omitempty"`
-	ProcessTreeRSSPeakSamples         int     `json:"process_tree_rss_peak_samples,omitempty"`
-	ProcessTreeRSSPeakAvailable       bool    `json:"process_tree_rss_peak_available"`
-	ProcessTreeRSSPeakUnsupportedOS   bool    `json:"process_tree_rss_peak_unsupported_os,omitempty"`
-	ProcessTreeRSSPeakPollingInterval string  `json:"process_tree_rss_peak_polling_interval,omitempty"`
+	Successes                         int              `json:"successes"`
+	Failures                          int              `json:"failures"`
+	DurationMinMS                     int64            `json:"duration_min_ms,omitempty"`
+	DurationMedianMS                  int64            `json:"duration_median_ms,omitempty"`
+	DurationMeanMS                    float64          `json:"duration_mean_ms,omitempty"`
+	DurationMaxMS                     int64            `json:"duration_max_ms,omitempty"`
+	StartupTraceMedianMS              map[string]int64 `json:"startup_trace_median_ms,omitempty"`
+	BenchmarkTraceMedianMS            map[string]int64 `json:"benchmark_trace_median_ms,omitempty"`
+	MaxRSSMinKB                       int64            `json:"max_rss_min_kb,omitempty"`
+	MaxRSSMedianKB                    int64            `json:"max_rss_median_kb,omitempty"`
+	MaxRSSMeanKB                      float64          `json:"max_rss_mean_kb,omitempty"`
+	MaxRSSMaxKB                       int64            `json:"max_rss_max_kb,omitempty"`
+	MaxRSSSamples                     int              `json:"max_rss_samples,omitempty"`
+	MaxRSSAvailable                   bool             `json:"max_rss_available"`
+	MaxRSSUnsupportedOS               bool             `json:"max_rss_unsupported_os,omitempty"`
+	ProcessTreeRSSPeakMinKB           int64            `json:"process_tree_rss_peak_min_kb,omitempty"`
+	ProcessTreeRSSPeakMedianKB        int64            `json:"process_tree_rss_peak_median_kb,omitempty"`
+	ProcessTreeRSSPeakMeanKB          float64          `json:"process_tree_rss_peak_mean_kb,omitempty"`
+	ProcessTreeRSSPeakMaxKB           int64            `json:"process_tree_rss_peak_max_kb,omitempty"`
+	ProcessTreeRSSPeakSamples         int              `json:"process_tree_rss_peak_samples,omitempty"`
+	ProcessTreeRSSPeakAvailable       bool             `json:"process_tree_rss_peak_available"`
+	ProcessTreeRSSPeakUnsupportedOS   bool             `json:"process_tree_rss_peak_unsupported_os,omitempty"`
+	ProcessTreeRSSPeakPollingInterval string           `json:"process_tree_rss_peak_polling_interval,omitempty"`
 }
 
 type Comparison struct {
@@ -276,12 +278,20 @@ func timeCommandArgs(name string, args []string) ([]string, string) {
 func summarize(samples []Sample, measureRSS, measureProcessTreeRSS bool) Summary {
 	var summary Summary
 	var durations []int64
+	var startupTraces []map[string]int64
+	var benchmarkTraces []map[string]int64
 	var rss []int64
 	var processTreeRSS []int64
 	for _, sample := range samples {
 		if sample.ExitCode == 0 && sample.Error == "" && !sample.TimedOut {
 			summary.Successes++
 			durations = append(durations, sample.DurationMS)
+			if len(sample.StartupTraceMS) > 0 {
+				startupTraces = append(startupTraces, sample.StartupTraceMS)
+			}
+			if len(sample.BenchmarkTraceMS) > 0 {
+				benchmarkTraces = append(benchmarkTraces, sample.BenchmarkTraceMS)
+			}
 			if sample.MaxRSSKB > 0 {
 				rss = append(rss, sample.MaxRSSKB)
 			}
@@ -298,6 +308,8 @@ func summarize(samples []Sample, measureRSS, measureProcessTreeRSS bool) Summary
 		summary.DurationMeanMS = meanInt64(durations)
 		summary.DurationMaxMS = maxInt64(durations)
 	}
+	summary.StartupTraceMedianMS = medianTraceMS(startupTraces)
+	summary.BenchmarkTraceMedianMS = medianTraceMS(benchmarkTraces)
 	if measureRSS && runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 		summary.MaxRSSUnsupportedOS = true
 	}
@@ -322,6 +334,23 @@ func summarize(samples []Sample, measureRSS, measureProcessTreeRSS bool) Summary
 		summary.ProcessTreeRSSPeakPollingInterval = (10 * time.Millisecond).String()
 	}
 	return summary
+}
+
+func medianTraceMS(traces []map[string]int64) map[string]int64 {
+	if len(traces) == 0 {
+		return nil
+	}
+	valuesByKey := map[string][]int64{}
+	for _, trace := range traces {
+		for key, value := range trace {
+			valuesByKey[key] = append(valuesByKey[key], value)
+		}
+	}
+	medians := make(map[string]int64, len(valuesByKey))
+	for key, values := range valuesByKey {
+		medians[key] = medianInt64(values)
+	}
+	return medians
 }
 
 func computeComparisons(results []CommandResult) []Comparison {

@@ -82,6 +82,20 @@ func TestParseTraceMS(t *testing.T) {
 	}
 }
 
+func TestSummarizeIncludesTraceMedians(t *testing.T) {
+	summary := summarize([]Sample{
+		{ExitCode: 0, DurationMS: 100, StartupTraceMS: map[string]int64{"cef_initialize": 10}, BenchmarkTraceMS: map[string]int64{"app_ready": 40}},
+		{ExitCode: 0, DurationMS: 120, StartupTraceMS: map[string]int64{"cef_initialize": 14}, BenchmarkTraceMS: map[string]int64{"app_ready": 42}},
+		{ExitCode: 0, DurationMS: 140, StartupTraceMS: map[string]int64{"cef_initialize": 12}, BenchmarkTraceMS: map[string]int64{"app_ready": 44}},
+	}, false, false)
+	if summary.StartupTraceMedianMS["cef_initialize"] != 12 {
+		t.Fatalf("startup trace medians = %#v, want cef_initialize=12", summary.StartupTraceMedianMS)
+	}
+	if summary.BenchmarkTraceMedianMS["app_ready"] != 42 {
+		t.Fatalf("benchmark trace medians = %#v, want app_ready=42", summary.BenchmarkTraceMedianMS)
+	}
+}
+
 func TestComputeComparisons(t *testing.T) {
 	results := []CommandResult{
 		{
