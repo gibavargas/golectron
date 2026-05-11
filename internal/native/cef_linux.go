@@ -410,6 +410,34 @@ func createBrowserWindow(ctx context.Context, req BrowserWindowCreateRequest) er
 	return nil
 }
 
+func loadBrowserWindowURL(ctx context.Context, req BrowserWindowLoadRequest) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	req = NormalizeBrowserWindowLoadRequest(req)
+	if err := ValidateBrowserWindowLoadRequest(req); err != nil {
+		return err
+	}
+
+	urlView := newCStringView(req.URL)
+	defer urlView.free()
+
+	cReq := (*C.eg_browser_window_load_request)(C.calloc(1, C.size_t(unsafe.Sizeof(C.eg_browser_window_load_request{}))))
+	if cReq == nil {
+		return fmt.Errorf("allocate browser window load request")
+	}
+	defer C.free(unsafe.Pointer(cReq))
+	cReq.abi_revision = C.uint32_t(req.ABIRevision)
+	cReq.browser_id = C.int64_t(req.BrowserID)
+	cReq.url = urlView.view
+
+	status := C.eg_cef_shim_load_url(nil, cReq)
+	if status != C.EG_BRIDGE_STATUS_RUNNING {
+		return fmt.Errorf("CEF BrowserWindow loadURL failed: status=%s", bridgeStatusName(status))
+	}
+	return nil
+}
+
 func runMessageLoop(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err

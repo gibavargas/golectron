@@ -635,8 +635,35 @@ eg_bridge_status eg_cef_shim_load_url(
     eg_bridge_handle bridge,
     const eg_browser_window_load_request* request) {
   (void)bridge;
-  (void)request;
-  return EG_BRIDGE_STATUS_UNAVAILABLE;
+  if (!request || request->abi_revision != EG_BRIDGE_ABI_REVISION ||
+      !request->url.data || request->url.len == 0 ||
+      request->browser_id <= 0) {
+    return EG_BRIDGE_STATUS_INVALID_REQUEST;
+  }
+  if (!g_cef_initialized || !g_browser || !g_browser->get_identifier ||
+      !g_browser->get_main_frame) {
+    return EG_BRIDGE_STATUS_FAILED;
+  }
+  if (g_browser->get_identifier(g_browser) != request->browser_id) {
+    return EG_BRIDGE_STATUS_INVALID_REQUEST;
+  }
+
+  cef_frame_t* frame = g_browser->get_main_frame(g_browser);
+  if (!frame || !frame->load_url) {
+    return EG_BRIDGE_STATUS_FAILED;
+  }
+
+  cef_string_t url;
+  memset(&url, 0, sizeof(url));
+  if (!eg_cef_set_cef_string(&request->url, &url)) {
+    return EG_BRIDGE_STATUS_INVALID_REQUEST;
+  }
+  g_load_complete = 0;
+  g_load_failed = 0;
+  g_close_requested = 0;
+  frame->load_url(frame, &url);
+  cef_string_clear(&url);
+  return EG_BRIDGE_STATUS_RUNNING;
 }
 
 eg_bridge_status eg_cef_shim_run_message_loop(eg_bridge_handle bridge) {
