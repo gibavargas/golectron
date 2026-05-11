@@ -156,6 +156,17 @@ normal-launch fast path and static CEF callback handlers. The newer run above is
 the current headline artifact; it shows the cleanup did not move startup toward
 the 50% faster target.
 
+After downloading a published benchmark artifact, update the embedded goal audit
+evidence with:
+
+```sh
+go run ./tools/goalevidence \
+  --benchmark ./benchmark-artifacts/hello-linux.json \
+  --run-url https://github.com/gibavargas/electron-go/actions/runs/<run-id> \
+  --commit <measured-commit> \
+  --output ./cmd/electron-go/goal_evidence.json
+```
+
 The previous alternating-order run
 `https://github.com/gibavargas/electron-go/actions/runs/25648847257` on commit
 `9cccf56` measured Electron-Go `420ms` vs Electron `568ms` and added paired
