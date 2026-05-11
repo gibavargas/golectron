@@ -88,6 +88,7 @@ jobs:
             --fixture ./compat/fixtures/benchmark-hello \
             --iterations 5 \
             --timeout 30s \
+            --run-order alternating \
             --measure-rss \
             --measure-process-tree-rss \
             --output benchmark-artifacts/hello-linux.json \
