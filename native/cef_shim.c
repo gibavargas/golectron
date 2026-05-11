@@ -89,6 +89,13 @@ static void eg_cef_append_ascii_switch(
   }
 }
 
+static int eg_cef_set_ascii_string(const char* source, cef_string_t* target) {
+  if (!source || !target) {
+    return 1;
+  }
+  return cef_string_from_ascii(source, strlen(source), target);
+}
+
 static void CEF_CALLBACK eg_cef_on_before_command_line_processing(
     struct _cef_app_t* self,
     const cef_string_t* process_type,
@@ -434,6 +441,7 @@ static void eg_cef_clear_settings(cef_settings_t* settings) {
   }
   cef_string_clear(&settings->cache_path);
   cef_string_clear(&settings->root_cache_path);
+  cef_string_clear(&settings->log_file);
 }
 
 static void eg_cef_reset_browser_state(void) {
@@ -515,7 +523,8 @@ eg_bridge_status eg_cef_shim_initialize(
   if (!eg_cef_set_cef_string(
           &request->settings.cache_path, &settings.root_cache_path) ||
       !eg_cef_set_cef_string(
-          &request->settings.cache_path, &settings.cache_path)) {
+          &request->settings.cache_path, &settings.cache_path) ||
+      !eg_cef_set_ascii_string("/dev/null", &settings.log_file)) {
     eg_cef_free_argv_storage(&storage);
     eg_cef_clear_settings(&settings);
     return EG_BRIDGE_STATUS_INVALID_REQUEST;
