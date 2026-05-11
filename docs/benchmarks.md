@@ -199,6 +199,15 @@ the current branch with the opt-in scoped main-runner probe, scoped benchmark
 fixture conformance gate, scoped hello IPC/preload conformance gate, CEF
 runtime-process-model gate, and the full Go conformance suite.
 
+Manual conformance run
+`https://github.com/gibavargas/electron-go/actions/runs/25673972317` on commit
+`d896d4d` also ran the warm scoped benchmark probe. It measured CEF
+initialization at `127ms`, one recognized benchmark-window lifecycle at `165ms`,
+and shutdown at `24ms`. Treat this as architecture evidence for separating
+runtime initialization from window startup, not as the cold-start headline
+metric. The artifact may include headless Chromium diagnostic output before the
+JSON payload.
+
 The earlier alternating-order run
 `https://github.com/gibavargas/electron-go/actions/runs/25649084479` on commit
 `46be416` measured Electron-Go `405ms` vs Electron `532ms` before adding the
