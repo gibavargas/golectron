@@ -100,6 +100,7 @@ func main() {
 	measureProcessTreeRSS := flag.Bool("measure-process-tree-rss", false, "sample peak process-tree RSS on Linux")
 	output := flag.String("output", "", "optional JSON output file; stdout is used when empty")
 	requireFaster := flag.String("require-faster", "", "comma-separated lower-is-better comparison metrics that Electron-Go must beat")
+	requireRatio := flag.String("require-ratio", "", "comma-separated metric=max-ratio gates using electron_go_over_electron")
 	runOrder := flag.String("run-order", "sequential", "sample order: sequential or alternating")
 	flag.Parse()
 
@@ -138,6 +139,10 @@ func main() {
 	}
 	report.Comparisons = computeComparisons(report.Results)
 	requireErr := validateRequiredFaster(report, requiredMetrics(*requireFaster))
+	ratios, ratioParseErr := requiredRatios(*requireRatio)
+	if ratioErr := validateRequiredRatios(report, ratios, ratioParseErr); requireErr == nil {
+		requireErr = ratioErr
+	}
 
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
@@ -606,6 +611,38 @@ func requiredMetrics(input string) []string {
 	return out
 }
 
+type requiredRatio struct {
+	Metric   string
+	MaxRatio float64
+}
+
+func requiredRatios(input string) ([]requiredRatio, error) {
+	if strings.TrimSpace(input) == "" {
+		return nil, nil
+	}
+	var out []requiredRatio
+	for _, raw := range strings.Split(input, ",") {
+		raw = strings.TrimSpace(raw)
+		if raw == "" {
+			continue
+		}
+		metric, value, ok := strings.Cut(raw, "=")
+		if !ok {
+			return nil, fmt.Errorf("invalid required ratio %q; want metric=max-ratio", raw)
+		}
+		metric = strings.TrimSpace(metric)
+		if metric == "" {
+			return nil, fmt.Errorf("invalid required ratio %q; metric is required", raw)
+		}
+		maxRatio, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
+		if err != nil || maxRatio <= 0 {
+			return nil, fmt.Errorf("invalid required ratio %q; max-ratio must be positive", raw)
+		}
+		out = append(out, requiredRatio{Metric: metric, MaxRatio: maxRatio})
+	}
+	return out, nil
+}
+
 func validateRequiredFaster(report Report, metrics []string) error {
 	if len(metrics) == 0 {
 		return nil
@@ -628,6 +665,36 @@ func validateRequiredFaster(report Report, metrics []string) error {
 		}
 		if !found.ElectronGoFasterOrLighter {
 			return fmt.Errorf("Electron-Go did not beat Electron for %s: electron=%.2f electron-go=%.2f ratio=%.4f", metric, found.Electron, found.ElectronGo, found.ElectronGoOverElectron)
+		}
+	}
+	return nil
+}
+
+func validateRequiredRatios(report Report, ratios []requiredRatio, parseErr error) error {
+	if parseErr != nil {
+		return parseErr
+	}
+	if len(ratios) == 0 {
+		return nil
+	}
+	for _, result := range report.Results {
+		if result.Summary.Failures > 0 || result.Summary.Successes != report.Iterations {
+			return fmt.Errorf("%s benchmark had %d successes and %d failures; refusing ratio claim", result.Name, result.Summary.Successes, result.Summary.Failures)
+		}
+	}
+	for _, ratio := range ratios {
+		var found *Comparison
+		for i := range report.Comparisons {
+			if report.Comparisons[i].Metric == ratio.Metric {
+				found = &report.Comparisons[i]
+				break
+			}
+		}
+		if found == nil {
+			return fmt.Errorf("required benchmark ratio metric %q was not produced", ratio.Metric)
+		}
+		if found.ElectronGoOverElectron > ratio.MaxRatio {
+			return fmt.Errorf("Electron-Go exceeded ratio for %s: electron=%.2f electron-go=%.2f ratio=%.4f max=%.4f", ratio.Metric, found.Electron, found.ElectronGo, found.ElectronGoOverElectron, ratio.MaxRatio)
 		}
 	}
 	return nil

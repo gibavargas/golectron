@@ -94,6 +94,8 @@ The runner currently records:
 - duration and RSS ratios when both `--electron` and `--electron-go` are present.
 - optional CI gating with `--require-faster` for specific lower-is-better
   metrics.
+- optional ratio gating with `--require-ratio metric=max-ratio`, for example
+  `--require-ratio duration_median_ms=0.5` to enforce a 50% startup target.
 - optional alternating sample order with `--run-order alternating`, recorded as
   `run_order: "alternating"` plus per-sample `sequence` and `pair` fields.
 - optional fixture-level `benchmark-trace:` phase timings emitted by benchmark
@@ -182,6 +184,8 @@ claim. Do not mix machines, OS versions, power modes, fixtures, or commands in a
 single ratio.
 Prefer `--run-order alternating` for headline Electron vs Electron-Go startup
 comparisons so both commands take turns running first within each pair.
+Use `--require-ratio duration_median_ms=0.5` when a release gate must enforce
+the claim that Electron-Go starts in no more than half the Electron median.
 
 Acceptable claim:
 

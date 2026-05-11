@@ -231,3 +231,63 @@ func TestValidateRequiredFasterRejectsFailures(t *testing.T) {
 		t.Fatal("validateRequiredFaster returned nil error for failed samples")
 	}
 }
+
+func TestRequiredRatios(t *testing.T) {
+	got, err := requiredRatios("duration_median_ms=0.5, process_tree_rss_peak_median_kb = 0.75")
+	if err != nil {
+		t.Fatalf("requiredRatios returned error: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("len(requiredRatios) = %d, want 2", len(got))
+	}
+	if got[0].Metric != "duration_median_ms" || got[0].MaxRatio != 0.5 {
+		t.Fatalf("first required ratio = %#v", got[0])
+	}
+	if got[1].Metric != "process_tree_rss_peak_median_kb" || got[1].MaxRatio != 0.75 {
+		t.Fatalf("second required ratio = %#v", got[1])
+	}
+}
+
+func TestRequiredRatiosRejectsInvalidInput(t *testing.T) {
+	if _, err := requiredRatios("duration_median_ms"); err == nil {
+		t.Fatal("requiredRatios returned nil error for missing max ratio")
+	}
+	if _, err := requiredRatios("duration_median_ms=0"); err == nil {
+		t.Fatal("requiredRatios returned nil error for zero max ratio")
+	}
+}
+
+func TestValidateRequiredRatios(t *testing.T) {
+	report := Report{
+		Iterations: 3,
+		Results: []CommandResult{
+			{Name: "electron", Summary: Summary{Successes: 3}},
+			{Name: "electron-go", Summary: Summary{Successes: 3}},
+		},
+		Comparisons: []Comparison{
+			{Metric: "duration_median_ms", Electron: 200, ElectronGo: 100, ElectronGoOverElectron: 0.5},
+		},
+	}
+
+	if err := validateRequiredRatios(report, []requiredRatio{{Metric: "duration_median_ms", MaxRatio: 0.5}}, nil); err != nil {
+		t.Fatalf("validateRequiredRatios returned error: %v", err)
+	}
+}
+
+func TestValidateRequiredRatiosRejectsMissedTarget(t *testing.T) {
+	report := Report{
+		Iterations: 1,
+		Results: []CommandResult{
+			{Name: "electron", Summary: Summary{Successes: 1}},
+			{Name: "electron-go", Summary: Summary{Successes: 1}},
+		},
+		Comparisons: []Comparison{
+			{Metric: "duration_median_ms", Electron: 100, ElectronGo: 75, ElectronGoOverElectron: 0.75},
+		},
+	}
+
+	err := validateRequiredRatios(report, []requiredRatio{{Metric: "duration_median_ms", MaxRatio: 0.5}}, nil)
+	if err == nil {
+		t.Fatal("validateRequiredRatios returned nil error for missed target")
+	}
+}
