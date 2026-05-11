@@ -90,9 +90,10 @@ A release can claim full parity only when:
 ```sh
 go test ./...
 go run ./cmd/electron-go --check-parity
+go run ./cmd/electron-go --runtime-parity-audit
 ```
 
-both pass, and the platform conformance suite passes against the latest stable
+all pass, and the platform conformance suite passes against the latest stable
 official Electron baseline.
 
 `--check-parity` covers the 49-item compatibility ledger. It is not, by itself,
@@ -106,4 +107,6 @@ explicitly gated until their underlying runtime features land:
   `ELECTRON_GO_ENABLE_RUNTIME_FIXTURE_CONFORMANCE=1` after native
   Chromium/Node/V8 main-process runtime parity is ready.
 
-Do not claim full Electron app-runtime parity while either gate is skipped.
+`--runtime-parity-audit` exits nonzero while either gate is skipped. Do not
+claim full Electron app-runtime parity until it passes and the corresponding
+fixture comparisons pass against official Electron.

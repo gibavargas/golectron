@@ -73,6 +73,62 @@ func TestRunE2EAuditPrintsMissingCompatibleCoverage(t *testing.T) {
 	}
 }
 
+func TestRunRuntimeParityAuditReportsGatedRuntimeConformance(t *testing.T) {
+	t.Setenv("ELECTRON_GO_ENABLE_IPC_CONFORMANCE", "")
+	t.Setenv("ELECTRON_GO_ENABLE_RUNTIME_FIXTURE_CONFORMANCE", "")
+
+	var stdout bytes.Buffer
+	code := runWithOutput(t, []string{"electron-go", "--runtime-parity-audit"}, &stdout, nil)
+	if code != 1 {
+		t.Fatalf("run(--runtime-parity-audit) exit = %d, want 1 while gates are disabled", code)
+	}
+	var payload struct {
+		Pass  bool `json:"pass"`
+		Gates []struct {
+			Name    string `json:"name"`
+			Env     string `json:"env"`
+			Enabled bool   `json:"enabled"`
+		} `json:"gates"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+		t.Fatalf("--runtime-parity-audit output is not JSON: %v\n%s", err, stdout.String())
+	}
+	if payload.Pass {
+		t.Fatal("pass = true while runtime conformance gates are disabled")
+	}
+	if len(payload.Gates) != 2 {
+		t.Fatalf("gates = %d, want 2", len(payload.Gates))
+	}
+	for _, gate := range payload.Gates {
+		if gate.Name == "" || gate.Env == "" {
+			t.Fatalf("gate has missing identity: %#v", gate)
+		}
+		if gate.Enabled {
+			t.Fatalf("gate %s enabled = true, want false", gate.Name)
+		}
+	}
+}
+
+func TestRunRuntimeParityAuditPassesWhenRuntimeGatesEnabled(t *testing.T) {
+	t.Setenv("ELECTRON_GO_ENABLE_IPC_CONFORMANCE", "1")
+	t.Setenv("ELECTRON_GO_ENABLE_RUNTIME_FIXTURE_CONFORMANCE", "1")
+
+	var stdout bytes.Buffer
+	code := runWithOutput(t, []string{"electron-go", "--runtime-parity-audit"}, &stdout, nil)
+	if code != 0 {
+		t.Fatalf("run(--runtime-parity-audit) exit = %d, want 0 when gates are enabled", code)
+	}
+	var payload struct {
+		Pass bool `json:"pass"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+		t.Fatalf("--runtime-parity-audit output is not JSON: %v\n%s", err, stdout.String())
+	}
+	if !payload.Pass {
+		t.Fatal("pass = false while runtime conformance gates are enabled")
+	}
+}
+
 func TestRunClipboardCheckReportsTextRoundTrip(t *testing.T) {
 	var stdout bytes.Buffer
 	code := runWithOutput(t, []string{"electron-go", "--clipboard-check"}, &stdout, nil)

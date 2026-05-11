@@ -83,6 +83,7 @@ func run(argv []string, env []string) int {
 	showLedger := fs.Bool("compat-json", false, "print the compatibility ledger as JSON")
 	showE2EAudit := fs.Bool("e2e-audit", false, "print compatible ledger items lacking e2e/conformance evidence")
 	checkParity := fs.Bool("check-parity", false, "exit successfully only when every ledger item is compatible")
+	runtimeParityAudit := fs.Bool("runtime-parity-audit", false, "exit successfully only when full Electron app-runtime conformance gates are enabled")
 	browserWindowOptionsCheck := fs.Bool("browser-window-options-check", false, "print BrowserWindow constructor option compatibility JSON")
 	browserWindowMethodsCheck := fs.Bool("browser-window-methods-check", false, "print BrowserWindow methods compatibility JSON")
 	viewTreeCheck := fs.Bool("view-tree-check", false, "print BaseWindow/View tree compatibility JSON")
@@ -174,6 +175,20 @@ func run(argv []string, env []string) int {
 		}
 		fmt.Fprintf(os.Stderr, "electron-go parity incomplete for Electron %s: %d/%d compatible\n", ledger.Target.Electron, ledger.CompatibleCount(), ledger.TotalCount())
 		return 1
+	}
+
+	if *runtimeParityAudit {
+		report := runtimeParityAuditReport()
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(report); err != nil {
+			fmt.Fprintf(os.Stderr, "electron-go: %v\n", err)
+			return 1
+		}
+		if !report.Pass {
+			return 1
+		}
+		return 0
 	}
 
 	if *browserWindowOptionsCheck {
@@ -842,6 +857,48 @@ type safeStorageCheckReport struct {
 	RoundTrip       bool   `json:"roundTrip"`
 	CiphertextBytes int    `json:"ciphertextBytes"`
 	Error           string `json:"error,omitempty"`
+}
+
+type runtimeParityGateReport struct {
+	Name        string `json:"name"`
+	Env         string `json:"env"`
+	Enabled     bool   `json:"enabled"`
+	Description string `json:"description"`
+}
+
+type runtimeParityAuditReportPayload struct {
+	Pass  bool                      `json:"pass"`
+	Gates []runtimeParityGateReport `json:"gates"`
+}
+
+func runtimeParityAuditReport() runtimeParityAuditReportPayload {
+	gates := []runtimeParityGateReport{
+		{
+			Name:        "TestHelloFixtureConformance",
+			Env:         "ELECTRON_GO_ENABLE_IPC_CONFORMANCE",
+			Enabled:     auditEnvEnabled("ELECTRON_GO_ENABLE_IPC_CONFORMANCE"),
+			Description: "IPC/preload hello fixture parity against official Electron",
+		},
+		{
+			Name:        "TestBenchmarkHelloFixtureConformance",
+			Env:         "ELECTRON_GO_ENABLE_RUNTIME_FIXTURE_CONFORMANCE",
+			Enabled:     auditEnvEnabled("ELECTRON_GO_ENABLE_RUNTIME_FIXTURE_CONFORMANCE"),
+			Description: "native Chromium/Node/V8 main-process fixture parity against official Electron",
+		},
+	}
+	pass := true
+	for _, gate := range gates {
+		if !gate.Enabled {
+			pass = false
+			break
+		}
+	}
+	return runtimeParityAuditReportPayload{Pass: pass, Gates: gates}
+}
+
+func auditEnvEnabled(key string) bool {
+	value := strings.TrimSpace(os.Getenv(key))
+	return value != "" && value != "0" && !strings.EqualFold(value, "false")
 }
 
 type netLogCheckReport struct {
