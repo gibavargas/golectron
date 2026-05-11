@@ -1,9 +1,9 @@
 {
   "performance": {
     "target_electron_go_over_electron": 0.5,
-    "latest_electron_go_over_electron": 0.7387543252595156,
-    "latest_run_url": "https://github.com/gibavargas/electron-go/actions/runs/25669931890",
-    "latest_commit": "c5fd858",
+    "latest_electron_go_over_electron": 0.76007326007326,
+    "latest_run_url": "https://github.com/gibavargas/electron-go/actions/runs/25671322163",
+    "latest_commit": "e724376",
     "metric": "duration_median_ms"
   }
 }
