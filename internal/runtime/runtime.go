@@ -194,10 +194,8 @@ func (r *Runtime) Run(ctx context.Context) error {
 }
 
 func (r *Runtime) startBridge(ctx context.Context, req native.StartRequest) (*native.StartResult, error) {
-	if envEnabled(r.environment, ScopedMainRunnerEnv) {
-		if bridge, ok := r.bridge.(mainPlanBridge); ok {
-			return r.startMainPlanBridge(ctx, req, bridge)
-		}
+	if bridge, ok := r.bridge.(mainPlanBridge); ok {
+		return r.startMainPlanBridge(ctx, req, bridge)
 	}
 	return r.bridge.Start(ctx, req)
 }

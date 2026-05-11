@@ -158,7 +158,7 @@ func TestRuntimeUsesMainPlanBridgeForSupportedMain(t *testing.T) {
 		AppDir:          dir,
 		ElectronVersion: "42.0.0",
 		Bridge:          bridge,
-		Environment:     []string{"ELECTRON_GO_ENABLE_SCOPED_MAIN_RUNNER=1", "ELECTRON_GO_BENCHMARK_TRACE=1", "ELECTRON_GO_STARTUP_TRACE=1"},
+		Environment:     []string{"ELECTRON_GO_BENCHMARK_TRACE=1", "ELECTRON_GO_STARTUP_TRACE=1"},
 		Out:             &out,
 	})
 
@@ -216,8 +216,8 @@ func parseStartupTrace(t *testing.T, output string) map[string]int64 {
 	return nil
 }
 
-func TestRuntimeDoesNotUseMainPlanBridgeWithoutOptIn(t *testing.T) {
-	dir := scopedMainApp(t)
+func TestRuntimeFallsBackForUnsupportedMainPlan(t *testing.T) {
+	dir := fixtureApp(t)
 	bridge := &mainPlanBridgeFake{browserID: 77}
 	rt := New(Options{
 		AppDir:          dir,
@@ -229,10 +229,10 @@ func TestRuntimeDoesNotUseMainPlanBridgeWithoutOptIn(t *testing.T) {
 		t.Fatalf("Run() error = %v", err)
 	}
 	if !bridge.startCalled {
-		t.Fatal("Bridge.Start was not called")
+		t.Fatal("Bridge.Start was not called for unsupported main script")
 	}
 	if bridge.initialized || bridge.shutdown || bridge.create.URL != "" || bridge.load.URL != "" || bridge.close.BrowserID != 0 {
-		t.Fatalf("scoped bridge path was used without opt-in: %#v", bridge)
+		t.Fatalf("scoped bridge path was used for unsupported main script: %#v", bridge)
 	}
 }
 
