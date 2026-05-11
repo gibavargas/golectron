@@ -214,13 +214,14 @@ func (r *Runtime) startMainPlanBridge(ctx context.Context, req native.StartReque
 			"cef_initialize": time.Since(stageStart).Milliseconds(),
 		}
 		stageStart = time.Now()
+		executeOffset := time.Since(traceStart).Milliseconds()
 		execResult, execErr := mainrunner.Execute(ctx, plan, bridge, mainrunner.ExecuteOptions{
 			Environment: r.environment,
 			Out:         r.out,
 		})
 		trace["mainrunner_execute"] = time.Since(stageStart).Milliseconds()
 		for key, value := range execResult.TraceMS {
-			trace[key] = value
+			trace[key] = executeOffset + value
 		}
 		stageStart = time.Now()
 		shutdownErr := bridge.Shutdown(ctx)

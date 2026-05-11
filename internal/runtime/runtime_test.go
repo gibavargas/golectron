@@ -3,12 +3,14 @@ package runtime
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gibavargas/electron-go/internal/native"
 )
@@ -187,11 +189,31 @@ func TestRuntimeUsesMainPlanBridgeForSupportedMain(t *testing.T) {
 	if !strings.Contains(out.String(), "electron-go-startup-trace:") {
 		t.Fatalf("stdout = %q, want startup trace", out.String())
 	}
+	startupTrace := parseStartupTrace(t, out.String())
+	if startupTrace["cef_initialize"] <= 0 || startupTrace["app_ready"] < startupTrace["cef_initialize"] {
+		t.Fatalf("startup trace = %#v, want app marks offset after CEF initialization", startupTrace)
+	}
 	for _, key := range []string{"cef_initialize", "mainrunner_execute", "cef_shutdown", "total_native_start"} {
 		if !strings.Contains(out.String(), `"`+key+`"`) {
 			t.Fatalf("stdout = %q, want startup trace key %q", out.String(), key)
 		}
 	}
+}
+
+func parseStartupTrace(t *testing.T, output string) map[string]int64 {
+	t.Helper()
+	const prefix = "electron-go-startup-trace: "
+	for _, line := range strings.Split(output, "\n") {
+		if strings.HasPrefix(line, prefix) {
+			var trace map[string]int64
+			if err := json.Unmarshal([]byte(strings.TrimPrefix(line, prefix)), &trace); err != nil {
+				t.Fatalf("parse startup trace %q: %v", line, err)
+			}
+			return trace
+		}
+	}
+	t.Fatalf("stdout = %q, missing startup trace", output)
+	return nil
 }
 
 func TestRuntimeDoesNotUseMainPlanBridgeWithoutOptIn(t *testing.T) {
@@ -327,6 +349,7 @@ func (b *mainPlanBridgeFake) Start(context.Context, native.StartRequest) (*nativ
 }
 
 func (b *mainPlanBridgeFake) InitializeForStart(context.Context, native.StartRequest) error {
+	time.Sleep(time.Millisecond)
 	b.initialized = true
 	return nil
 }
