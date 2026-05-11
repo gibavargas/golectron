@@ -110,25 +110,30 @@ this runner until they are implemented.
 ### Latest Linux Hello Result
 
 PR benchmark run
-`https://github.com/gibavargas/electron-go/actions/runs/25647836158` on commit
-`9bae6c4` measured the `compat/fixtures/benchmark-hello` fixture with five
-successful iterations on Ubuntu 22.04:
+`https://github.com/gibavargas/electron-go/actions/runs/25648091899` on commit
+`67c895b` measured the `compat/fixtures/benchmark-hello` fixture with five
+successful alternating-order iterations on Ubuntu 22.04:
 
-- median wall-clock startup: Electron-Go `411ms`, Electron `543ms`
-  (`electron_go_over_electron = 0.7569`, about `1.32x` faster);
-- median process-tree peak RSS: Electron-Go `249592KB`, Electron `602296KB`
-  (`electron_go_over_electron = 0.4144`, about `2.41x` lighter);
-- median root max RSS: Electron-Go `248712KB`, Electron `212644KB`
-  (`electron_go_over_electron = 1.1696`, Electron-Go is heavier for this
+- median wall-clock startup: Electron-Go `343ms`, Electron `470ms`
+  (`electron_go_over_electron = 0.7298`, about `1.37x` faster);
+- median process-tree peak RSS: Electron-Go `249388KB`, Electron `603308KB`
+  (`electron_go_over_electron = 0.4134`, about `2.42x` lighter);
+- median root max RSS: Electron-Go `248340KB`, Electron `210608KB`
+  (`electron_go_over_electron = 1.1792`, Electron-Go is heavier for this
   process-only metric).
-- Electron-Go native startup medians: `cef_initialize=149ms`,
-  `create_browser=56ms`, `message_loop=122ms`, `cef_shutdown=32ms`,
-  `total_native_start=361ms`.
+- Electron-Go native startup medians: `cef_initialize=127ms`,
+  `create_browser=45ms`, `message_loop=103ms`, `cef_shutdown=26ms`,
+  `total_native_start=302ms`.
 
 Fixture-level phase traces are diagnostic and should be collected in explicit
 trace runs. The normal headline benchmark keeps fixture tracing disabled to
 avoid adding JavaScript and console-output work to only one side of the
 comparison.
+
+The previous fixed-order default run
+`https://github.com/gibavargas/electron-go/actions/runs/25647836158` on commit
+`9bae6c4` measured Electron-Go `411ms` vs Electron `543ms`. Prefer the
+alternating-order run above for headline startup comparisons.
 
 The previous traced run
 `https://github.com/gibavargas/electron-go/actions/runs/25647216610` on commit
