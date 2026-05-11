@@ -30,6 +30,9 @@ var cefLastBrowserID atomic.Int64
 var cefLastHTTPStatus atomic.Int32
 var cefLastLoadError atomic.Int32
 var cefBrowserClosed atomic.Bool
+var cefLoadEndUnixNano atomic.Int64
+var cefLoadErrorUnixNano atomic.Int64
+var cefBeforeCloseUnixNano atomic.Int64
 
 var cefBrowserProcessSwitches = []string{
 	"--disable-background-networking",
@@ -106,6 +109,7 @@ func (b CEFBridge) Start(ctx context.Context, req StartRequest) (*StartResult, e
 		return nil, err
 	}
 	mark("message_loop", stageStart)
+	addMessageLoopTrace(trace, stageStart, time.Now())
 	stageStart = time.Now()
 	if err := shutdownCEF(ctx); err != nil {
 		return nil, err
@@ -199,6 +203,7 @@ func CheckRuntimeProcessModel(ctx context.Context, appDir string, args []string)
 	cefLastHTTPStatus.Store(0)
 	cefLastLoadError.Store(0)
 	cefBrowserClosed.Store(false)
+	resetCEFCallbackTrace()
 
 	sampler := startProcessModelSampler(os.Getpid(), 2*time.Millisecond)
 	initialized := false
@@ -384,6 +389,7 @@ func createBrowserWindow(ctx context.Context, req BrowserWindowCreateRequest) er
 	cefLastHTTPStatus.Store(0)
 	cefLastLoadError.Store(0)
 	cefBrowserClosed.Store(false)
+	resetCEFCallbackTrace()
 
 	urlView := newCStringView(req.URL)
 	defer urlView.free()
@@ -609,6 +615,30 @@ func bridgeStatusName(status C.eg_bridge_status) string {
 	}
 }
 
+func resetCEFCallbackTrace() {
+	cefLoadEndUnixNano.Store(0)
+	cefLoadErrorUnixNano.Store(0)
+	cefBeforeCloseUnixNano.Store(0)
+}
+
+func addMessageLoopTrace(trace map[string]int64, loopStart, loopEnd time.Time) {
+	loadEnd := cefLoadEndUnixNano.Load()
+	loadError := cefLoadErrorUnixNano.Load()
+	beforeClose := cefBeforeCloseUnixNano.Load()
+	if loadEnd > 0 {
+		trace["message_loop_to_load_end"] = time.Unix(0, loadEnd).Sub(loopStart).Milliseconds()
+	}
+	if loadError > 0 {
+		trace["message_loop_to_load_error"] = time.Unix(0, loadError).Sub(loopStart).Milliseconds()
+	}
+	if loadEnd > 0 && beforeClose > 0 {
+		trace["load_end_to_before_close"] = time.Unix(0, beforeClose).Sub(time.Unix(0, loadEnd)).Milliseconds()
+	}
+	if beforeClose > 0 {
+		trace["before_close_to_loop_return"] = loopEnd.Sub(time.Unix(0, beforeClose)).Milliseconds()
+	}
+}
+
 //export goOnContextInitialized
 func goOnContextInitialized() {
 	cefContextInitialized.Store(true)
@@ -624,16 +654,19 @@ func goOnBrowserLoadEnd(browserID C.int, httpStatusCode C.int) {
 	cefLastBrowserID.Store(int64(browserID))
 	cefLastHTTPStatus.Store(int32(httpStatusCode))
 	cefLastLoadError.Store(0)
+	cefLoadEndUnixNano.Store(time.Now().UnixNano())
 }
 
 //export goOnBrowserLoadError
 func goOnBrowserLoadError(browserID C.int, errorCode C.int) {
 	cefLastBrowserID.Store(int64(browserID))
 	cefLastLoadError.Store(int32(errorCode))
+	cefLoadErrorUnixNano.Store(time.Now().UnixNano())
 }
 
 //export goOnBrowserBeforeClose
 func goOnBrowserBeforeClose(browserID C.int) {
 	cefLastBrowserID.Store(int64(browserID))
 	cefBrowserClosed.Store(true)
+	cefBeforeCloseUnixNano.Store(time.Now().UnixNano())
 }
