@@ -30,6 +30,12 @@ static int g_load_complete = 0;
 static int g_load_failed = 0;
 static int g_close_requested = 0;
 static int g_browser_closed = 0;
+static int g_static_handlers_initialized = 0;
+static cef_app_t g_static_app;
+static cef_browser_process_handler_t g_static_browser_process_handler;
+static cef_client_t g_static_client;
+static cef_life_span_handler_t g_static_life_span_handler;
+static cef_load_handler_t g_static_load_handler;
 
 typedef struct eg_cef_argv_storage {
   int argc;
@@ -41,6 +47,8 @@ static void CEF_CALLBACK eg_cef_base_add_ref(
   (void)self;
 }
 
+/* Shim-owned CEF callback structs are process-lifetime singletons. They must
+ * remain immutable after initialization and must not hold per-browser state. */
 static int CEF_CALLBACK eg_cef_base_release(
     struct _cef_base_ref_counted_t* self) {
   (void)self;
@@ -68,6 +76,8 @@ static void eg_cef_init_base(cef_base_ref_counted_t* base, size_t size) {
   base->has_at_least_one_ref = eg_cef_base_has_at_least_one_ref;
 #endif
 }
+
+static void eg_cef_init_static_handlers(void);
 
 static void CEF_CALLBACK eg_cef_on_context_initialized(
     struct _cef_browser_process_handler_t* self) {
@@ -117,14 +127,8 @@ static void CEF_CALLBACK eg_cef_on_before_command_line_processing(
 }
 
 static cef_browser_process_handler_t* eg_cef_make_browser_process_handler(void) {
-  cef_browser_process_handler_t* handler =
-      (cef_browser_process_handler_t*)calloc(1, sizeof(cef_browser_process_handler_t));
-  if (!handler) {
-    return NULL;
-  }
-  eg_cef_init_base(&handler->base, sizeof(cef_browser_process_handler_t));
-  handler->on_context_initialized = eg_cef_on_context_initialized;
-  return handler;
+  eg_cef_init_static_handlers();
+  return &g_static_browser_process_handler;
 }
 
 static cef_browser_process_handler_t* CEF_CALLBACK
@@ -184,15 +188,8 @@ static void CEF_CALLBACK eg_cef_on_after_created(
 }
 
 static cef_life_span_handler_t* eg_cef_make_life_span_handler(void) {
-  cef_life_span_handler_t* handler =
-      (cef_life_span_handler_t*)calloc(1, sizeof(cef_life_span_handler_t));
-  if (!handler) {
-    return NULL;
-  }
-  eg_cef_init_base(&handler->base, sizeof(cef_life_span_handler_t));
-  handler->on_after_created = eg_cef_on_after_created;
-  handler->on_before_close = eg_cef_on_before_close;
-  return handler;
+  eg_cef_init_static_handlers();
+  return &g_static_life_span_handler;
 }
 
 static int eg_cef_is_main_frame(struct _cef_frame_t* frame) {
@@ -274,16 +271,8 @@ static void CEF_CALLBACK eg_cef_on_loading_state_change(
 }
 
 static cef_load_handler_t* eg_cef_make_load_handler(void) {
-  cef_load_handler_t* handler =
-      (cef_load_handler_t*)calloc(1, sizeof(cef_load_handler_t));
-  if (!handler) {
-    return NULL;
-  }
-  eg_cef_init_base(&handler->base, sizeof(cef_load_handler_t));
-  handler->on_loading_state_change = eg_cef_on_loading_state_change;
-  handler->on_load_end = eg_cef_on_load_end;
-  handler->on_load_error = eg_cef_on_load_error;
-  return handler;
+  eg_cef_init_static_handlers();
+  return &g_static_load_handler;
 }
 
 static cef_life_span_handler_t* CEF_CALLBACK
@@ -299,29 +288,62 @@ eg_cef_get_load_handler(struct _cef_client_t* self) {
 }
 
 static cef_client_t* eg_cef_make_client(void) {
-  cef_client_t* client = (cef_client_t*)calloc(1, sizeof(cef_client_t));
-  if (!client) {
-    return NULL;
-  }
-  eg_cef_init_base(&client->base, sizeof(cef_client_t));
+  eg_cef_init_static_handlers();
   g_life_span_handler = eg_cef_make_life_span_handler();
   g_load_handler = eg_cef_make_load_handler();
-  client->get_life_span_handler = eg_cef_get_life_span_handler;
-  client->get_load_handler = eg_cef_get_load_handler;
-  return client;
+  return &g_static_client;
 }
 
 cef_app_t* eg_cef_make_app(void) {
-  cef_app_t* app = (cef_app_t*)calloc(1, sizeof(cef_app_t));
-  if (!app) {
-    return NULL;
-  }
-  eg_cef_init_base(&app->base, sizeof(cef_app_t));
+  eg_cef_init_static_handlers();
   g_browser_process_handler = eg_cef_make_browser_process_handler();
-  app->on_before_command_line_processing =
+  return &g_static_app;
+}
+
+static void eg_cef_init_static_handlers(void) {
+  if (g_static_handlers_initialized) {
+    return;
+  }
+
+  memset(&g_static_app, 0, sizeof(g_static_app));
+  eg_cef_init_base(&g_static_app.base, sizeof(cef_app_t));
+  g_static_app.on_before_command_line_processing =
       eg_cef_on_before_command_line_processing;
-  app->get_browser_process_handler = eg_cef_get_browser_process_handler;
-  return app;
+  g_static_app.get_browser_process_handler = eg_cef_get_browser_process_handler;
+
+  memset(
+      &g_static_browser_process_handler,
+      0,
+      sizeof(g_static_browser_process_handler));
+  eg_cef_init_base(
+      &g_static_browser_process_handler.base,
+      sizeof(cef_browser_process_handler_t));
+  g_static_browser_process_handler.on_context_initialized =
+      eg_cef_on_context_initialized;
+
+  memset(&g_static_client, 0, sizeof(g_static_client));
+  eg_cef_init_base(&g_static_client.base, sizeof(cef_client_t));
+  g_static_client.get_life_span_handler = eg_cef_get_life_span_handler;
+  g_static_client.get_load_handler = eg_cef_get_load_handler;
+
+  memset(
+      &g_static_life_span_handler,
+      0,
+      sizeof(g_static_life_span_handler));
+  eg_cef_init_base(
+      &g_static_life_span_handler.base,
+      sizeof(cef_life_span_handler_t));
+  g_static_life_span_handler.on_after_created = eg_cef_on_after_created;
+  g_static_life_span_handler.on_before_close = eg_cef_on_before_close;
+
+  memset(&g_static_load_handler, 0, sizeof(g_static_load_handler));
+  eg_cef_init_base(&g_static_load_handler.base, sizeof(cef_load_handler_t));
+  g_static_load_handler.on_loading_state_change =
+      eg_cef_on_loading_state_change;
+  g_static_load_handler.on_load_end = eg_cef_on_load_end;
+  g_static_load_handler.on_load_error = eg_cef_on_load_error;
+
+  g_static_handlers_initialized = 1;
 }
 
 cef_app_t* make_cef_app(void) {
