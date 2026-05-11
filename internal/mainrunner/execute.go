@@ -22,6 +22,10 @@ type Driver interface {
 	CloseBrowserWindow(context.Context, native.BrowserWindowCloseRequest) error
 }
 
+type LoadEndScriptDriver interface {
+	SetLoadEndScript(context.Context, native.BrowserWindowScriptRequest) error
+}
+
 type ExecuteOptions struct {
 	Environment []string
 	Out         io.Writer
@@ -80,6 +84,15 @@ func Execute(ctx context.Context, plan Plan, driver Driver, opts ExecuteOptions)
 	loadURL, err := loadFileURL(plan.MainPath, plan.LoadFile)
 	if err != nil {
 		return Result{}, err
+	}
+	if plan.LoadEndScript != "" {
+		scriptDriver, ok := driver.(LoadEndScriptDriver)
+		if !ok {
+			return Result{}, fmt.Errorf("main runner driver does not support load-end scripts")
+		}
+		if err := scriptDriver.SetLoadEndScript(ctx, native.BrowserWindowScriptRequest{BrowserID: browserID, Script: plan.LoadEndScript}); err != nil {
+			return Result{}, err
+		}
 	}
 	mark("load_start")
 	if err := driver.LoadURL(ctx, native.BrowserWindowLoadRequest{BrowserID: browserID, URL: loadURL}); err != nil {

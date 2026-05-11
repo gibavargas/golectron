@@ -5,11 +5,13 @@
 #include "include/capi/cef_app_capi.h"
 #include "include/capi/cef_browser_capi.h"
 #include "include/capi/cef_client_capi.h"
+#include "include/capi/cef_display_handler_capi.h"
 #include "include/capi/cef_life_span_handler_capi.h"
 #include "include/capi/cef_load_handler_capi.h"
 #include "include/internal/cef_string.h"
 #include <limits.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -22,8 +24,10 @@ extern void goOnBrowserBeforeClose(int browser_id);
 static cef_browser_process_handler_t* g_browser_process_handler = NULL;
 static cef_life_span_handler_t* g_life_span_handler = NULL;
 static cef_load_handler_t* g_load_handler = NULL;
+static cef_display_handler_t* g_display_handler = NULL;
 static cef_client_t* g_client = NULL;
 static cef_browser_t* g_browser = NULL;
+static char* g_load_end_script = NULL;
 static int g_cef_initialized = 0;
 static int g_browser_id = 0;
 static int g_load_complete = 0;
@@ -38,6 +42,7 @@ static cef_browser_process_handler_t g_static_browser_process_handler;
 static cef_client_t g_static_client;
 static cef_life_span_handler_t g_static_life_span_handler;
 static cef_load_handler_t g_static_load_handler;
+static cef_display_handler_t g_static_display_handler;
 
 typedef struct eg_cef_argv_storage {
   int argc;
@@ -147,6 +152,11 @@ static void eg_cef_release_browser_ref(void) {
   g_browser = NULL;
 }
 
+static void eg_cef_clear_load_end_script(void) {
+  free(g_load_end_script);
+  g_load_end_script = NULL;
+}
+
 static void eg_cef_store_browser_ref(struct _cef_browser_t* browser) {
   if (!browser || browser == g_browser) {
     return;
@@ -225,8 +235,23 @@ static void CEF_CALLBACK eg_cef_on_load_end(
   if (!eg_cef_is_main_frame(frame) || g_load_complete || g_close_requested) {
     return;
   }
-  g_load_complete = 1;
   g_browser_id = eg_cef_browser_id(browser);
+  if (g_load_end_script && frame && frame->execute_java_script) {
+    cef_string_t script;
+    memset(&script, 0, sizeof(script));
+    cef_string_t script_url;
+    memset(&script_url, 0, sizeof(script_url));
+    if (cef_string_from_utf8(
+            g_load_end_script, strlen(g_load_end_script), &script)) {
+      (void)cef_string_from_ascii(
+          "electron-go://load-end-script", 29, &script_url);
+      frame->execute_java_script(frame, &script, &script_url, 0);
+      cef_string_clear(&script);
+      cef_string_clear(&script_url);
+      return;
+    }
+  }
+  g_load_complete = 1;
   goOnBrowserLoadEnd(g_browser_id, httpStatusCode);
   if (g_auto_close_on_load) {
     eg_cef_request_close_browser(browser);
@@ -267,7 +292,8 @@ static void CEF_CALLBACK eg_cef_on_loading_state_change(
   (void)self;
   (void)canGoBack;
   (void)canGoForward;
-  if (isLoading || g_load_failed || g_load_complete || g_close_requested) {
+  if (isLoading || g_load_failed || g_load_complete || g_close_requested ||
+      g_load_end_script) {
     return;
   }
   g_load_complete = 1;
@@ -285,6 +311,57 @@ static cef_load_handler_t* eg_cef_make_load_handler(void) {
   return &g_static_load_handler;
 }
 
+static int eg_cef_utf8_has_prefix(
+    const cef_string_utf8_t* message,
+    const char* prefix) {
+  if (!message || !message->str || !prefix) {
+    return 0;
+  }
+  size_t prefix_len = strlen(prefix);
+  return message->length >= prefix_len &&
+      strncmp(message->str, prefix, prefix_len) == 0;
+}
+
+static int CEF_CALLBACK eg_cef_on_console_message(
+    struct _cef_display_handler_t* self,
+    struct _cef_browser_t* browser,
+    cef_log_severity_t level,
+    const cef_string_t* message,
+    const cef_string_t* source,
+    int line) {
+  (void)self;
+  (void)level;
+  (void)source;
+  (void)line;
+  cef_string_utf8_t utf8_message;
+  memset(&utf8_message, 0, sizeof(utf8_message));
+  if (message && message->str && message->length > 0 &&
+      cef_string_to_utf8(message->str, message->length, &utf8_message)) {
+    fwrite(utf8_message.str, 1, utf8_message.length, stdout);
+    fputc('\n', stdout);
+    fflush(stdout);
+  }
+  if (g_load_end_script &&
+      eg_cef_utf8_has_prefix(&utf8_message, "fixture-result:")) {
+    g_load_complete = 1;
+    g_browser_id = eg_cef_browser_id(browser);
+    goOnBrowserLoadEnd(g_browser_id, 200);
+    eg_cef_clear_load_end_script();
+    if (g_auto_close_on_load) {
+      eg_cef_request_close_browser(browser);
+    } else if (g_quit_loop_on_load) {
+      cef_quit_message_loop();
+    }
+  }
+  cef_string_utf8_clear(&utf8_message);
+  return 1;
+}
+
+static cef_display_handler_t* eg_cef_make_display_handler(void) {
+  eg_cef_init_static_handlers();
+  return &g_static_display_handler;
+}
+
 static cef_life_span_handler_t* CEF_CALLBACK
 eg_cef_get_life_span_handler(struct _cef_client_t* self) {
   (void)self;
@@ -297,10 +374,17 @@ eg_cef_get_load_handler(struct _cef_client_t* self) {
   return g_load_handler;
 }
 
+static cef_display_handler_t* CEF_CALLBACK
+eg_cef_get_display_handler(struct _cef_client_t* self) {
+  (void)self;
+  return g_display_handler;
+}
+
 static cef_client_t* eg_cef_make_client(void) {
   eg_cef_init_static_handlers();
   g_life_span_handler = eg_cef_make_life_span_handler();
   g_load_handler = eg_cef_make_load_handler();
+  g_display_handler = eg_cef_make_display_handler();
   return &g_static_client;
 }
 
@@ -335,6 +419,7 @@ static void eg_cef_init_static_handlers(void) {
   eg_cef_init_base(&g_static_client.base, sizeof(cef_client_t));
   g_static_client.get_life_span_handler = eg_cef_get_life_span_handler;
   g_static_client.get_load_handler = eg_cef_get_load_handler;
+  g_static_client.get_display_handler = eg_cef_get_display_handler;
 
   memset(
       &g_static_life_span_handler,
@@ -352,6 +437,12 @@ static void eg_cef_init_static_handlers(void) {
       eg_cef_on_loading_state_change;
   g_static_load_handler.on_load_end = eg_cef_on_load_end;
   g_static_load_handler.on_load_error = eg_cef_on_load_error;
+
+  memset(&g_static_display_handler, 0, sizeof(g_static_display_handler));
+  eg_cef_init_base(
+      &g_static_display_handler.base,
+      sizeof(cef_display_handler_t));
+  g_static_display_handler.on_console_message = eg_cef_on_console_message;
 
   g_static_handlers_initialized = 1;
 }
@@ -483,6 +574,7 @@ static void eg_cef_reset_browser_state(void) {
   g_browser_closed = 0;
   g_auto_close_on_load = 1;
   g_quit_loop_on_load = 0;
+  eg_cef_clear_load_end_script();
   eg_cef_release_browser_ref();
 }
 
@@ -697,6 +789,36 @@ eg_bridge_status eg_cef_shim_close_browser(
   return EG_BRIDGE_STATUS_RUNNING;
 }
 
+eg_bridge_status eg_cef_shim_set_load_end_script(
+    eg_bridge_handle bridge,
+    const eg_browser_window_script_request* request) {
+  (void)bridge;
+  if (!request || request->abi_revision != EG_BRIDGE_ABI_REVISION ||
+      request->browser_id <= 0) {
+    return EG_BRIDGE_STATUS_INVALID_REQUEST;
+  }
+  if (!g_cef_initialized || !g_browser || !g_browser->get_identifier) {
+    return EG_BRIDGE_STATUS_FAILED;
+  }
+  if (g_browser->get_identifier(g_browser) != request->browser_id) {
+    return EG_BRIDGE_STATUS_INVALID_REQUEST;
+  }
+  eg_cef_clear_load_end_script();
+  if (!request->script.data || request->script.len == 0) {
+    return EG_BRIDGE_STATUS_RUNNING;
+  }
+  if (request->script.len > (uint64_t)SIZE_MAX - 1) {
+    return EG_BRIDGE_STATUS_INVALID_REQUEST;
+  }
+  g_load_end_script = (char*)malloc((size_t)request->script.len + 1);
+  if (!g_load_end_script) {
+    return EG_BRIDGE_STATUS_FAILED;
+  }
+  memcpy(g_load_end_script, request->script.data, (size_t)request->script.len);
+  g_load_end_script[(size_t)request->script.len] = '\0';
+  return EG_BRIDGE_STATUS_RUNNING;
+}
+
 eg_bridge_status eg_cef_shim_run_message_loop(eg_bridge_handle bridge) {
   (void)bridge;
   if (!g_cef_initialized) {
@@ -730,6 +852,7 @@ eg_bridge_status eg_cef_shim_run_message_loop_until_load(
 
 eg_bridge_status eg_cef_shim_shutdown(eg_bridge_handle bridge) {
   (void)bridge;
+  eg_cef_clear_load_end_script();
   eg_cef_release_browser_ref();
   if (g_cef_initialized) {
     cef_shutdown();
@@ -784,6 +907,14 @@ eg_bridge_status eg_cef_shim_load_url(
 eg_bridge_status eg_cef_shim_close_browser(
     eg_bridge_handle bridge,
     const eg_browser_window_close_request* request) {
+  (void)bridge;
+  (void)request;
+  return EG_BRIDGE_STATUS_UNAVAILABLE;
+}
+
+eg_bridge_status eg_cef_shim_set_load_end_script(
+    eg_bridge_handle bridge,
+    const eg_browser_window_script_request* request) {
   (void)bridge;
   (void)request;
   return EG_BRIDGE_STATUS_UNAVAILABLE;

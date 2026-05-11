@@ -32,8 +32,11 @@ func TestHelloFixtureConformance(t *testing.T) {
 	if electron.ExitCode != electronGo.ExitCode {
 		t.Fatalf("exit code mismatch: electron=%d electron-go=%d\nElectron-Go output:\n%s", electron.ExitCode, electronGo.ExitCode, electronGo.Output)
 	}
-	if !strings.Contains(electronGo.Output, "pong") && strings.Contains(electron.Output, "pong") {
-		t.Fatalf("Electron-Go did not produce fixture IPC result found in Electron output")
+	if !strings.Contains(electron.Output, "fixture-result: pong") {
+		t.Fatalf("official Electron did not produce fixture IPC result\nOutput:\n%s", electron.Output)
+	}
+	if !strings.Contains(electronGo.Output, "fixture-result: pong") {
+		t.Fatalf("Electron-Go did not produce fixture IPC result found in Electron output\nElectron-Go output:\n%s", electronGo.Output)
 	}
 }
 

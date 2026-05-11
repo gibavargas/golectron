@@ -104,6 +104,10 @@ func (b CEFBridge) CloseBrowserWindow(ctx context.Context, req BrowserWindowClos
 	return runMessageLoop(ctx)
 }
 
+func (b CEFBridge) SetLoadEndScript(ctx context.Context, req BrowserWindowScriptRequest) error {
+	return setBrowserWindowLoadEndScript(ctx, req)
+}
+
 func (b CEFBridge) Start(ctx context.Context, req StartRequest) (*StartResult, error) {
 	traceStart := time.Now()
 	trace := map[string]int64{}
@@ -512,6 +516,34 @@ func closeBrowserWindow(ctx context.Context, req BrowserWindowCloseRequest) erro
 	status := C.eg_cef_shim_close_browser(nil, cReq)
 	if status != C.EG_BRIDGE_STATUS_RUNNING {
 		return fmt.Errorf("CEF BrowserWindow close failed: status=%s", bridgeStatusName(status))
+	}
+	return nil
+}
+
+func setBrowserWindowLoadEndScript(ctx context.Context, req BrowserWindowScriptRequest) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	req = NormalizeBrowserWindowScriptRequest(req)
+	if err := ValidateBrowserWindowScriptRequest(req); err != nil {
+		return err
+	}
+
+	scriptView := newCStringView(req.Script)
+	defer scriptView.free()
+
+	cReq := (*C.eg_browser_window_script_request)(C.calloc(1, C.size_t(unsafe.Sizeof(C.eg_browser_window_script_request{}))))
+	if cReq == nil {
+		return fmt.Errorf("allocate browser window script request")
+	}
+	defer C.free(unsafe.Pointer(cReq))
+	cReq.abi_revision = C.uint32_t(req.ABIRevision)
+	cReq.browser_id = C.int64_t(req.BrowserID)
+	cReq.script = scriptView.view
+
+	status := C.eg_cef_shim_set_load_end_script(nil, cReq)
+	if status != C.EG_BRIDGE_STATUS_RUNNING {
+		return fmt.Errorf("CEF BrowserWindow set load-end script failed: status=%s", bridgeStatusName(status))
 	}
 	return nil
 }

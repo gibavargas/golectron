@@ -14,6 +14,11 @@ async function main() {
   });
 
   ipcMain.handle('fixture:ping', () => 'pong');
+  ipcMain.on('fixture:done', (_event, result) => {
+    console.log(`fixture-result: ${result}`);
+    win.close();
+    app.quit();
+  });
   await win.loadFile('index.html');
 }
 

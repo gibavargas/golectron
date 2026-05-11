@@ -109,6 +109,15 @@ jobs:
           ELECTRON_GO_BENCHMARK_TRACE: "1"
         run: xvfb-run -a go test ./compat -run TestBenchmarkHelloFixtureConformance -count=1 -v
 
+      - name: Run scoped hello IPC preload conformance gate
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          ELECTRON_BIN: /tmp/electron-go-conformance/node_modules/.bin/electron
+          ELECTRON_GO_BIN: ${{ github.workspace }}/bin/electron-go
+          ELECTRON_GO_ENABLE_IPC_CONFORMANCE: "1"
+          ELECTRON_GO_ENABLE_SCOPED_MAIN_RUNNER: "1"
+        run: xvfb-run -a go test ./compat -run TestHelloFixtureConformance -count=1 -v
+
       - name: Verify Electron-Go runtime process model
         run: xvfb-run -a timeout 30 bin/electron-go --process-model-check compat/fixtures/benchmark-hello
 

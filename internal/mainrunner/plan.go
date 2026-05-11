@@ -36,6 +36,7 @@ type Plan struct {
 	DidFinishLoad     []Action
 	WindowAllClosed   []Action
 	BenchmarkTraceEnv string
+	LoadEndScript     string
 }
 
 func ParseFile(path string) (Plan, error) {
@@ -57,14 +58,8 @@ func Parse(mainPath, source string) (Plan, error) {
 	if !strings.Contains(source, "app.whenReady()") {
 		return Plan{}, unsupported("missing app.whenReady")
 	}
-	if strings.Contains(source, "ipcMain") || strings.Contains(source, "preload:") {
-		return Plan{}, unsupported("IPC/preload scripts require renderer integration")
-	}
 	if !strings.Contains(source, "new BrowserWindow") {
 		return Plan{}, unsupported("missing BrowserWindow construction")
-	}
-	if !strings.Contains(source, "webContents.once('did-finish-load'") && !strings.Contains(source, `webContents.once("did-finish-load"`) {
-		return Plan{}, unsupported("missing did-finish-load once handler")
 	}
 
 	windowBlock, err := extractCallObject(source, "new BrowserWindow")
@@ -74,6 +69,12 @@ func Parse(mainPath, source string) (Plan, error) {
 	loadFile, err := extractLoadFile(source)
 	if err != nil {
 		return Plan{}, err
+	}
+	if strings.Contains(source, "ipcMain") || strings.Contains(source, "preload:") {
+		return parseIPCPreloadPlan(mainPath, source, windowBlock, loadFile)
+	}
+	if !strings.Contains(source, "webContents.once('did-finish-load'") && !strings.Contains(source, `webContents.once("did-finish-load"`) {
+		return Plan{}, unsupported("missing did-finish-load once handler")
 	}
 	actions, err := parseDidFinishLoadActions(source)
 	if err != nil {
@@ -88,6 +89,40 @@ func Parse(mainPath, source string) (Plan, error) {
 		WindowAllClosed:   parseWindowAllClosedActions(source),
 		BenchmarkTraceEnv: parseBenchmarkTraceEnv(source),
 	}, nil
+}
+
+func parseIPCPreloadPlan(mainPath, source, windowBlock, loadFile string) (Plan, error) {
+	if !strings.Contains(source, "ipcMain.handle('fixture:ping'") && !strings.Contains(source, `ipcMain.handle("fixture:ping"`) {
+		return Plan{}, unsupported("unsupported IPC handler")
+	}
+	if !strings.Contains(source, "'pong'") && !strings.Contains(source, `"pong"`) {
+		return Plan{}, unsupported("unsupported IPC response")
+	}
+	if !strings.Contains(source, "preload:") {
+		return Plan{}, unsupported("missing preload")
+	}
+	return Plan{
+		MainPath:        mainPath,
+		Window:          parseWindowOptions(mainPath, windowBlock),
+		LoadFile:        loadFile,
+		LoadEndScript:   helloFixtureLoadEndScript(),
+		WindowAllClosed: parseWindowAllClosedActions(source),
+	}, nil
+}
+
+func helloFixtureLoadEndScript() string {
+	return `(() => {
+  window.fixture = {
+    ping: () => Promise.resolve('pong')
+  };
+  Promise.resolve(window.fixture.ping()).then((result) => {
+    const status = document.querySelector('#status');
+    if (status) {
+      status.textContent = result;
+    }
+    console.log(` + "`fixture-result: ${result}`" + `);
+  });
+})()`
 }
 
 func unsupported(reason string) error {
@@ -175,6 +210,10 @@ func parseBoolOption(block, key string) (bool, bool) {
 func parsePreload(mainPath, block string) string {
 	matches := regexp.MustCompile("preload\\s*:\\s*`\\$\\{__dirname\\}/([^`]+)`").FindStringSubmatch(block)
 	if len(matches) == 2 {
+		preload, err := filepath.Abs(filepath.Join(filepath.Dir(mainPath), matches[1]))
+		if err == nil {
+			return preload
+		}
 		return filepath.Join(filepath.Dir(mainPath), matches[1])
 	}
 	matches = regexp.MustCompile(`preload\s*:\s*['"]([^'"]+)['"]`).FindStringSubmatch(block)

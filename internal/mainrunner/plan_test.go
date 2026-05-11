@@ -3,6 +3,7 @@ package mainrunner
 import (
 	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gibavargas/electron-go/internal/browserwindow"
@@ -42,11 +43,20 @@ func TestParseBenchmarkHelloPlan(t *testing.T) {
 	assertAction(t, plan.WindowAllClosed, ActionQuitApp, "")
 }
 
-func TestParseRejectsIPCPreloadFixture(t *testing.T) {
+func TestParseHelloIPCPreloadPlan(t *testing.T) {
 	mainPath := filepath.Join("..", "..", "compat", "fixtures", "hello", "main.js")
-	_, err := ParseFile(mainPath)
-	if !errors.Is(err, ErrUnsupportedScript) {
-		t.Fatalf("ParseFile() error = %v, want ErrUnsupportedScript", err)
+	plan, err := ParseFile(mainPath)
+	if err != nil {
+		t.Fatalf("ParseFile() error = %v", err)
+	}
+	if plan.LoadFile != "index.html" {
+		t.Fatalf("LoadFile = %q, want index.html", plan.LoadFile)
+	}
+	if plan.Window.WebPreferences.Preload == "" {
+		t.Fatalf("preload path is empty")
+	}
+	if plan.LoadEndScript == "" || !strings.Contains(plan.LoadEndScript, "fixture-result") {
+		t.Fatalf("LoadEndScript = %q, want fixture-result injection", plan.LoadEndScript)
 	}
 }
 

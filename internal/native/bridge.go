@@ -83,6 +83,12 @@ type BrowserWindowCloseRequest struct {
 	BrowserID   int64
 }
 
+type BrowserWindowScriptRequest struct {
+	ABIRevision uint32
+	BrowserID   int64
+	Script      string
+}
+
 type SubprocessExecutionResult struct {
 	ExitCode int
 	Status   Status
@@ -219,6 +225,19 @@ func ValidateBrowserWindowCloseRequest(req BrowserWindowCloseRequest) error {
 	return nil
 }
 
+func ValidateBrowserWindowScriptRequest(req BrowserWindowScriptRequest) error {
+	if err := validateABIRevision(req.ABIRevision); err != nil {
+		return err
+	}
+	if req.BrowserID <= 0 {
+		return fmt.Errorf("browser ID must be positive")
+	}
+	if strings.TrimSpace(req.Script) == "" {
+		return fmt.Errorf("browser window script is required")
+	}
+	return nil
+}
+
 func NormalizeStartRequest(req StartRequest) StartRequest {
 	if req.ABIRevision == 0 {
 		req.ABIRevision = CurrentABIRevision
@@ -248,6 +267,13 @@ func NormalizeBrowserWindowLoadRequest(req BrowserWindowLoadRequest) BrowserWind
 }
 
 func NormalizeBrowserWindowCloseRequest(req BrowserWindowCloseRequest) BrowserWindowCloseRequest {
+	if req.ABIRevision == 0 {
+		req.ABIRevision = CurrentABIRevision
+	}
+	return req
+}
+
+func NormalizeBrowserWindowScriptRequest(req BrowserWindowScriptRequest) BrowserWindowScriptRequest {
 	if req.ABIRevision == 0 {
 		req.ABIRevision = CurrentABIRevision
 	}

@@ -49,6 +49,28 @@ func TestExecuteRunsBenchmarkPlanThroughDriver(t *testing.T) {
 	}
 }
 
+func TestExecuteInstallsHelloLoadEndScript(t *testing.T) {
+	plan, err := ParseFile("../../compat/fixtures/hello/main.js")
+	if err != nil {
+		t.Fatalf("ParseFile() error = %v", err)
+	}
+	driver := &fakeDriver{browserID: 42}
+
+	result, err := Execute(context.Background(), plan, driver, ExecuteOptions{})
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	if result.BrowserID != 42 || result.ExitCode != 0 {
+		t.Fatalf("result = %#v, want browser 42 exit 0", result)
+	}
+	if !strings.Contains(driver.script.Script, "fixture-result") {
+		t.Fatalf("script request = %#v, want fixture-result script", driver.script)
+	}
+	if driver.script.BrowserID != 42 {
+		t.Fatalf("script BrowserID = %d, want 42", driver.script.BrowserID)
+	}
+}
+
 func TestExecuteRequiresDriver(t *testing.T) {
 	_, err := Execute(context.Background(), Plan{}, nil, ExecuteOptions{})
 	if err == nil {
@@ -61,6 +83,7 @@ type fakeDriver struct {
 	create    native.BrowserWindowCreateRequest
 	load      native.BrowserWindowLoadRequest
 	close     native.BrowserWindowCloseRequest
+	script    native.BrowserWindowScriptRequest
 }
 
 func (d *fakeDriver) CreateBrowserWindow(_ context.Context, req native.BrowserWindowCreateRequest) (int64, error) {
@@ -75,6 +98,11 @@ func (d *fakeDriver) LoadURL(_ context.Context, req native.BrowserWindowLoadRequ
 
 func (d *fakeDriver) CloseBrowserWindow(_ context.Context, req native.BrowserWindowCloseRequest) error {
 	d.close = req
+	return nil
+}
+
+func (d *fakeDriver) SetLoadEndScript(_ context.Context, req native.BrowserWindowScriptRequest) error {
+	d.script = req
 	return nil
 }
 
