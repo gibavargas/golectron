@@ -127,7 +127,7 @@ func buildObjectivePackets(statuses, areas, ids map[string]bool) []packet {
 			Area:        "objective-performance",
 			Status:      string(compat.StatusPartial),
 			Evidence:    []string{"docs/benchmarks.md", "cmd/electron-go/goal_evidence.json", "tools/goalevidence", "cmd/electron-go --goal-audit"},
-			Notes:       "Latest tracked duration_median_ms ratio is 0.7735 on the scoped runtime path; the objective requires electron_go_over_electron <= 0.5 with full runtime parity still intact.",
+			Notes:       "Latest tracked duration_median_ms ratio is 0.7772 on the scoped runtime path; the objective requires electron_go_over_electron <= 0.5 with full runtime parity still intact.",
 			E2ERequired: true,
 			Acceptance: []string{
 				"Run a published alternating-order benchmark artifact against official Electron and Electron-Go with full runtime parity enabled.",
