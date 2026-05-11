@@ -646,6 +646,7 @@ eg_bridge_status eg_cef_shim_initialize(
   memset(&settings, 0, sizeof(settings));
   settings.size = sizeof(settings);
   settings.no_sandbox = request->settings.no_sandbox ? 1 : 0;
+  settings.disable_signal_handlers = 1;
   settings.log_severity =
       eg_cef_to_log_severity(request->settings.log_severity);
   if (!eg_cef_set_cef_string(
