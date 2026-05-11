@@ -116,15 +116,19 @@ this runner until they are implemented.
 ### Latest Linux Hello Result
 
 PR benchmark run
-`https://github.com/gibavargas/electron-go/actions/runs/25648608061` on commit
-`b85dbcd` measured the `compat/fixtures/benchmark-hello` fixture with five
+`https://github.com/gibavargas/electron-go/actions/runs/25648847257` on commit
+`9cccf56` measured the `compat/fixtures/benchmark-hello` fixture with five
 successful alternating-order iterations on Ubuntu 22.04:
 
-- median wall-clock startup: Electron-Go `347ms`, Electron `426ms`
-  (`electron_go_over_electron = 0.8146`, about `1.23x` faster);
-- median process-tree peak RSS: Electron-Go `251016KB`, Electron `599868KB`
-  (`electron_go_over_electron = 0.4185`, about `2.39x` lighter);
-- median root max RSS: Electron-Go `249992KB`, Electron `213624KB`
+- median wall-clock startup: Electron-Go `420ms`, Electron `568ms`
+  (`electron_go_over_electron = 0.7394`, about `1.35x` faster);
+- median paired wall-clock startup ratio:
+  `electron_go_over_electron_median = 0.7509` across five successful pairs;
+- median process-tree peak RSS: Electron-Go `249952KB`, Electron `604220KB`
+  (`electron_go_over_electron = 0.4137`, about `2.42x` lighter);
+- paired process-tree peak RSS ratio:
+  `electron_go_over_electron_median = 0.4144` across five successful pairs;
+- median root max RSS: Electron-Go `248828KB`, Electron `212640KB`
   (`electron_go_over_electron = 1.1702`, Electron-Go is heavier for this
   process-only metric).
 - separate Electron-Go startup-trace medians: `cef_initialize=120ms`,
@@ -137,6 +141,11 @@ keeps runtime-specific tracing disabled to avoid adding console-output work to
 only one side of the comparison.
 
 The previous alternating-order run
+`https://github.com/gibavargas/electron-go/actions/runs/25648608061` on commit
+`b85dbcd` measured Electron-Go `347ms` vs Electron `426ms` after quieting normal
+Electron-Go runtime status output.
+
+The earlier alternating-order run
 `https://github.com/gibavargas/electron-go/actions/runs/25648373123` on commit
 `75e0f25` measured Electron-Go `437ms` vs Electron `570ms` after startup traces
 were split into a separate diagnostic artifact.
