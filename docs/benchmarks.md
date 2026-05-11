@@ -83,7 +83,10 @@ The runner currently records:
 - optional CI gating with `--require-faster` for specific lower-is-better
   metrics.
 - optional fixture-level `benchmark-trace:` phase timings emitted by benchmark
-  fixtures, such as app readiness, window creation, load start, and load finish.
+  fixtures, such as app readiness, window creation, load start, and load finish,
+  when the runtime executes the benchmark fixture main script;
+- median summaries for Electron-Go native startup traces and any emitted
+  fixture-level benchmark traces.
 
 It does not yet measure time to first visible paint, IPC latency, idle CPU,
 package size, binary size, or build/package time. Do not cite those metrics from
@@ -92,17 +95,30 @@ this runner until they are implemented.
 ### Latest Linux Hello Result
 
 PR benchmark run
-`https://github.com/gibavargas/electron-go/actions/runs/25645023440` on commit
-`e4756dd` measured the `compat/fixtures/benchmark-hello` fixture with five
+`https://github.com/gibavargas/electron-go/actions/runs/25647008742` on commit
+`b5ea164` measured the `compat/fixtures/benchmark-hello` fixture with five
 successful iterations on Ubuntu 22.04:
 
-- median wall-clock startup: Electron-Go `339ms`, Electron `476ms`
-  (`electron_go_over_electron = 0.7122`, about `1.40x` faster);
-- median process-tree peak RSS: Electron-Go `248820KB`, Electron `592144KB`
-  (`electron_go_over_electron = 0.4202`, about `2.38x` lighter);
-- median root max RSS: Electron-Go `247716KB`, Electron `212584KB`
-  (`electron_go_over_electron = 1.1653`, Electron-Go is heavier for this
+- median wall-clock startup: Electron-Go `421ms`, Electron `536ms`
+  (`electron_go_over_electron = 0.7854`, about `1.27x` faster);
+- median process-tree peak RSS: Electron-Go `250004KB`, Electron `579060KB`
+  (`electron_go_over_electron = 0.4317`, about `2.32x` lighter);
+- median root max RSS: Electron-Go `249384KB`, Electron `211576KB`
+  (`electron_go_over_electron = 1.1787`, Electron-Go is heavier for this
   process-only metric).
+- Electron-Go native startup medians: `cef_initialize=149ms`,
+  `create_browser=55ms`, `message_loop=130ms`, `cef_shutdown=32ms`,
+  `total_native_start=370ms`;
+- official Electron fixture trace medians: `app_ready=103ms`,
+  `window_created=166ms`, `load_start=166ms`, `did_finish_load=267ms`,
+  `quit_requested=268ms`.
+
+The earlier PR benchmark run
+`https://github.com/gibavargas/electron-go/actions/runs/25645023440` on commit
+`e4756dd` measured Electron-Go `339ms` vs Electron `476ms` before benchmark
+phase-trace summaries were added. Keep comparing optimization candidates against
+the current benchmark artifact shape rather than mixing pre-trace and post-trace
+claims.
 
 This is a measured startup improvement, but it is not yet the 50% faster target.
 Keep tracking startup work against the raw benchmark artifact rather than
