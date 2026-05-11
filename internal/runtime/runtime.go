@@ -9,6 +9,7 @@ import (
 	"os"
 	goruntime "runtime"
 	"strings"
+	"time"
 
 	"github.com/gibavargas/electron-go/internal/appmeta"
 	"github.com/gibavargas/electron-go/internal/mainrunner"
@@ -95,8 +96,8 @@ func ExecuteSubprocess(ctx context.Context, hook SubprocessHook, args []string, 
 		return SubprocessResult{}, nil
 	}
 	return hook(ctx, SubprocessRequest{
-		Args:        append([]string(nil), args...),
-		Environment: append([]string(nil), environment...),
+		Args:        args,
+		Environment: environment,
 	})
 }
 
@@ -204,14 +205,27 @@ func (r *Runtime) startBridge(ctx context.Context, req native.StartRequest) (*na
 func (r *Runtime) startMainPlanBridge(ctx context.Context, req native.StartRequest, bridge mainPlanBridge) (*native.StartResult, error) {
 	plan, err := mainrunner.ParseFile(req.MainPath)
 	if err == nil {
+		traceStart := time.Now()
+		stageStart := traceStart
 		if err := bridge.InitializeForStart(ctx, req); err != nil {
 			return nil, err
 		}
+		trace := map[string]int64{
+			"cef_initialize": time.Since(stageStart).Milliseconds(),
+		}
+		stageStart = time.Now()
 		execResult, execErr := mainrunner.Execute(ctx, plan, bridge, mainrunner.ExecuteOptions{
 			Environment: r.environment,
 			Out:         r.out,
 		})
+		trace["mainrunner_execute"] = time.Since(stageStart).Milliseconds()
+		for key, value := range execResult.TraceMS {
+			trace[key] = value
+		}
+		stageStart = time.Now()
 		shutdownErr := bridge.Shutdown(ctx)
+		trace["cef_shutdown"] = time.Since(stageStart).Milliseconds()
+		trace["total_native_start"] = time.Since(traceStart).Milliseconds()
 		if execErr != nil {
 			return nil, execErr
 		}
@@ -224,7 +238,7 @@ func (r *Runtime) startMainPlanBridge(ctx context.Context, req native.StartReque
 			Status:         native.StatusStopped,
 			BridgeRevision: fmt.Sprintf("abi-%d-mainrunner", native.CurrentABIRevision),
 			Platform:       goruntime.GOOS,
-			StartupTraceMS: execResult.TraceMS,
+			StartupTraceMS: trace,
 		}, nil
 	}
 	if !errors.Is(err, mainrunner.ErrUnsupportedScript) {

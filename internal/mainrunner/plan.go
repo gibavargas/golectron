@@ -39,6 +39,19 @@ type Plan struct {
 	LoadEndScript     string
 }
 
+var (
+	loadFilePattern          = regexp.MustCompile(`\bloadFile\(\s*['"]([^'"]+)['"]\s*\)`)
+	widthOptionPattern       = regexp.MustCompile(`\bwidth\s*:\s*([0-9]+)\b`)
+	heightOptionPattern      = regexp.MustCompile(`\bheight\s*:\s*([0-9]+)\b`)
+	showOptionPattern        = regexp.MustCompile(`\bshow\s*:\s*(true|false)\b`)
+	contextIsolationPattern  = regexp.MustCompile(`\bcontextIsolation\s*:\s*(true|false)\b`)
+	sandboxOptionPattern     = regexp.MustCompile(`\bsandbox\s*:\s*(true|false)\b`)
+	templatePreloadPattern   = regexp.MustCompile("preload\\s*:\\s*`\\$\\{__dirname\\}/([^`]+)`")
+	absolutePreloadPattern   = regexp.MustCompile(`preload\s*:\s*['"]([^'"]+)['"]`)
+	markCallPattern          = regexp.MustCompile(`mark\(\s*['"]([^'"]+)['"]\s*\)`)
+	benchmarkTraceEnvPattern = regexp.MustCompile(`process\.env\.([A-Z0-9_]+)\s*===\s*['"]1['"]`)
+)
+
 func ParseFile(path string) (Plan, error) {
 	source, err := os.ReadFile(path)
 	if err != nil {
@@ -155,7 +168,7 @@ func extractCallObject(source, call string) (string, error) {
 }
 
 func extractLoadFile(source string) (string, error) {
-	matches := regexp.MustCompile(`\bloadFile\(\s*['"]([^'"]+)['"]\s*\)`).FindStringSubmatch(source)
+	matches := loadFilePattern.FindStringSubmatch(source)
 	if len(matches) != 2 {
 		return "", unsupported("missing loadFile")
 	}
@@ -167,16 +180,16 @@ func extractLoadFile(source string) (string, error) {
 
 func parseWindowOptions(mainPath, block string) browserwindow.ConstructorOptions {
 	opts := browserwindow.ConstructorOptions{
-		Width:  intPtr(parseIntOption(block, "width", browserwindow.DefaultWidth)),
-		Height: intPtr(parseIntOption(block, "height", browserwindow.DefaultHeight)),
+		Width:  intPtr(parseIntOption(block, widthOptionPattern, browserwindow.DefaultWidth)),
+		Height: intPtr(parseIntOption(block, heightOptionPattern, browserwindow.DefaultHeight)),
 	}
-	if show, ok := parseBoolOption(block, "show"); ok {
+	if show, ok := parseBoolOption(block, showOptionPattern); ok {
 		opts.Show = &show
 	}
-	if contextIsolation, ok := parseBoolOption(block, "contextIsolation"); ok {
+	if contextIsolation, ok := parseBoolOption(block, contextIsolationPattern); ok {
 		opts.WebPreferences.ContextIsolation = &contextIsolation
 	}
-	if sandbox, ok := parseBoolOption(block, "sandbox"); ok {
+	if sandbox, ok := parseBoolOption(block, sandboxOptionPattern); ok {
 		opts.WebPreferences.Sandbox = sandbox
 	}
 	if preload := parsePreload(mainPath, block); preload != "" {
@@ -185,8 +198,7 @@ func parseWindowOptions(mainPath, block string) browserwindow.ConstructorOptions
 	return opts
 }
 
-func parseIntOption(block, key string, fallback int) int {
-	pattern := regexp.MustCompile(`\b` + regexp.QuoteMeta(key) + `\s*:\s*([0-9]+)\b`)
+func parseIntOption(block string, pattern *regexp.Regexp, fallback int) int {
 	matches := pattern.FindStringSubmatch(block)
 	if len(matches) != 2 {
 		return fallback
@@ -198,8 +210,7 @@ func parseIntOption(block, key string, fallback int) int {
 	return value
 }
 
-func parseBoolOption(block, key string) (bool, bool) {
-	pattern := regexp.MustCompile(`\b` + regexp.QuoteMeta(key) + `\s*:\s*(true|false)\b`)
+func parseBoolOption(block string, pattern *regexp.Regexp) (bool, bool) {
 	matches := pattern.FindStringSubmatch(block)
 	if len(matches) != 2 {
 		return false, false
@@ -208,7 +219,7 @@ func parseBoolOption(block, key string) (bool, bool) {
 }
 
 func parsePreload(mainPath, block string) string {
-	matches := regexp.MustCompile("preload\\s*:\\s*`\\$\\{__dirname\\}/([^`]+)`").FindStringSubmatch(block)
+	matches := templatePreloadPattern.FindStringSubmatch(block)
 	if len(matches) == 2 {
 		preload, err := filepath.Abs(filepath.Join(filepath.Dir(mainPath), matches[1]))
 		if err == nil {
@@ -216,7 +227,7 @@ func parsePreload(mainPath, block string) string {
 		}
 		return filepath.Join(filepath.Dir(mainPath), matches[1])
 	}
-	matches = regexp.MustCompile(`preload\s*:\s*['"]([^'"]+)['"]`).FindStringSubmatch(block)
+	matches = absolutePreloadPattern.FindStringSubmatch(block)
 	if len(matches) == 2 && filepath.IsAbs(matches[1]) {
 		return matches[1]
 	}
@@ -230,7 +241,7 @@ func parseDidFinishLoadActions(source string) ([]Action, error) {
 	}
 	rest := source[start:]
 	actions := make([]Action, 0, 4)
-	for _, name := range regexp.MustCompile(`mark\(\s*['"]([^'"]+)['"]\s*\)`).FindAllStringSubmatch(rest, -1) {
+	for _, name := range markCallPattern.FindAllStringSubmatch(rest, -1) {
 		if len(name) == 2 {
 			actions = append(actions, Action{Kind: ActionMark, Name: name[1]})
 		}
@@ -266,7 +277,7 @@ func parseWindowAllClosedActions(source string) []Action {
 }
 
 func parseBenchmarkTraceEnv(source string) string {
-	matches := regexp.MustCompile(`process\.env\.([A-Z0-9_]+)\s*===\s*['"]1['"]`).FindStringSubmatch(source)
+	matches := benchmarkTraceEnvPattern.FindStringSubmatch(source)
 	if len(matches) == 2 {
 		return matches[1]
 	}

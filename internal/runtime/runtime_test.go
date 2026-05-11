@@ -187,6 +187,11 @@ func TestRuntimeUsesMainPlanBridgeForSupportedMain(t *testing.T) {
 	if !strings.Contains(out.String(), "electron-go-startup-trace:") {
 		t.Fatalf("stdout = %q, want startup trace", out.String())
 	}
+	for _, key := range []string{"cef_initialize", "mainrunner_execute", "cef_shutdown", "total_native_start"} {
+		if !strings.Contains(out.String(), `"`+key+`"`) {
+			t.Fatalf("stdout = %q, want startup trace key %q", out.String(), key)
+		}
+	}
 }
 
 func TestRuntimeDoesNotUseMainPlanBridgeWithoutOptIn(t *testing.T) {
