@@ -49,14 +49,25 @@ func TestBenchmarkHelloFixtureConformance(t *testing.T) {
 	}
 
 	fixture := filepath.Join("fixtures", "benchmark-hello")
-	electron := runFixture(t, electronBin, fixture)
-	electronGo := runFixture(t, electronGoBin, fixture)
+	traceEnv := []string{"ELECTRON_GO_BENCHMARK_TRACE=1"}
+	electron := runFixtureWithEnv(t, electronBin, fixture, traceEnv...)
+	electronGo := runFixtureWithEnv(t, electronGoBin, fixture, traceEnv...)
 
 	if electron.ExitCode != 0 {
 		t.Fatalf("official Electron fixture exit code = %d\nOutput:\n%s", electron.ExitCode, electron.Output)
 	}
 	if electronGo.ExitCode != 0 {
 		t.Fatalf("Electron-Go fixture exit code = %d\nOutput:\n%s", electronGo.ExitCode, electronGo.Output)
+	}
+	electronTrace := parseBenchmarkTrace(t, electron.Output)
+	electronGoTrace := parseBenchmarkTrace(t, electronGo.Output)
+	for _, key := range []string{"app_ready", "window_created", "load_start", "did_finish_load", "quit_requested"} {
+		if _, ok := electronTrace[key]; !ok {
+			t.Fatalf("official Electron benchmark trace = %#v, missing %q\nOutput:\n%s", electronTrace, key, electron.Output)
+		}
+		if _, ok := electronGoTrace[key]; !ok {
+			t.Fatalf("Electron-Go benchmark trace = %#v, missing %q\nOutput:\n%s", electronGoTrace, key, electronGo.Output)
+		}
 	}
 }
 
@@ -1637,6 +1648,23 @@ func runCommandWithEnv(t *testing.T, command string, env []string, args ...strin
 		t.Fatalf("%s failed without process state: %v", command, err)
 	}
 	return result
+}
+
+func parseBenchmarkTrace(t *testing.T, output string) map[string]int {
+	t.Helper()
+	for _, line := range strings.Split(output, "\n") {
+		_, payload, ok := strings.Cut(line, "benchmark-trace:")
+		if !ok {
+			continue
+		}
+		var trace map[string]int
+		if err := json.Unmarshal([]byte(strings.TrimSpace(payload)), &trace); err != nil {
+			t.Fatalf("benchmark trace is not JSON: %v\n%s", err, output)
+		}
+		return trace
+	}
+	t.Fatalf("missing benchmark-trace output:\n%s", output)
+	return nil
 }
 
 func parseAppActivity(t *testing.T, output string) appActivityReport {

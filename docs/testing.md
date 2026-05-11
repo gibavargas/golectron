@@ -115,9 +115,10 @@ fixture comparisons pass against official Electron.
 Electron-Go also has an experimental scoped main-process runner for the
 `benchmark-hello` script shape. It is opt-in via
 `ELECTRON_GO_ENABLE_SCOPED_MAIN_RUNNER=1` and is not part of the default
-runtime path or the runtime parity gate yet. Keep the opt-in path separate until
-Linux CEF lifecycle tests prove it can execute the fixture without crashes and
-with lifecycle semantics comparable to official Electron.
+runtime path. Workflow-dispatch conformance runs exercise
+`TestBenchmarkHelloFixtureConformance` with that opt-in runner and require the
+same benchmark lifecycle trace keys as official Electron. Keep the broader
+runtime parity audit red until the IPC/preload fixture gate is also enabled.
 
 `--goal-audit` combines the 49/49 ledger gate, e2e evidence audit, runtime
 parity audit, and the current published startup benchmark ratio against the
