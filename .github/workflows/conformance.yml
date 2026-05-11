@@ -93,6 +93,15 @@ jobs:
           cat scoped-runner-artifacts/scoped-main-runner.log
           exit "${status}"
 
+      - name: Probe warm scoped benchmark runner
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          xvfb-run -a timeout 30 bin/electron-go \
+            --warm-benchmark-check 5 \
+            compat/fixtures/benchmark-hello \
+            > scoped-runner-artifacts/warm-benchmark.json
+          cat scoped-runner-artifacts/warm-benchmark.json
+
       - uses: actions/upload-artifact@v4
         if: always() && github.event_name == 'workflow_dispatch'
         with:
