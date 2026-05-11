@@ -223,7 +223,7 @@ static void CEF_CALLBACK eg_cef_on_load_end(
     struct _cef_frame_t* frame,
     int httpStatusCode) {
   (void)self;
-  if (!eg_cef_is_main_frame(frame)) {
+  if (!eg_cef_is_main_frame(frame) || g_load_complete || g_close_requested) {
     return;
   }
   g_load_complete = 1;
@@ -264,7 +264,7 @@ static void CEF_CALLBACK eg_cef_on_loading_state_change(
   (void)self;
   (void)canGoBack;
   (void)canGoForward;
-  if (isLoading || g_load_failed) {
+  if (isLoading || g_load_failed || g_load_complete || g_close_requested) {
     return;
   }
   g_load_complete = 1;
