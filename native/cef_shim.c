@@ -12,7 +12,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
 extern void goOnContextInitialized(void);
 extern void goOnBrowserAfterCreated(int browser_id);
@@ -31,7 +30,6 @@ static int g_load_complete = 0;
 static int g_load_failed = 0;
 static int g_close_requested = 0;
 static int g_browser_closed = 0;
-static int g_multi_threaded_message_loop = 0;
 static int g_static_handlers_initialized = 0;
 static cef_app_t g_static_app;
 static cef_browser_process_handler_t g_static_browser_process_handler;
@@ -213,9 +211,7 @@ static void CEF_CALLBACK eg_cef_on_before_close(
   g_browser_closed = 1;
   goOnBrowserBeforeClose(g_browser_id);
   eg_cef_release_browser_ref();
-  if (!g_multi_threaded_message_loop) {
-    cef_quit_message_loop();
-  }
+  cef_quit_message_loop();
 }
 
 static void CEF_CALLBACK eg_cef_on_load_end(
@@ -543,7 +539,6 @@ eg_bridge_status eg_cef_shim_initialize(
   memset(&settings, 0, sizeof(settings));
   settings.size = sizeof(settings);
   settings.no_sandbox = request->settings.no_sandbox ? 1 : 0;
-  settings.multi_threaded_message_loop = 1;
   settings.log_severity =
       eg_cef_to_log_severity(request->settings.log_severity);
   if (!eg_cef_set_cef_string(
@@ -570,7 +565,6 @@ eg_bridge_status eg_cef_shim_initialize(
     return EG_BRIDGE_STATUS_FAILED;
   }
   g_cef_initialized = 1;
-  g_multi_threaded_message_loop = settings.multi_threaded_message_loop ? 1 : 0;
   return EG_BRIDGE_STATUS_RUNNING;
 }
 
@@ -650,14 +644,7 @@ eg_bridge_status eg_cef_shim_run_message_loop(eg_bridge_handle bridge) {
   if (!g_cef_initialized) {
     return EG_BRIDGE_STATUS_INVALID_REQUEST;
   }
-  if (g_multi_threaded_message_loop) {
-    const struct timespec sleep_time = {0, 1000000};
-    while (!g_load_failed && (!g_load_complete || !g_browser_closed)) {
-      nanosleep(&sleep_time, NULL);
-    }
-  } else {
-    cef_run_message_loop();
-  }
+  cef_run_message_loop();
   if (g_load_failed || !g_load_complete || !g_browser_closed) {
     return EG_BRIDGE_STATUS_FAILED;
   }
@@ -670,7 +657,6 @@ eg_bridge_status eg_cef_shim_shutdown(eg_bridge_handle bridge) {
   if (g_cef_initialized) {
     cef_shutdown();
     g_cef_initialized = 0;
-    g_multi_threaded_message_loop = 0;
   }
   return EG_BRIDGE_STATUS_STOPPED;
 }
