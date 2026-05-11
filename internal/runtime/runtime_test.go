@@ -186,6 +186,26 @@ func TestRuntimeUsesMainPlanBridgeForSupportedMain(t *testing.T) {
 	}
 }
 
+func TestRuntimeDoesNotUseMainPlanBridgeWithoutOptIn(t *testing.T) {
+	dir := scopedMainApp(t)
+	bridge := &mainPlanBridgeFake{browserID: 77}
+	rt := New(Options{
+		AppDir:          dir,
+		ElectronVersion: "42.0.0",
+		Bridge:          bridge,
+	})
+
+	if err := rt.Run(context.Background()); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if !bridge.startCalled {
+		t.Fatal("Bridge.Start was not called")
+	}
+	if bridge.initialized || bridge.shutdown || bridge.create.URL != "" || bridge.load.URL != "" || bridge.close.BrowserID != 0 {
+		t.Fatalf("scoped bridge path was used without opt-in: %#v", bridge)
+	}
+}
+
 func TestExtractNodeOptions(t *testing.T) {
 	if got := ExtractNodeOptions([]string{"electron-go", "--experimental-transform-types", "."}); !got.ExperimentalTransformTypes {
 		t.Fatal("ExperimentalTransformTypes = false, want true")
