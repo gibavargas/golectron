@@ -3,12 +3,15 @@ package runtime
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
+	goruntime "runtime"
 	"strings"
 
 	"github.com/gibavargas/electron-go/internal/appmeta"
+	"github.com/gibavargas/electron-go/internal/mainrunner"
 	"github.com/gibavargas/electron-go/internal/native"
 )
 
@@ -43,6 +46,12 @@ type Runtime struct {
 	nodeOptions     NodeOptions
 	out             io.Writer
 	state           State
+}
+
+type mainPlanBridge interface {
+	mainrunner.Driver
+	InitializeForStart(context.Context, native.StartRequest) error
+	Shutdown(context.Context) error
 }
 
 const StartupTraceEnv = "ELECTRON_GO_STARTUP_TRACE"
@@ -163,7 +172,7 @@ func (r *Runtime) Run(ctx context.Context) error {
 	}
 
 	r.state = StateStarting
-	result, err := r.bridge.Start(ctx, req)
+	result, err := r.startBridge(ctx, req)
 	if err != nil {
 		return err
 	}
@@ -180,6 +189,40 @@ func (r *Runtime) Run(ctx context.Context) error {
 	}
 	r.state = StateStopped
 	return nil
+}
+
+func (r *Runtime) startBridge(ctx context.Context, req native.StartRequest) (*native.StartResult, error) {
+	if bridge, ok := r.bridge.(mainPlanBridge); ok {
+		plan, err := mainrunner.ParseFile(req.MainPath)
+		if err == nil {
+			if err := bridge.InitializeForStart(ctx, req); err != nil {
+				return nil, err
+			}
+			execResult, execErr := mainrunner.Execute(ctx, plan, bridge, mainrunner.ExecuteOptions{
+				Environment: r.environment,
+				Out:         r.out,
+			})
+			shutdownErr := bridge.Shutdown(ctx)
+			if execErr != nil {
+				return nil, execErr
+			}
+			if shutdownErr != nil {
+				return nil, shutdownErr
+			}
+			return &native.StartResult{
+				PID:            os.Getpid(),
+				WindowCount:    1,
+				Status:         native.StatusStopped,
+				BridgeRevision: fmt.Sprintf("abi-%d-mainrunner", native.CurrentABIRevision),
+				Platform:       goruntime.GOOS,
+				StartupTraceMS: execResult.TraceMS,
+			}, nil
+		}
+		if !errors.Is(err, mainrunner.ErrUnsupportedScript) {
+			return nil, err
+		}
+	}
+	return r.bridge.Start(ctx, req)
 }
 
 func envEnabled(env []string, key string) bool {

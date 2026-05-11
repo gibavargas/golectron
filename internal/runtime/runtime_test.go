@@ -148,6 +148,44 @@ func TestRuntimeStartupTraceStillPrintsWhenQuiet(t *testing.T) {
 	}
 }
 
+func TestRuntimeUsesMainPlanBridgeForSupportedMain(t *testing.T) {
+	dir := scopedMainApp(t)
+	bridge := &mainPlanBridgeFake{browserID: 77}
+	var out bytes.Buffer
+	rt := New(Options{
+		AppDir:          dir,
+		ElectronVersion: "42.0.0",
+		Bridge:          bridge,
+		Environment:     []string{"ELECTRON_GO_BENCHMARK_TRACE=1", "ELECTRON_GO_STARTUP_TRACE=1"},
+		Out:             &out,
+	})
+
+	if err := rt.Run(context.Background()); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if bridge.startCalled {
+		t.Fatal("Bridge.Start called, want scoped main-plan path")
+	}
+	if !bridge.initialized || !bridge.shutdown {
+		t.Fatalf("initialized/shutdown = %t/%t, want true/true", bridge.initialized, bridge.shutdown)
+	}
+	if bridge.create.URL != "about:blank" || bridge.create.AutoCloseOnLoad {
+		t.Fatalf("create request = %#v, want about:blank without auto close", bridge.create)
+	}
+	if !strings.HasSuffix(bridge.load.URL, "/index.html") {
+		t.Fatalf("load URL = %q, want index.html", bridge.load.URL)
+	}
+	if bridge.close.BrowserID != 77 {
+		t.Fatalf("close request = %#v, want browser 77", bridge.close)
+	}
+	if !strings.Contains(out.String(), "benchmark-trace:") {
+		t.Fatalf("stdout = %q, want benchmark trace", out.String())
+	}
+	if !strings.Contains(out.String(), "electron-go-startup-trace:") {
+		t.Fatalf("stdout = %q, want startup trace", out.String())
+	}
+}
+
 func TestExtractNodeOptions(t *testing.T) {
 	if got := ExtractNodeOptions([]string{"electron-go", "--experimental-transform-types", "."}); !got.ExperimentalTransformTypes {
 		t.Fatal("ExperimentalTransformTypes = false, want true")
@@ -244,6 +282,46 @@ func (f bridgeFunc) Start(ctx context.Context, req native.StartRequest) (*native
 	return f(ctx, req)
 }
 
+type mainPlanBridgeFake struct {
+	browserID   int64
+	startCalled bool
+	initialized bool
+	shutdown    bool
+	create      native.BrowserWindowCreateRequest
+	load        native.BrowserWindowLoadRequest
+	close       native.BrowserWindowCloseRequest
+}
+
+func (b *mainPlanBridgeFake) Start(context.Context, native.StartRequest) (*native.StartResult, error) {
+	b.startCalled = true
+	return &native.StartResult{}, nil
+}
+
+func (b *mainPlanBridgeFake) InitializeForStart(context.Context, native.StartRequest) error {
+	b.initialized = true
+	return nil
+}
+
+func (b *mainPlanBridgeFake) Shutdown(context.Context) error {
+	b.shutdown = true
+	return nil
+}
+
+func (b *mainPlanBridgeFake) CreateBrowserWindow(_ context.Context, req native.BrowserWindowCreateRequest) (int64, error) {
+	b.create = req
+	return b.browserID, nil
+}
+
+func (b *mainPlanBridgeFake) LoadURL(_ context.Context, req native.BrowserWindowLoadRequest) error {
+	b.load = req
+	return nil
+}
+
+func (b *mainPlanBridgeFake) CloseBrowserWindow(_ context.Context, req native.BrowserWindowCloseRequest) error {
+	b.close = req
+	return nil
+}
+
 func fixtureApp(t testing.TB) string {
 	t.Helper()
 	dir := t.TempDir()
@@ -252,6 +330,42 @@ func fixtureApp(t testing.TB) string {
 	}
 	if err := os.WriteFile(filepath.Join(dir, "main.js"), []byte(`console.log("fixture")`), 0o644); err != nil {
 		t.Fatalf("write main.js: %v", err)
+	}
+	return dir
+}
+
+func scopedMainApp(t testing.TB) string {
+	t.Helper()
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"name":"scoped","version":"1.0.0","main":"main.js"}`), 0o644); err != nil {
+		t.Fatalf("write package.json: %v", err)
+	}
+	source := `const { app, BrowserWindow } = require('electron')
+const traceEnabled = process.env.ELECTRON_GO_BENCHMARK_TRACE === '1'
+function mark(name) {}
+function emitTrace() {}
+async function main() {
+  await app.whenReady()
+  const win = new BrowserWindow({ width: 800, height: 600, show: true, webPreferences: { contextIsolation: true, sandbox: true } })
+  win.webContents.once('did-finish-load', () => {
+    mark('did_finish_load')
+    setImmediate(() => {
+      mark('quit_requested')
+      emitTrace()
+      win.close()
+      app.quit()
+    })
+  })
+  await win.loadFile('index.html')
+}
+app.on('window-all-closed', () => { app.quit() })
+main()
+`
+	if err := os.WriteFile(filepath.Join(dir, "main.js"), []byte(source), 0o644); err != nil {
+		t.Fatalf("write main.js: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "index.html"), []byte(`<html></html>`), 0o644); err != nil {
+		t.Fatalf("write index.html: %v", err)
 	}
 	return dir
 }

@@ -59,6 +59,48 @@ func NewBridge() Bridge {
 	return CEFBridge{}
 }
 
+func (b CEFBridge) InitializeForStart(ctx context.Context, req StartRequest) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := ValidateStartRequest(req); err != nil {
+		return err
+	}
+	if hash := C.eg_cef_shim_link_proof(); hash == nil {
+		return fmt.Errorf("CEF link proof failed")
+	}
+	initReq, err := NewCEFInitializeRequest(req.AppDir, req.Args)
+	if err != nil {
+		return err
+	}
+	return initializeCEF(ctx, initReq)
+}
+
+func (b CEFBridge) Shutdown(ctx context.Context) error {
+	return shutdownCEF(ctx)
+}
+
+func (b CEFBridge) CreateBrowserWindow(ctx context.Context, req BrowserWindowCreateRequest) (int64, error) {
+	if err := createBrowserWindow(ctx, req); err != nil {
+		return 0, err
+	}
+	return cefLastBrowserID.Load(), nil
+}
+
+func (b CEFBridge) LoadURL(ctx context.Context, req BrowserWindowLoadRequest) error {
+	if err := loadBrowserWindowURL(ctx, req); err != nil {
+		return err
+	}
+	return runMessageLoopUntilLoad(ctx)
+}
+
+func (b CEFBridge) CloseBrowserWindow(ctx context.Context, req BrowserWindowCloseRequest) error {
+	if err := closeBrowserWindow(ctx, req); err != nil {
+		return err
+	}
+	return runMessageLoop(ctx)
+}
+
 func (b CEFBridge) Start(ctx context.Context, req StartRequest) (*StartResult, error) {
 	traceStart := time.Now()
 	trace := map[string]int64{}
@@ -481,6 +523,21 @@ func runMessageLoop(ctx context.Context) error {
 	}
 	if status != C.EG_BRIDGE_STATUS_STOPPED {
 		return fmt.Errorf("CEF message loop failed: status=%s", bridgeStatusName(status))
+	}
+	return nil
+}
+
+func runMessageLoopUntilLoad(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	stageStart := time.Now()
+	status := C.eg_cef_shim_run_message_loop_until_load(nil)
+	if status == C.EG_BRIDGE_STATUS_FAILED {
+		return fmt.Errorf("CEF BrowserWindow load failed: browser_id=%d status=%d error=%d elapsed_ms=%d", cefLastBrowserID.Load(), cefLastHTTPStatus.Load(), cefLastLoadError.Load(), time.Since(stageStart).Milliseconds())
+	}
+	if status != C.EG_BRIDGE_STATUS_STOPPED {
+		return fmt.Errorf("CEF message loop load wait failed: status=%s", bridgeStatusName(status))
 	}
 	return nil
 }

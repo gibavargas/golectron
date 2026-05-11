@@ -31,6 +31,7 @@ static int g_load_failed = 0;
 static int g_close_requested = 0;
 static int g_browser_closed = 0;
 static int g_auto_close_on_load = 1;
+static int g_quit_loop_on_load = 0;
 static int g_static_handlers_initialized = 0;
 static cef_app_t g_static_app;
 static cef_browser_process_handler_t g_static_browser_process_handler;
@@ -229,6 +230,8 @@ static void CEF_CALLBACK eg_cef_on_load_end(
   goOnBrowserLoadEnd(g_browser_id, httpStatusCode);
   if (g_auto_close_on_load) {
     eg_cef_request_close_browser(browser);
+  } else if (g_quit_loop_on_load) {
+    cef_quit_message_loop();
   }
 }
 
@@ -272,6 +275,8 @@ static void CEF_CALLBACK eg_cef_on_loading_state_change(
   goOnBrowserLoadEnd(g_browser_id, 0);
   if (g_auto_close_on_load) {
     eg_cef_request_close_browser(browser);
+  } else if (g_quit_loop_on_load) {
+    cef_quit_message_loop();
   }
 }
 
@@ -477,6 +482,7 @@ static void eg_cef_reset_browser_state(void) {
   g_close_requested = 0;
   g_browser_closed = 0;
   g_auto_close_on_load = 1;
+  g_quit_loop_on_load = 0;
   eg_cef_release_browser_ref();
 }
 
@@ -696,8 +702,24 @@ eg_bridge_status eg_cef_shim_run_message_loop(eg_bridge_handle bridge) {
   if (!g_cef_initialized) {
     return EG_BRIDGE_STATUS_INVALID_REQUEST;
   }
+  g_quit_loop_on_load = 0;
   cef_run_message_loop();
   if (g_load_failed || !g_load_complete || !g_browser_closed) {
+    return EG_BRIDGE_STATUS_FAILED;
+  }
+  return EG_BRIDGE_STATUS_STOPPED;
+}
+
+eg_bridge_status eg_cef_shim_run_message_loop_until_load(
+    eg_bridge_handle bridge) {
+  (void)bridge;
+  if (!g_cef_initialized) {
+    return EG_BRIDGE_STATUS_INVALID_REQUEST;
+  }
+  g_quit_loop_on_load = 1;
+  cef_run_message_loop();
+  g_quit_loop_on_load = 0;
+  if (g_load_failed || !g_load_complete) {
     return EG_BRIDGE_STATUS_FAILED;
   }
   return EG_BRIDGE_STATUS_STOPPED;
@@ -765,6 +787,12 @@ eg_bridge_status eg_cef_shim_close_browser(
 }
 
 eg_bridge_status eg_cef_shim_run_message_loop(eg_bridge_handle bridge) {
+  (void)bridge;
+  return EG_BRIDGE_STATUS_UNAVAILABLE;
+}
+
+eg_bridge_status eg_cef_shim_run_message_loop_until_load(
+    eg_bridge_handle bridge) {
   (void)bridge;
   return EG_BRIDGE_STATUS_UNAVAILABLE;
 }
