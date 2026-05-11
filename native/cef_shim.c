@@ -101,9 +101,7 @@ static void CEF_CALLBACK eg_cef_on_before_command_line_processing(
     const cef_string_t* process_type,
     struct _cef_command_line_t* command_line) {
   (void)self;
-  if (!process_type || process_type->length == 0) {
-    return;
-  }
+  (void)process_type;
   eg_cef_append_ascii_switch(command_line, "disable-background-networking");
   eg_cef_append_ascii_switch(command_line, "disable-breakpad");
   eg_cef_append_ascii_switch(command_line, "disable-component-update");
