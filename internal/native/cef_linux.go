@@ -40,6 +40,7 @@ var cefBrowserProcessSwitches = []string{
 	"--disable-features=AutofillServerCommunication,CertificateTransparencyComponentUpdater,MediaRouter,OptimizationHints",
 	"--disable-gpu",
 	"--disable-gpu-sandbox",
+	"--disable-dev-shm-usage",
 	"--disable-sync",
 	"--in-process-gpu",
 	"--metrics-recording-only",
