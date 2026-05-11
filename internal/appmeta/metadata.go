@@ -38,13 +38,14 @@ func Load(dir string) (Metadata, error) {
 		return Metadata{}, fmt.Errorf("resolve app directory: %w", err)
 	}
 
-	data, err := os.ReadFile(filepath.Join(abs, "package.json"))
+	file, err := os.Open(filepath.Join(abs, "package.json"))
 	if err != nil {
 		return Metadata{}, fmt.Errorf("read package.json: %w", err)
 	}
+	defer file.Close()
 
 	var pkg packageJSON
-	if err := json.Unmarshal(data, &pkg); err != nil {
+	if err := json.NewDecoder(file).Decode(&pkg); err != nil {
 		return Metadata{}, fmt.Errorf("parse package.json: %w", err)
 	}
 
