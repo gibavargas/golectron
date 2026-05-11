@@ -98,21 +98,21 @@ func buildObjectivePackets(statuses, areas, ids map[string]bool) []packet {
 			Area:        "objective-runtime-parity",
 			Status:      string(compat.StatusPartial),
 			Evidence:    []string{"compat/fixtures/hello", "compat/conformance_test.go", "cmd/electron-go --runtime-parity-audit"},
-			Notes:       "Unblocks TestHelloFixtureConformance and ELECTRON_GO_ENABLE_IPC_CONFORMANCE. Requires real preload, contextBridge, ipcRenderer.invoke, ipcMain.handle, and renderer-visible result parity against official Electron.",
+			Notes:       "The scoped hello fixture gate passes on GitHub when opt-in envs are enabled, including renderer-visible fixture-result output. This is still a constrained fixture bridge, not a general preload/contextBridge/ipcRenderer implementation.",
 			E2ERequired: true,
 			Acceptance: []string{
 				"Electron-Go executes the hello fixture main/preload/renderer flow rather than only direct-loading index.html.",
 				"`ELECTRON_GO_ENABLE_IPC_CONFORMANCE=1 go test ./compat -run TestHelloFixtureConformance -count=1` passes against official Electron.",
 				"`go run ./cmd/electron-go --runtime-parity-audit` no longer fails this gate.",
 			},
-			Prompt: "Implement the remaining hello fixture app-runtime parity. Preserve Electron 42.0.0 behavior for app.whenReady, BrowserWindow preload loading, contextIsolation+sandbox, contextBridge.exposeInMainWorld, ipcMain.handle, ipcRenderer.invoke, and renderer-visible output. Prove it against official Electron with TestHelloFixtureConformance before enabling ELECTRON_GO_ENABLE_IPC_CONFORMANCE.",
+			Prompt: "Generalize the scoped hello fixture bridge into broader preload/contextBridge/ipcRenderer parity. Preserve Electron 42.0.0 behavior for app.whenReady, BrowserWindow preload loading, contextIsolation+sandbox, contextBridge.exposeInMainWorld, ipcMain.handle, ipcRenderer.invoke, and renderer-visible output. Prove expanded behavior against official Electron without weakening TestHelloFixtureConformance.",
 		},
 		{
 			ID:          "runtime-main-process-conformance",
 			Area:        "objective-runtime-parity",
 			Status:      string(compat.StatusPartial),
 			Evidence:    []string{"compat/fixtures/benchmark-hello", "compat/conformance_test.go", "docs/benchmarks.md", "cmd/electron-go --runtime-parity-audit"},
-			Notes:       "Unblocks TestBenchmarkHelloFixtureConformance and ELECTRON_GO_ENABLE_RUNTIME_FIXTURE_CONFORMANCE. The current CEF path loads index.html directly and does not execute fixture main.js.",
+			Notes:       "The scoped benchmark fixture gate passes on GitHub when opt-in envs are enabled. The current runner recognizes the benchmark main.js lifecycle, but it is still a constrained source recognizer rather than a general Node/V8 main-process runtime.",
 			E2ERequired: true,
 			Acceptance: []string{
 				"Electron-Go executes the benchmark fixture main.js lifecycle instead of direct-loading index.html.",
@@ -120,7 +120,7 @@ func buildObjectivePackets(statuses, areas, ids map[string]bool) []packet {
 				"`ELECTRON_GO_ENABLE_RUNTIME_FIXTURE_CONFORMANCE=1 go test ./compat -run TestBenchmarkHelloFixtureConformance -count=1` passes against official Electron.",
 				"`go run ./cmd/electron-go --runtime-parity-audit` no longer fails this gate.",
 			},
-			Prompt: "Implement native Chromium/Node/V8 main-process runtime parity for the benchmark fixture. Do not hard-code the fixture outcome; execute the Electron-style main process lifecycle and prove it with TestBenchmarkHelloFixtureConformance before enabling ELECTRON_GO_ENABLE_RUNTIME_FIXTURE_CONFORMANCE.",
+			Prompt: "Generalize the scoped main-process runner toward native Chromium/Node/V8 runtime parity. Do not hard-code fixture outcomes; preserve the Electron-style app.whenReady, BrowserWindow, loadFile, did-finish-load, close, and app.quit lifecycle already covered by TestBenchmarkHelloFixtureConformance while expanding unsupported script coverage.",
 		},
 		{
 			ID:          "performance-50-percent-startup-target",

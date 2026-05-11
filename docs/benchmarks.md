@@ -10,14 +10,14 @@ The benchmark runner launches the same fixture with official Electron and
 Electron-Go, repeats each command, and emits JSON with raw samples, summaries,
 and ratios when both runs are present.
 
-The current CEF-backed Electron-Go app path does not execute the fixture
-`main.js` the way official Electron does. For `compat/fixtures/benchmark-hello`,
-official Electron runs `main.js`, waits for `app.whenReady()`, constructs a
-`BrowserWindow`, loads `index.html`, and quits after `did-finish-load`.
-Electron-Go currently loads the fixture `index.html` directly through the native
-CEF bootstrap and closes from native load callbacks. Treat the headline number
-as CEF bootstrap-to-loaded-window evidence, not proof of full Electron
-main-process app startup parity.
+The scoped CEF-backed Electron-Go app path recognizes the benchmark fixture
+`main.js` lifecycle and models `app.whenReady()`, `BrowserWindow`,
+`loadFile()`, `did-finish-load`, close, and `app.quit()` around a native CEF
+window. This is stronger than the earlier direct `index.html` bootstrap, but it
+is still a constrained fixture runner rather than a general Node/V8
+main-process implementation. Treat the headline number as scoped
+Electron-style app startup evidence, not proof of arbitrary Electron
+main-process app parity.
 
 Run a timing-only comparison:
 
@@ -160,6 +160,12 @@ The previous alternating-order run
 `https://github.com/gibavargas/electron-go/actions/runs/25669399901` on commit
 `b7a5521` measured Electron-Go `428ms` vs Electron `560ms` before creating the
 scoped benchmark window directly at the target URL.
+
+Manual conformance run
+`https://github.com/gibavargas/electron-go/actions/runs/25670364754` revalidated
+the current branch with the opt-in scoped main-runner probe, scoped benchmark
+fixture conformance gate, scoped hello IPC/preload conformance gate, CEF
+runtime-process-model gate, and the full Go conformance suite.
 
 The earlier alternating-order run
 `https://github.com/gibavargas/electron-go/actions/runs/25649084479` on commit
