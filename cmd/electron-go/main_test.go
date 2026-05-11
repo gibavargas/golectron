@@ -182,8 +182,8 @@ func TestGoalPerformanceEvidenceLoadsCheckedInBenchmarkEvidence(t *testing.T) {
 	if got.TargetElectronGoOverElectron != 0.5 {
 		t.Fatalf("target ratio = %v, want 0.5", got.TargetElectronGoOverElectron)
 	}
-	if got.LatestElectronGoOverElectron != 0.76007326007326 {
-		t.Fatalf("latest ratio = %v, want 0.76007326007326", got.LatestElectronGoOverElectron)
+	if got.LatestElectronGoOverElectron != 0.7735042735042735 {
+		t.Fatalf("latest ratio = %v, want 0.7735042735042735", got.LatestElectronGoOverElectron)
 	}
 	if got.LatestRunURL == "" || got.LatestCommit == "" || got.Metric != "duration_median_ms" {
 		t.Fatalf("benchmark evidence = %#v, want run URL, commit, and duration_median_ms metric", got)
