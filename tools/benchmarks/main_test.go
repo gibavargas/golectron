@@ -123,6 +123,64 @@ func TestComputeComparisons(t *testing.T) {
 	}
 }
 
+func TestAlternatingScheduleBalancesFirstRunner(t *testing.T) {
+	specs := []commandSpec{
+		{Name: "electron", Command: "npx electron"},
+		{Name: "electron-go", Command: "go run ./cmd/electron-go"},
+	}
+	argsByName := map[string][]string{
+		"electron":    {"npx", "electron"},
+		"electron-go": {"go", "run", "./cmd/electron-go"},
+	}
+
+	got := alternatingSchedule(specs, argsByName, 4)
+	wantNames := []string{
+		"electron", "electron-go",
+		"electron-go", "electron",
+		"electron", "electron-go",
+		"electron-go", "electron",
+	}
+	if len(got) != len(wantNames) {
+		t.Fatalf("len(schedule) = %d, want %d", len(got), len(wantNames))
+	}
+	for i, wantName := range wantNames {
+		if got[i].Name != wantName {
+			t.Fatalf("schedule[%d].Name = %q, want %q; schedule=%#v", i, got[i].Name, wantName, got)
+		}
+		wantSequence := i + 1
+		if got[i].Sequence != wantSequence {
+			t.Fatalf("schedule[%d].Sequence = %d, want %d", i, got[i].Sequence, wantSequence)
+		}
+		wantPair := i/2 + 1
+		if got[i].Pair != wantPair || got[i].Iteration != wantPair {
+			t.Fatalf("schedule[%d] pair/iteration = %d/%d, want %d/%d", i, got[i].Pair, got[i].Iteration, wantPair, wantPair)
+		}
+	}
+}
+
+func TestAlternatingScheduleSkipsUnavailableCommand(t *testing.T) {
+	specs := []commandSpec{
+		{Name: "electron", Command: ""},
+		{Name: "electron-go", Command: "go run ./cmd/electron-go"},
+	}
+	argsByName := map[string][]string{
+		"electron-go": {"go", "run", "./cmd/electron-go"},
+	}
+
+	got := alternatingSchedule(specs, argsByName, 2)
+	if len(got) != 2 {
+		t.Fatalf("len(schedule) = %d, want 2", len(got))
+	}
+	for i := range got {
+		if got[i].Name != "electron-go" {
+			t.Fatalf("schedule[%d].Name = %q, want electron-go", i, got[i].Name)
+		}
+		if got[i].Sequence != i+1 || got[i].Pair != i+1 || got[i].Iteration != i+1 {
+			t.Fatalf("schedule[%d] = %#v, want matching sequence/pair/iteration", i, got[i])
+		}
+	}
+}
+
 func TestValidateRequiredFaster(t *testing.T) {
 	report := Report{
 		Iterations: 3,

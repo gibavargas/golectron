@@ -34,6 +34,18 @@ go run ./tools/benchmarks \
   --electron-go "go run ./cmd/electron-go"
 ```
 
+Run startup comparisons in alternating order to reduce fixed-order noise:
+
+```sh
+go run ./tools/benchmarks \
+  --fixture ./compat/fixtures/hello \
+  --iterations 10 \
+  --timeout 30s \
+  --run-order alternating \
+  --electron "npx electron" \
+  --electron-go "go run ./cmd/electron-go"
+```
+
 Run the CI-enforced hello comparison locally on Linux after staging CEF and
 installing official Electron:
 
@@ -82,6 +94,8 @@ The runner currently records:
 - duration and RSS ratios when both `--electron` and `--electron-go` are present.
 - optional CI gating with `--require-faster` for specific lower-is-better
   metrics.
+- optional alternating sample order with `--run-order alternating`, recorded as
+  `run_order: "alternating"` plus per-sample `sequence` and `pair` fields.
 - optional fixture-level `benchmark-trace:` phase timings emitted by benchmark
   fixtures, such as app readiness, window creation, load start, and load finish,
   when the runtime executes the benchmark fixture main script and
@@ -161,6 +175,8 @@ Compare medians across multiple successful iterations. If any sample failed or
 timed out, either fix the benchmark setup or disclose the failures next to the
 claim. Do not mix machines, OS versions, power modes, fixtures, or commands in a
 single ratio.
+Prefer `--run-order alternating` for headline Electron vs Electron-Go startup
+comparisons so both commands take turns running first within each pair.
 
 Acceptable claim:
 

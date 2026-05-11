@@ -20,6 +20,7 @@ type Report struct {
 	OS          string          `json:"os"`
 	Arch        string          `json:"arch"`
 	Iterations  int             `json:"iterations"`
+	RunOrder    string          `json:"run_order,omitempty"`
 	MeasureRSS  bool            `json:"measure_rss"`
 	StartedAt   string          `json:"started_at"`
 	Results     []CommandResult `json:"results"`
@@ -37,6 +38,8 @@ type CommandResult struct {
 
 type Sample struct {
 	Iteration              int              `json:"iteration"`
+	Sequence               int              `json:"sequence,omitempty"`
+	Pair                   int              `json:"pair,omitempty"`
 	StartedAt              string           `json:"started_at"`
 	DurationMS             int64            `json:"duration_ms"`
 	ExitCode               int              `json:"exit_code"`
@@ -97,10 +100,15 @@ func main() {
 	measureProcessTreeRSS := flag.Bool("measure-process-tree-rss", false, "sample peak process-tree RSS on Linux")
 	output := flag.String("output", "", "optional JSON output file; stdout is used when empty")
 	requireFaster := flag.String("require-faster", "", "comma-separated lower-is-better comparison metrics that Electron-Go must beat")
+	runOrder := flag.String("run-order", "sequential", "sample order: sequential or alternating")
 	flag.Parse()
 
 	if *iterations < 1 {
 		fmt.Fprintln(os.Stderr, "--iterations must be at least 1")
+		os.Exit(2)
+	}
+	if *runOrder != "sequential" && *runOrder != "alternating" {
+		fmt.Fprintln(os.Stderr, "--run-order must be sequential or alternating")
 		os.Exit(2)
 	}
 
@@ -112,11 +120,21 @@ func main() {
 		MeasureRSS: *measureRSS || *measureProcessTreeRSS,
 		StartedAt:  time.Now().UTC().Format(time.RFC3339Nano),
 	}
-	if *electron != "" {
-		report.Results = append(report.Results, runCommand("electron", *electron, *fixture, *timeout, *iterations, *measureRSS, *measureProcessTreeRSS))
+	if *runOrder == "alternating" {
+		report.RunOrder = *runOrder
 	}
-	if *electronGo != "" {
-		report.Results = append(report.Results, runCommand("electron-go", *electronGo, *fixture, *timeout, *iterations, *measureRSS, *measureProcessTreeRSS))
+	if *runOrder == "alternating" {
+		report.Results = runAlternating([]commandSpec{
+			{Name: "electron", Command: *electron},
+			{Name: "electron-go", Command: *electronGo},
+		}, *fixture, *timeout, *iterations, *measureRSS, *measureProcessTreeRSS)
+	} else {
+		if *electron != "" {
+			report.Results = append(report.Results, runCommand("electron", *electron, *fixture, *timeout, *iterations, *measureRSS, *measureProcessTreeRSS))
+		}
+		if *electronGo != "" {
+			report.Results = append(report.Results, runCommand("electron-go", *electronGo, *fixture, *timeout, *iterations, *measureRSS, *measureProcessTreeRSS))
+		}
 	}
 	report.Comparisons = computeComparisons(report.Results)
 	requireErr := validateRequiredFaster(report, requiredMetrics(*requireFaster))
@@ -147,18 +165,100 @@ func main() {
 	}
 }
 
-func runCommand(name, command, fixture string, timeout time.Duration, iterations int, measureRSS, measureProcessTreeRSS bool) CommandResult {
+type commandSpec struct {
+	Name    string
+	Command string
+}
+
+type scheduledSample struct {
+	Name      string
+	Iteration int
+	Sequence  int
+	Pair      int
+}
+
+func runAlternating(specs []commandSpec, fixture string, timeout time.Duration, iterations int, measureRSS, measureProcessTreeRSS bool) []CommandResult {
+	results := make([]CommandResult, 0, len(specs))
+	argsByName := map[string][]string{}
+	for _, spec := range specs {
+		if spec.Command == "" {
+			continue
+		}
+		args, result := prepareCommand(spec.Name, spec.Command, iterations)
+		results = append(results, result)
+		if len(args) > 0 {
+			argsByName[spec.Name] = args
+		}
+	}
+
+	indexByName := map[string]int{}
+	for i := range results {
+		indexByName[results[i].Name] = i
+	}
+	for _, item := range alternatingSchedule(specs, argsByName, iterations) {
+		sample := runSample(argsByName[item.Name], fixture, timeout, item.Iteration, measureRSS, measureProcessTreeRSS)
+		sample.Sequence = item.Sequence
+		sample.Pair = item.Pair
+		result := &results[indexByName[item.Name]]
+		result.Samples = append(result.Samples, sample)
+	}
+	for i := range results {
+		if results[i].Error == "" {
+			results[i].Summary = summarize(results[i].Samples, measureRSS, measureProcessTreeRSS)
+		}
+	}
+	return results
+}
+
+func prepareCommand(name, command string, iterations int) ([]string, CommandResult) {
 	args, err := splitCommand(command)
 	result := CommandResult{Name: name, Command: command}
 	if err != nil {
 		result.Error = err.Error()
 		result.Summary.Failures = iterations
-		return result
+		return nil, result
 	}
 	result.ParsedArgs = args
 	if len(args) == 0 {
 		result.Error = "empty command"
 		result.Summary.Failures = iterations
+		return nil, result
+	}
+	return args, result
+}
+
+func alternatingSchedule(specs []commandSpec, argsByName map[string][]string, iterations int) []scheduledSample {
+	var enabled []string
+	for _, spec := range specs {
+		if len(argsByName[spec.Name]) > 0 {
+			enabled = append(enabled, spec.Name)
+		}
+	}
+	var schedule []scheduledSample
+	sequence := 1
+	for iteration := 1; iteration <= iterations; iteration++ {
+		names := append([]string{}, enabled...)
+		if len(names) > 1 && iteration%2 == 0 {
+			for left, right := 0, len(names)-1; left < right; left, right = left+1, right-1 {
+				names[left], names[right] = names[right], names[left]
+			}
+		}
+		for _, name := range names {
+			schedule = append(schedule, scheduledSample{
+				Name:      name,
+				Iteration: iteration,
+				Sequence:  sequence,
+				Pair:      iteration,
+			})
+			sequence++
+		}
+	}
+	return schedule
+}
+
+func runCommand(name, command, fixture string, timeout time.Duration, iterations int, measureRSS, measureProcessTreeRSS bool) CommandResult {
+	args, result := prepareCommand(name, command, iterations)
+	if result.Error != "" {
 		return result
 	}
 
