@@ -656,6 +656,26 @@ func TestRunRejectsUnknownFlag(t *testing.T) {
 	}
 }
 
+func TestShouldFastPathAppLaunch(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want bool
+	}{
+		{name: "no args launches current directory", want: true},
+		{name: "positional app directory", args: []string{"compat/fixtures/benchmark-hello"}, want: true},
+		{name: "flags use compatibility CLI", args: []string{"--check-parity"}, want: false},
+		{name: "dash separator uses compatibility CLI parsing", args: []string{"--", "compat/fixtures/benchmark-hello"}, want: false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := shouldFastPathAppLaunch(test.args); got != test.want {
+				t.Fatalf("shouldFastPathAppLaunch(%v) = %v, want %v", test.args, got, test.want)
+			}
+		})
+	}
+}
+
 func TestRunAcceptsExperimentalTransformTypes(t *testing.T) {
 	code := run([]string{"electron-go", "--experimental-transform-types", "--hello"}, nil)
 	if code != 78 {

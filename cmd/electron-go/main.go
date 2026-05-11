@@ -68,6 +68,13 @@ func run(argv []string, env []string) int {
 	if len(argv) > 1 {
 		args = argv[1:]
 	}
+	if shouldFastPathAppLaunch(args) {
+		appDir := "."
+		if len(args) > 0 {
+			appDir = args[0]
+		}
+		return launchApp(ctx, appDir, argv, env, egruntime.NodeOptions{})
+	}
 
 	fs := flag.NewFlagSet("electron-go", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
@@ -794,7 +801,14 @@ func run(argv []string, env []string) int {
 	} else if fs.NArg() > 0 {
 		appDir = fs.Arg(0)
 	}
+	return launchApp(ctx, appDir, argv, env, nodeOptions)
+}
 
+func shouldFastPathAppLaunch(args []string) bool {
+	return len(args) == 0 || !strings.HasPrefix(args[0], "-")
+}
+
+func launchApp(ctx context.Context, appDir string, argv []string, env []string, nodeOptions egruntime.NodeOptions) int {
 	rt := egruntime.New(egruntime.Options{
 		AppDir:          appDir,
 		ElectronVersion: compat.Target().Electron,
