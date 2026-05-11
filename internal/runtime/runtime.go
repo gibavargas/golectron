@@ -63,6 +63,9 @@ func NativeSubprocessHook(ctx context.Context, req SubprocessRequest) (Subproces
 	if err := ctx.Err(); err != nil {
 		return SubprocessResult{}, err
 	}
+	if !native.IsCEFSubprocessArgs(req.Args) {
+		return SubprocessResult{}, nil
+	}
 	result, handled, err := native.ExecuteCEFSubprocess(ctx, req.Args)
 	if err != nil {
 		return SubprocessResult{}, err
