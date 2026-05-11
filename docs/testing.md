@@ -112,6 +112,13 @@ explicitly gated until their underlying runtime features land:
 claim full Electron app-runtime parity until it passes and the corresponding
 fixture comparisons pass against official Electron.
 
+Electron-Go also has an experimental scoped main-process runner for the
+`benchmark-hello` script shape. It is opt-in via
+`ELECTRON_GO_ENABLE_SCOPED_MAIN_RUNNER=1` and is not part of the default
+runtime path or the runtime parity gate yet. Keep the opt-in path separate until
+Linux CEF lifecycle tests prove it can execute the fixture without crashes and
+with lifecycle semantics comparable to official Electron.
+
 `--goal-audit` combines the 49/49 ledger gate, e2e evidence audit, runtime
 parity audit, and the current published startup benchmark ratio against the
 `electron_go_over_electron <= 0.5` target. It is the final objective check and

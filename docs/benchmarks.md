@@ -144,6 +144,12 @@ successful alternating-order iterations on Ubuntu 22.04:
   `create_browser=52ms`, `message_loop=124ms`, `cef_shutdown=34ms`,
   `total_native_start=361ms`.
 
+Newer Electron-Go startup traces may also include diagnostic message-loop split
+fields such as `message_loop_to_load_end`, `load_end_to_before_close`, and
+`before_close_to_loop_return`. These are Electron-Go-only diagnostics for
+finding where `message_loop` time is spent; do not use them as headline
+Electron-vs-Electron-Go comparison metrics.
+
 Fixture-level phase traces and Electron-Go native startup traces are diagnostic
 and should be collected in explicit trace runs. The normal headline benchmark
 keeps runtime-specific tracing disabled to avoid adding console-output work to
