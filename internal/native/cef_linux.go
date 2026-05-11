@@ -95,6 +95,9 @@ func (b CEFBridge) LoadURL(ctx context.Context, req BrowserWindowLoadRequest) er
 }
 
 func (b CEFBridge) CloseBrowserWindow(ctx context.Context, req BrowserWindowCloseRequest) error {
+	if cefBrowserClosed.Load() && cefLastBrowserID.Load() == req.BrowserID {
+		return nil
+	}
 	if err := closeBrowserWindow(ctx, req); err != nil {
 		return err
 	}

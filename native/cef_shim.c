@@ -716,10 +716,13 @@ eg_bridge_status eg_cef_shim_run_message_loop_until_load(
   if (!g_cef_initialized) {
     return EG_BRIDGE_STATUS_INVALID_REQUEST;
   }
-  g_quit_loop_on_load = 1;
-  cef_run_message_loop();
+  int previous_auto_close_on_load = g_auto_close_on_load;
+  g_auto_close_on_load = 1;
   g_quit_loop_on_load = 0;
-  if (g_load_failed || !g_load_complete) {
+  cef_run_message_loop();
+  g_auto_close_on_load = previous_auto_close_on_load;
+  g_quit_loop_on_load = 0;
+  if (g_load_failed || !g_load_complete || !g_browser_closed) {
     return EG_BRIDGE_STATUS_FAILED;
   }
   return EG_BRIDGE_STATUS_STOPPED;
