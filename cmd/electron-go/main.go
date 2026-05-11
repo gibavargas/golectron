@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	_ "embed"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -46,6 +47,9 @@ import (
 
 const version = "0.1.0"
 const helloFixtureDir = "compat/fixtures/hello"
+
+//go:embed goal_evidence.json
+var goalEvidenceJSON []byte
 
 func main() {
 	goruntime.LockOSThread()
@@ -894,6 +898,10 @@ type goalAuditReportPayload struct {
 	Performance goalPerformanceAuditReport      `json:"performance"`
 }
 
+type goalEvidence struct {
+	Performance goalPerformanceAuditReport `json:"performance"`
+}
+
 type goalLedgerAuditReport struct {
 	Pass       bool   `json:"pass"`
 	Completion string `json:"completion"`
@@ -945,13 +953,7 @@ func goalAuditReport() goalAuditReportPayload {
 	ledger := compat.MustLoadLedger()
 	e2e := ledger.AuditE2EEvidence()
 	runtimeAudit := runtimeParityAuditReport()
-	performance := goalPerformanceAuditReport{
-		TargetElectronGoOverElectron: 0.5,
-		LatestElectronGoOverElectron: 0.7912,
-		LatestRunURL:                 "https://github.com/gibavargas/electron-go/actions/runs/25649698967",
-		LatestCommit:                 "1c49161",
-		Metric:                       "duration_median_ms",
-	}
+	performance := goalPerformanceEvidence()
 	performance.Pass = performance.LatestElectronGoOverElectron <= performance.TargetElectronGoOverElectron
 
 	ledgerAudit := goalLedgerAuditReport{
@@ -973,6 +975,17 @@ func goalAuditReport() goalAuditReportPayload {
 		Runtime:     runtimeAudit,
 		Performance: performance,
 	}
+}
+
+func goalPerformanceEvidence() goalPerformanceAuditReport {
+	var evidence goalEvidence
+	if err := json.Unmarshal(goalEvidenceJSON, &evidence); err != nil {
+		return goalPerformanceAuditReport{
+			Pass:   false,
+			Metric: "invalid-goal-evidence",
+		}
+	}
+	return evidence.Performance
 }
 
 func auditEnvEnabled(key string) bool {

@@ -116,4 +116,6 @@ fixture comparisons pass against official Electron.
 parity audit, and the current published startup benchmark ratio against the
 `electron_go_over_electron <= 0.5` target. It is the final objective check and
 must remain red until both full runtime parity and the 50% faster target are
-proven.
+proven. The current benchmark evidence is embedded from
+`cmd/electron-go/goal_evidence.json`; update that file only from a published
+benchmark artifact.

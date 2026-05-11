@@ -174,6 +174,19 @@ func TestRunGoalAuditReportsRemainingObjectiveGaps(t *testing.T) {
 	}
 }
 
+func TestGoalPerformanceEvidenceLoadsCheckedInBenchmarkEvidence(t *testing.T) {
+	got := goalPerformanceEvidence()
+	if got.TargetElectronGoOverElectron != 0.5 {
+		t.Fatalf("target ratio = %v, want 0.5", got.TargetElectronGoOverElectron)
+	}
+	if got.LatestElectronGoOverElectron != 0.7912 {
+		t.Fatalf("latest ratio = %v, want 0.7912", got.LatestElectronGoOverElectron)
+	}
+	if got.LatestRunURL == "" || got.LatestCommit == "" || got.Metric != "duration_median_ms" {
+		t.Fatalf("benchmark evidence = %#v, want run URL, commit, and duration_median_ms metric", got)
+	}
+}
+
 func TestRunClipboardCheckReportsTextRoundTrip(t *testing.T) {
 	var stdout bytes.Buffer
 	code := runWithOutput(t, []string{"electron-go", "--clipboard-check"}, &stdout, nil)
