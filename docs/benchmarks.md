@@ -90,16 +90,16 @@ Do not cite those metrics from this runner until they are implemented.
 ### Latest Linux Hello Result
 
 PR benchmark run
-`https://github.com/gibavargas/electron-go/actions/runs/25644068603` on commit
-`3d4fe80` measured the `compat/fixtures/benchmark-hello` fixture with five
+`https://github.com/gibavargas/electron-go/actions/runs/25644596854` on commit
+`1057157` measured the `compat/fixtures/benchmark-hello` fixture with five
 successful iterations on Ubuntu 22.04:
 
-- median wall-clock startup: Electron-Go `355ms`, Electron `482ms`
-  (`electron_go_over_electron = 0.7365`, about `1.36x` faster);
-- median process-tree peak RSS: Electron-Go `249292KB`, Electron `606076KB`
-  (`electron_go_over_electron = 0.4113`, about `2.43x` lighter);
-- median root max RSS: Electron-Go `248080KB`, Electron `214360KB`
-  (`electron_go_over_electron = 1.1573`, Electron-Go is heavier for this
+- median wall-clock startup: Electron-Go `347ms`, Electron `470ms`
+  (`electron_go_over_electron = 0.7383`, about `1.35x` faster);
+- median process-tree peak RSS: Electron-Go `249360KB`, Electron `597180KB`
+  (`electron_go_over_electron = 0.4176`, about `2.39x` lighter);
+- median root max RSS: Electron-Go `248372KB`, Electron `209300KB`
+  (`electron_go_over_electron = 1.1867`, Electron-Go is heavier for this
   process-only metric).
 
 This is a measured startup improvement, but it is not yet the 50% faster target.
