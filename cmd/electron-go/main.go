@@ -57,6 +57,8 @@ func main() {
 	os.Exit(code)
 }
 
+var launchAppForRun = launchApp
+
 func run(argv []string, env []string) int {
 	ctx := context.Background()
 	subprocess, err := egruntime.ExecuteSubprocess(ctx, egruntime.NativeSubprocessHook, argv, env)
@@ -77,7 +79,7 @@ func run(argv []string, env []string) int {
 		if len(args) > 0 {
 			appDir = args[0]
 		}
-		return launchApp(ctx, appDir, argv, env, egruntime.NodeOptions{})
+		return launchAppForRun(ctx, appDir, argv, env, egruntime.NodeOptions{})
 	}
 
 	fs := flag.NewFlagSet("electron-go", flag.ContinueOnError)
@@ -835,7 +837,7 @@ func run(argv []string, env []string) int {
 	} else if fs.NArg() > 0 {
 		appDir = fs.Arg(0)
 	}
-	return launchApp(ctx, appDir, argv, env, nodeOptions)
+	return launchAppForRun(ctx, appDir, argv, env, nodeOptions)
 }
 
 func shouldFastPathAppLaunch(args []string) bool {

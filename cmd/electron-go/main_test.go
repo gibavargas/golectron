@@ -2,12 +2,15 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"os"
 	"reflect"
 	goruntime "runtime"
 	"testing"
+
+	egruntime "github.com/gibavargas/electron-go/internal/runtime"
 )
 
 func TestRunCompatJSONPrintsLedger(t *testing.T) {
@@ -770,6 +773,54 @@ func TestRunRejectsUnknownFlag(t *testing.T) {
 	}
 }
 
+func TestRunPositionalAppLaunchUsesFastPath(t *testing.T) {
+	const wantAppDir = "compat/fixtures/benchmark-hello"
+	const wantCode = 17
+	var called bool
+	restore := replaceLaunchAppForRun(t, func(ctx context.Context, appDir string, argv []string, env []string, nodeOptions egruntime.NodeOptions) int {
+		called = true
+		if appDir != wantAppDir {
+			t.Fatalf("appDir = %q, want %q", appDir, wantAppDir)
+		}
+		if !reflect.DeepEqual(argv, []string{"electron-go", wantAppDir}) {
+			t.Fatalf("argv = %#v", argv)
+		}
+		if !reflect.DeepEqual(env, []string{"ELECTRON_GO_TEST=1"}) {
+			t.Fatalf("env = %#v", env)
+		}
+		if nodeOptions.ExperimentalTransformTypes {
+			t.Fatal("ExperimentalTransformTypes = true, want false for fast-path app launch")
+		}
+		return wantCode
+	})
+	defer restore()
+
+	code := run([]string{"electron-go", wantAppDir}, []string{"ELECTRON_GO_TEST=1"})
+	if code != wantCode {
+		t.Fatalf("run(positional app) exit = %d, want %d", code, wantCode)
+	}
+	if !called {
+		t.Fatal("launchAppForRun was not called")
+	}
+}
+
+func TestRunLeadingFlagUsesCompatibilityCLI(t *testing.T) {
+	restore := replaceLaunchAppForRun(t, func(ctx context.Context, appDir string, argv []string, env []string, nodeOptions egruntime.NodeOptions) int {
+		t.Fatalf("launchAppForRun called for leading diagnostic flag: appDir=%q argv=%#v", appDir, argv)
+		return 99
+	})
+	defer restore()
+
+	var stdout bytes.Buffer
+	code := runWithOutput(t, []string{"electron-go", "--check-parity"}, &stdout, nil)
+	if code != 0 {
+		t.Fatalf("run(--check-parity) exit = %d, want 0", code)
+	}
+	if !bytes.Contains(stdout.Bytes(), []byte("parity complete")) {
+		t.Fatalf("stdout = %q, want parity complete", stdout.String())
+	}
+}
+
 func TestShouldFastPathAppLaunch(t *testing.T) {
 	tests := []struct {
 		name string
@@ -794,6 +845,15 @@ func TestRunAcceptsExperimentalTransformTypes(t *testing.T) {
 	code := run([]string{"electron-go", "--experimental-transform-types", "--hello"}, nil)
 	if code != 78 {
 		t.Fatalf("run(--experimental-transform-types --hello) exit = %d, want bridge-unavailable 78", code)
+	}
+}
+
+func replaceLaunchAppForRun(t *testing.T, launcher func(context.Context, string, []string, []string, egruntime.NodeOptions) int) func() {
+	t.Helper()
+	old := launchAppForRun
+	launchAppForRun = launcher
+	return func() {
+		launchAppForRun = old
 	}
 }
 
