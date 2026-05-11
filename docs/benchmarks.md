@@ -71,6 +71,21 @@ go run ./tools/benchmarks \
   --require-faster process_tree_rss_peak_median_kb
 ```
 
+Run a warm Electron-Go window-start probe for a recognized Electron-style app:
+
+```sh
+bin/electron-go \
+  --warm-benchmark-check 5 \
+  ./compat/fixtures/benchmark-hello
+```
+
+This initializes CEF once, then runs the recognized `main.js` lifecycle multiple
+times in the same process and emits JSON with per-window durations. Use this to
+evaluate persistent-runtime architecture work. Do not mix it with the cold
+process-start headline result or the `cmd/electron-go --goal-audit` performance
+gate until there is a matching official-Electron baseline and explicit product
+decision to target warm starts.
+
 The `--require-faster` flag fails the run if any sample fails or if
 Electron-Go does not beat official Electron for the named lower-is-better
 metric. The GitHub Actions benchmark workflow uses this for the hello

@@ -91,6 +91,7 @@ func run(argv []string, env []string) int {
 	checkParity := fs.Bool("check-parity", false, "exit successfully only when every ledger item is compatible")
 	runtimeParityAudit := fs.Bool("runtime-parity-audit", false, "exit successfully only when full Electron app-runtime conformance gates are enabled")
 	goalAudit := fs.Bool("goal-audit", false, "print full objective audit for ledger parity, runtime parity, and startup performance")
+	warmBenchmarkCheck := fs.Int("warm-benchmark-check", 0, "run recognized Electron-style app repeatedly with one CEF initialization and print JSON")
 	browserWindowOptionsCheck := fs.Bool("browser-window-options-check", false, "print BrowserWindow constructor option compatibility JSON")
 	browserWindowMethodsCheck := fs.Bool("browser-window-methods-check", false, "print BrowserWindow methods compatibility JSON")
 	viewTreeCheck := fs.Bool("view-tree-check", false, "print BaseWindow/View tree compatibility JSON")
@@ -837,6 +838,9 @@ func run(argv []string, env []string) int {
 	} else if fs.NArg() > 0 {
 		appDir = fs.Arg(0)
 	}
+	if *warmBenchmarkCheck > 0 {
+		return runWarmBenchmarkCheck(ctx, appDir, argv, env, nodeOptions, *warmBenchmarkCheck)
+	}
 	return launchAppForRun(ctx, appDir, argv, env, nodeOptions)
 }
 
@@ -868,6 +872,33 @@ func launchApp(ctx context.Context, appDir string, argv []string, env []string, 
 		return 1
 	}
 
+	return 0
+}
+
+func runWarmBenchmarkCheck(ctx context.Context, appDir string, argv []string, env []string, nodeOptions egruntime.NodeOptions, iterations int) int {
+	rt := egruntime.New(egruntime.Options{
+		AppDir:          appDir,
+		ElectronVersion: compat.Target().Electron,
+		Bridge:          native.NewBridge(),
+		Args:            argv,
+		Environment:     env,
+		NodeOptions:     nodeOptions,
+		Out:             os.Stdout,
+	})
+	report, err := rt.WarmRun(ctx, iterations)
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	if encodeErr := enc.Encode(report); encodeErr != nil {
+		fmt.Fprintf(os.Stderr, "electron-go: %v\n", encodeErr)
+		return 1
+	}
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "electron-go: %v\n", err)
+		return 1
+	}
+	if report.Summary.Failures > 0 {
+		return 1
+	}
 	return 0
 }
 

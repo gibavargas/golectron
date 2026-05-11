@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	goruntime "runtime"
+	"slices"
 	"strings"
 	"time"
 
@@ -47,6 +48,30 @@ type Runtime struct {
 	nodeOptions     NodeOptions
 	out             io.Writer
 	state           State
+}
+
+type WarmRunReport struct {
+	Iterations   int          `json:"iterations"`
+	InitializeMS int64        `json:"initialize_ms"`
+	ShutdownMS   int64        `json:"shutdown_ms"`
+	Samples      []WarmSample `json:"samples"`
+	Summary      WarmSummary  `json:"summary"`
+}
+
+type WarmSample struct {
+	Iteration      int              `json:"iteration"`
+	DurationMS     int64            `json:"duration_ms"`
+	StartupTraceMS map[string]int64 `json:"startup_trace_ms,omitempty"`
+	ExitCode       int              `json:"exit_code"`
+}
+
+type WarmSummary struct {
+	Successes        int     `json:"successes"`
+	Failures         int     `json:"failures"`
+	DurationMinMS    int64   `json:"duration_min_ms"`
+	DurationMedianMS int64   `json:"duration_median_ms"`
+	DurationMeanMS   float64 `json:"duration_mean_ms"`
+	DurationMaxMS    int64   `json:"duration_max_ms"`
 }
 
 type mainPlanBridge interface {
@@ -191,6 +216,105 @@ func (r *Runtime) Run(ctx context.Context) error {
 	}
 	r.state = StateStopped
 	return nil
+}
+
+func (r *Runtime) WarmRun(ctx context.Context, iterations int) (WarmRunReport, error) {
+	if iterations <= 0 {
+		return WarmRunReport{}, fmt.Errorf("warm run iterations must be positive")
+	}
+	bridge, ok := r.bridge.(mainPlanBridge)
+	if !ok {
+		return WarmRunReport{}, fmt.Errorf("warm run requires native main-plan bridge")
+	}
+	meta, err := appmeta.Load(r.appDir)
+	if err != nil {
+		return WarmRunReport{}, err
+	}
+	req := native.NormalizeStartRequest(native.StartRequest{
+		AppDir:          meta.Dir,
+		MainPath:        meta.MainPath(),
+		AppName:         meta.Name,
+		AppVersion:      meta.Version,
+		ElectronVersion: r.electronVersion,
+		Args:            append([]string(nil), r.args...),
+		Environment:     append([]string(nil), r.environment...),
+		NodeOptions: native.NativeNodeOptions{
+			ExperimentalTransformTypes: r.nodeOptions.ExperimentalTransformTypes,
+		},
+	})
+	if err := native.ValidateStartRequest(req); err != nil {
+		return WarmRunReport{}, err
+	}
+	plan, err := mainrunner.ParseFile(req.MainPath)
+	if err != nil {
+		return WarmRunReport{}, err
+	}
+
+	report := WarmRunReport{Iterations: iterations, Samples: make([]WarmSample, 0, iterations)}
+	stageStart := time.Now()
+	if err := bridge.InitializeForStart(ctx, req); err != nil {
+		return report, err
+	}
+	report.InitializeMS = time.Since(stageStart).Milliseconds()
+	var runErr error
+	for i := 1; i <= iterations; i++ {
+		sampleStart := time.Now()
+		execResult, err := mainrunner.Execute(ctx, plan, bridge, mainrunner.ExecuteOptions{
+			Environment: r.environment,
+			Out:         r.out,
+		})
+		sample := WarmSample{
+			Iteration:      i,
+			DurationMS:     time.Since(sampleStart).Milliseconds(),
+			StartupTraceMS: execResult.TraceMS,
+			ExitCode:       execResult.ExitCode,
+		}
+		if err != nil {
+			sample.ExitCode = 1
+			runErr = err
+		}
+		report.Samples = append(report.Samples, sample)
+		if err != nil {
+			break
+		}
+	}
+	report.Summary = summarizeWarmSamples(report.Samples)
+	stageStart = time.Now()
+	shutdownErr := bridge.Shutdown(ctx)
+	report.ShutdownMS = time.Since(stageStart).Milliseconds()
+	if runErr != nil {
+		return report, runErr
+	}
+	if shutdownErr != nil {
+		return report, shutdownErr
+	}
+	return report, nil
+}
+
+func summarizeWarmSamples(samples []WarmSample) WarmSummary {
+	summary := WarmSummary{}
+	durations := make([]int64, 0, len(samples))
+	for _, sample := range samples {
+		if sample.ExitCode == 0 {
+			summary.Successes++
+			durations = append(durations, sample.DurationMS)
+			continue
+		}
+		summary.Failures++
+	}
+	if len(durations) == 0 {
+		return summary
+	}
+	slices.Sort(durations)
+	summary.DurationMinMS = durations[0]
+	summary.DurationMedianMS = durations[len(durations)/2]
+	summary.DurationMaxMS = durations[len(durations)-1]
+	var total int64
+	for _, duration := range durations {
+		total += duration
+	}
+	summary.DurationMeanMS = float64(total) / float64(len(durations))
+	return summary
 }
 
 func (r *Runtime) startBridge(ctx context.Context, req native.StartRequest) (*native.StartResult, error) {

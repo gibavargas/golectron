@@ -236,6 +236,42 @@ func TestRuntimeFallsBackForUnsupportedMainPlan(t *testing.T) {
 	}
 }
 
+func TestWarmRunReusesInitializedMainPlanBridge(t *testing.T) {
+	dir := scopedMainApp(t)
+	bridge := &mainPlanBridgeFake{browserID: 77}
+	rt := New(Options{
+		AppDir:          dir,
+		ElectronVersion: "42.0.0",
+		Bridge:          bridge,
+		Environment:     []string{"ELECTRON_GO_BENCHMARK_TRACE=1"},
+	})
+
+	report, err := rt.WarmRun(context.Background(), 3)
+	if err != nil {
+		t.Fatalf("WarmRun() error = %v", err)
+	}
+	if bridge.startCalled {
+		t.Fatal("Bridge.Start called, want direct warm main-plan path")
+	}
+	if !bridge.initialized || !bridge.shutdown {
+		t.Fatalf("initialized/shutdown = %t/%t, want true/true", bridge.initialized, bridge.shutdown)
+	}
+	if report.Iterations != 3 || len(report.Samples) != 3 {
+		t.Fatalf("report iterations/samples = %d/%d, want 3/3", report.Iterations, len(report.Samples))
+	}
+	if report.Summary.Successes != 3 || report.Summary.Failures != 0 {
+		t.Fatalf("summary = %#v, want 3 successes", report.Summary)
+	}
+	for _, sample := range report.Samples {
+		if sample.ExitCode != 0 {
+			t.Fatalf("sample = %#v, want exit 0", sample)
+		}
+		if _, ok := sample.StartupTraceMS["app_ready"]; !ok {
+			t.Fatalf("sample trace = %#v, want app_ready", sample.StartupTraceMS)
+		}
+	}
+}
+
 func TestExtractNodeOptions(t *testing.T) {
 	if got := ExtractNodeOptions([]string{"electron-go", "--experimental-transform-types", "."}); !got.ExperimentalTransformTypes {
 		t.Fatal("ExperimentalTransformTypes = false, want true")
