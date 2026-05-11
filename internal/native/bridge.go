@@ -78,6 +78,11 @@ type BrowserWindowLoadRequest struct {
 	URL         string
 }
 
+type BrowserWindowCloseRequest struct {
+	ABIRevision uint32
+	BrowserID   int64
+}
+
 type SubprocessExecutionResult struct {
 	ExitCode int
 	Status   Status
@@ -204,6 +209,16 @@ func ValidateBrowserWindowLoadRequest(req BrowserWindowLoadRequest) error {
 	return nil
 }
 
+func ValidateBrowserWindowCloseRequest(req BrowserWindowCloseRequest) error {
+	if err := validateABIRevision(req.ABIRevision); err != nil {
+		return err
+	}
+	if req.BrowserID <= 0 {
+		return fmt.Errorf("browser ID must be positive")
+	}
+	return nil
+}
+
 func NormalizeStartRequest(req StartRequest) StartRequest {
 	if req.ABIRevision == 0 {
 		req.ABIRevision = CurrentABIRevision
@@ -226,6 +241,13 @@ func NormalizeBrowserWindowCreateRequest(req BrowserWindowCreateRequest) Browser
 }
 
 func NormalizeBrowserWindowLoadRequest(req BrowserWindowLoadRequest) BrowserWindowLoadRequest {
+	if req.ABIRevision == 0 {
+		req.ABIRevision = CurrentABIRevision
+	}
+	return req
+}
+
+func NormalizeBrowserWindowCloseRequest(req BrowserWindowCloseRequest) BrowserWindowCloseRequest {
 	if req.ABIRevision == 0 {
 		req.ABIRevision = CurrentABIRevision
 	}

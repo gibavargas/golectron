@@ -673,6 +673,24 @@ eg_bridge_status eg_cef_shim_load_url(
   return EG_BRIDGE_STATUS_RUNNING;
 }
 
+eg_bridge_status eg_cef_shim_close_browser(
+    eg_bridge_handle bridge,
+    const eg_browser_window_close_request* request) {
+  (void)bridge;
+  if (!request || request->abi_revision != EG_BRIDGE_ABI_REVISION ||
+      request->browser_id <= 0) {
+    return EG_BRIDGE_STATUS_INVALID_REQUEST;
+  }
+  if (!g_cef_initialized || !g_browser || !g_browser->get_identifier) {
+    return EG_BRIDGE_STATUS_FAILED;
+  }
+  if (g_browser->get_identifier(g_browser) != request->browser_id) {
+    return EG_BRIDGE_STATUS_INVALID_REQUEST;
+  }
+  eg_cef_request_close_browser(g_browser);
+  return EG_BRIDGE_STATUS_RUNNING;
+}
+
 eg_bridge_status eg_cef_shim_run_message_loop(eg_bridge_handle bridge) {
   (void)bridge;
   if (!g_cef_initialized) {
@@ -733,6 +751,14 @@ eg_bridge_status eg_cef_shim_create_browser_sync(
 eg_bridge_status eg_cef_shim_load_url(
     eg_bridge_handle bridge,
     const eg_browser_window_load_request* request) {
+  (void)bridge;
+  (void)request;
+  return EG_BRIDGE_STATUS_UNAVAILABLE;
+}
+
+eg_bridge_status eg_cef_shim_close_browser(
+    eg_bridge_handle bridge,
+    const eg_browser_window_close_request* request) {
   (void)bridge;
   (void)request;
   return EG_BRIDGE_STATUS_UNAVAILABLE;

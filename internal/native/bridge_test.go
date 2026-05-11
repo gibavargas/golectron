@@ -160,6 +160,37 @@ func TestValidateBrowserWindowLoadRequest(t *testing.T) {
 	}
 }
 
+func TestValidateBrowserWindowCloseRequest(t *testing.T) {
+	valid := BrowserWindowCloseRequest{
+		BrowserID: 1,
+	}
+
+	tests := []struct {
+		name string
+		req  BrowserWindowCloseRequest
+		want string
+	}{
+		{name: "valid", req: valid},
+		{name: "browser id", req: withBrowserWindowClose(valid, func(req *BrowserWindowCloseRequest) { req.BrowserID = 0 }), want: "browser ID must be positive"},
+		{name: "abi revision", req: withBrowserWindowClose(valid, func(req *BrowserWindowCloseRequest) { req.ABIRevision = CurrentABIRevision + 1 }), want: "unsupported native bridge ABI revision"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateBrowserWindowCloseRequest(tt.req)
+			if tt.want == "" {
+				if err != nil {
+					t.Fatalf("ValidateBrowserWindowCloseRequest() error = %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("ValidateBrowserWindowCloseRequest() error = %v, want %q", err, tt.want)
+			}
+		})
+	}
+}
+
 func TestIsCEFSubprocessArgs(t *testing.T) {
 	tests := []struct {
 		name string
@@ -250,6 +281,11 @@ func withBrowserWindowCreate(req BrowserWindowCreateRequest, edit func(*BrowserW
 }
 
 func withBrowserWindowLoad(req BrowserWindowLoadRequest, edit func(*BrowserWindowLoadRequest)) BrowserWindowLoadRequest {
+	edit(&req)
+	return req
+}
+
+func withBrowserWindowClose(req BrowserWindowCloseRequest, edit func(*BrowserWindowCloseRequest)) BrowserWindowCloseRequest {
 	edit(&req)
 	return req
 }

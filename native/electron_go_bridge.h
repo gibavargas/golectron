@@ -75,6 +75,11 @@ typedef struct eg_browser_window_load_request {
   eg_string_view url;
 } eg_browser_window_load_request;
 
+typedef struct eg_browser_window_close_request {
+  uint32_t abi_revision;
+  int64_t browser_id;
+} eg_browser_window_close_request;
+
 typedef struct eg_browser_window_result {
   uint32_t abi_revision;
   eg_bridge_status status;
@@ -136,6 +141,9 @@ eg_bridge_status eg_cef_create_browser_sync(
 eg_bridge_status eg_cef_load_url(
     eg_bridge_handle bridge,
     const eg_browser_window_load_request* request);
+eg_bridge_status eg_cef_close_browser(
+    eg_bridge_handle bridge,
+    const eg_browser_window_close_request* request);
 eg_bridge_status eg_cef_run_message_loop(eg_bridge_handle bridge);
 eg_bridge_status eg_cef_shutdown(eg_bridge_handle bridge);
 

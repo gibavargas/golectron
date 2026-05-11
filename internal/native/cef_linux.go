@@ -447,6 +447,30 @@ func loadBrowserWindowURL(ctx context.Context, req BrowserWindowLoadRequest) err
 	return nil
 }
 
+func closeBrowserWindow(ctx context.Context, req BrowserWindowCloseRequest) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	req = NormalizeBrowserWindowCloseRequest(req)
+	if err := ValidateBrowserWindowCloseRequest(req); err != nil {
+		return err
+	}
+
+	cReq := (*C.eg_browser_window_close_request)(C.calloc(1, C.size_t(unsafe.Sizeof(C.eg_browser_window_close_request{}))))
+	if cReq == nil {
+		return fmt.Errorf("allocate browser window close request")
+	}
+	defer C.free(unsafe.Pointer(cReq))
+	cReq.abi_revision = C.uint32_t(req.ABIRevision)
+	cReq.browser_id = C.int64_t(req.BrowserID)
+
+	status := C.eg_cef_shim_close_browser(nil, cReq)
+	if status != C.EG_BRIDGE_STATUS_RUNNING {
+		return fmt.Errorf("CEF BrowserWindow close failed: status=%s", bridgeStatusName(status))
+	}
+	return nil
+}
+
 func runMessageLoop(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err

@@ -43,11 +43,14 @@ and shutdown calls:
    `eg_cef_settings`.
 3. `eg_cef_create_browser_sync` receives
    `eg_browser_window_create_request` with an initial URL, dimensions, and
-   visibility flag, and returns a browser id in `eg_browser_window_result`.
+   visibility/auto-close flags, and returns a browser id in
+   `eg_browser_window_result`.
 4. `eg_cef_load_url` receives `eg_browser_window_load_request` for a known
    browser id.
-5. `eg_cef_run_message_loop` owns the CEF message loop until shutdown.
-6. `eg_cef_shutdown` tears the bridge down.
+5. `eg_cef_close_browser` receives `eg_browser_window_close_request` for a
+   known browser id and requests a normal BrowserWindow close.
+6. `eg_cef_run_message_loop` owns the CEF message loop until shutdown.
+7. `eg_cef_shutdown` tears the bridge down.
 
 The settings currently exposed are deliberately narrow:
 

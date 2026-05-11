@@ -39,6 +39,10 @@ eg_bridge_status eg_cef_shim_load_url(
     eg_bridge_handle bridge,
     const eg_browser_window_load_request* request);
 
+eg_bridge_status eg_cef_shim_close_browser(
+    eg_bridge_handle bridge,
+    const eg_browser_window_close_request* request);
+
 eg_bridge_status eg_cef_shim_run_message_loop(eg_bridge_handle bridge);
 eg_bridge_status eg_cef_shim_shutdown(eg_bridge_handle bridge);
 
