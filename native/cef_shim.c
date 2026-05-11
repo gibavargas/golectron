@@ -583,6 +583,7 @@ eg_bridge_status eg_cef_shim_create_browser_sync(
   cef_browser_settings_t browser_settings;
   memset(&browser_settings, 0, sizeof(browser_settings));
   browser_settings.size = sizeof(browser_settings);
+  browser_settings.background_color = 0xFFFFFFFF;
 
   cef_string_t url;
   memset(&url, 0, sizeof(url));
