@@ -271,7 +271,7 @@ func NewCEFInitializeRequest(appDir string, args []string) (CEFInitializeRequest
 		Settings: CEFSettings{
 			NoSandbox:   true,
 			CachePath:   cachePath,
-			LogSeverity: CEFLogSeverityWarning,
+			LogSeverity: CEFLogSeverityError,
 		},
 	}), nil
 }
