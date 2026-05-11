@@ -407,9 +407,6 @@ func createBrowserWindow(ctx context.Context, req BrowserWindowCreateRequest) er
 	if status != C.EG_BRIDGE_STATUS_RUNNING {
 		return fmt.Errorf("CEF BrowserWindow create failed: status=%s", bridgeStatusName(status))
 	}
-	if out.browser_id > 0 {
-		cefLastBrowserID.Store(int64(out.browser_id))
-	}
 	return nil
 }
 
@@ -424,8 +421,6 @@ func runMessageLoop(ctx context.Context) error {
 	if status != C.EG_BRIDGE_STATUS_STOPPED {
 		return fmt.Errorf("CEF message loop failed: status=%s", bridgeStatusName(status))
 	}
-	cefLastLoadError.Store(0)
-	cefBrowserClosed.Store(true)
 	return nil
 }
 

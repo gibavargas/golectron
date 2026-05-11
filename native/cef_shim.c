@@ -14,7 +14,10 @@
 #include <string.h>
 
 extern void goOnContextInitialized(void);
+extern void goOnBrowserAfterCreated(int browser_id);
+extern void goOnBrowserLoadEnd(int browser_id, int http_status_code);
 extern void goOnBrowserLoadError(int browser_id, int error_code);
+extern void goOnBrowserBeforeClose(int browser_id);
 
 static cef_browser_process_handler_t* g_browser_process_handler = NULL;
 static cef_life_span_handler_t* g_life_span_handler = NULL;
@@ -176,6 +179,7 @@ static void CEF_CALLBACK eg_cef_on_after_created(
   eg_cef_store_browser_ref(browser);
   if (browser && browser->get_identifier) {
     g_browser_id = browser->get_identifier(browser);
+    goOnBrowserAfterCreated(g_browser_id);
   }
 }
 
@@ -208,6 +212,7 @@ static void CEF_CALLBACK eg_cef_on_before_close(
   (void)self;
   g_browser_id = eg_cef_browser_id(browser);
   g_browser_closed = 1;
+  goOnBrowserBeforeClose(g_browser_id);
   eg_cef_release_browser_ref();
   cef_quit_message_loop();
 }
@@ -223,6 +228,7 @@ static void CEF_CALLBACK eg_cef_on_load_end(
   }
   g_load_complete = 1;
   g_browser_id = eg_cef_browser_id(browser);
+  goOnBrowserLoadEnd(g_browser_id, httpStatusCode);
   eg_cef_request_close_browser(browser);
 }
 
@@ -263,6 +269,7 @@ static void CEF_CALLBACK eg_cef_on_loading_state_change(
   }
   g_load_complete = 1;
   g_browser_id = eg_cef_browser_id(browser);
+  goOnBrowserLoadEnd(g_browser_id, 0);
   eg_cef_request_close_browser(browser);
 }
 
