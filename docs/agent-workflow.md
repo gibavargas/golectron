@@ -14,6 +14,14 @@ go run ./tools/workpackets --area ipc --format json
 go run ./tools/workpackets --id cef_bootstrap
 ```
 
+The output also includes objective-level packets above the completed 49-item
+ledger. Use these filters for the remaining full-runtime and 50% startup work:
+
+```sh
+go run ./tools/workpackets --area objective-runtime-parity
+go run ./tools/workpackets --area objective-performance
+```
+
 Each packet names the Electron 42.0.0 behavior area, the current status, existing
 evidence, and a ready-to-hand-off agent prompt.
 

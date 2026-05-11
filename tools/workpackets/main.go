@@ -36,7 +36,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	packets := buildPackets(ledger, filterSet(*status), filterSet(*area), filterSet(*ids))
+	statuses := filterSet(*status)
+	areas := filterSet(*area)
+	idSet := filterSet(*ids)
+	packets := buildPackets(ledger, statuses, areas, idSet)
+	packets = append(packets, buildObjectivePackets(statuses, areas, idSet)...)
+	sortPackets(packets)
 	if *limit > 0 && len(packets) > *limit {
 		packets = packets[:*limit]
 	}
@@ -81,6 +86,75 @@ func buildPackets(ledger compat.Ledger, statuses, areas, ids map[string]bool) []
 		})
 	}
 
+	sortPackets(packets)
+
+	return packets
+}
+
+func buildObjectivePackets(statuses, areas, ids map[string]bool) []packet {
+	objectivePackets := []packet{
+		{
+			ID:          "runtime-ipc-preload-conformance",
+			Area:        "objective-runtime-parity",
+			Status:      string(compat.StatusPartial),
+			Evidence:    []string{"compat/fixtures/hello", "compat/conformance_test.go", "cmd/electron-go --runtime-parity-audit"},
+			Notes:       "Unblocks TestHelloFixtureConformance and ELECTRON_GO_ENABLE_IPC_CONFORMANCE. Requires real preload, contextBridge, ipcRenderer.invoke, ipcMain.handle, and renderer-visible result parity against official Electron.",
+			E2ERequired: true,
+			Acceptance: []string{
+				"Electron-Go executes the hello fixture main/preload/renderer flow rather than only direct-loading index.html.",
+				"`ELECTRON_GO_ENABLE_IPC_CONFORMANCE=1 go test ./compat -run TestHelloFixtureConformance -count=1` passes against official Electron.",
+				"`go run ./cmd/electron-go --runtime-parity-audit` no longer fails this gate.",
+			},
+			Prompt: "Implement the remaining hello fixture app-runtime parity. Preserve Electron 42.0.0 behavior for app.whenReady, BrowserWindow preload loading, contextIsolation+sandbox, contextBridge.exposeInMainWorld, ipcMain.handle, ipcRenderer.invoke, and renderer-visible output. Prove it against official Electron with TestHelloFixtureConformance before enabling ELECTRON_GO_ENABLE_IPC_CONFORMANCE.",
+		},
+		{
+			ID:          "runtime-main-process-conformance",
+			Area:        "objective-runtime-parity",
+			Status:      string(compat.StatusPartial),
+			Evidence:    []string{"compat/fixtures/benchmark-hello", "compat/conformance_test.go", "docs/benchmarks.md", "cmd/electron-go --runtime-parity-audit"},
+			Notes:       "Unblocks TestBenchmarkHelloFixtureConformance and ELECTRON_GO_ENABLE_RUNTIME_FIXTURE_CONFORMANCE. The current CEF path loads index.html directly and does not execute fixture main.js.",
+			E2ERequired: true,
+			Acceptance: []string{
+				"Electron-Go executes the benchmark fixture main.js lifecycle instead of direct-loading index.html.",
+				"The fixture observes app.whenReady, BrowserWindow construction, did-finish-load, close, and app.quit semantics comparable to official Electron.",
+				"`ELECTRON_GO_ENABLE_RUNTIME_FIXTURE_CONFORMANCE=1 go test ./compat -run TestBenchmarkHelloFixtureConformance -count=1` passes against official Electron.",
+				"`go run ./cmd/electron-go --runtime-parity-audit` no longer fails this gate.",
+			},
+			Prompt: "Implement native Chromium/Node/V8 main-process runtime parity for the benchmark fixture. Do not hard-code the fixture outcome; execute the Electron-style main process lifecycle and prove it with TestBenchmarkHelloFixtureConformance before enabling ELECTRON_GO_ENABLE_RUNTIME_FIXTURE_CONFORMANCE.",
+		},
+		{
+			ID:          "performance-50-percent-startup-target",
+			Area:        "objective-performance",
+			Status:      string(compat.StatusPartial),
+			Evidence:    []string{"docs/benchmarks.md", "cmd/electron-go/goal_evidence.json", "tools/goalevidence", "cmd/electron-go --goal-audit"},
+			Notes:       "Latest tracked duration_median_ms ratio is 0.7912; the objective requires electron_go_over_electron <= 0.5 with full runtime parity still intact.",
+			E2ERequired: true,
+			Acceptance: []string{
+				"Run a published alternating-order benchmark artifact against official Electron and Electron-Go with full runtime parity enabled.",
+				"`duration_median_ms` comparison reports `electron_go_over_electron <= 0.5`.",
+				"Update cmd/electron-go/goal_evidence.json via tools/goalevidence from that published artifact.",
+				"`go run ./cmd/electron-go --goal-audit` passes without disabling runtime parity gates.",
+			},
+			Prompt: "Optimize Electron-Go startup only after preserving full runtime parity. Use published tools/benchmarks artifacts, update cmd/electron-go/goal_evidence.json via tools/goalevidence, and keep benchmark semantics comparable to official Electron. The target is duration_median_ms electron_go_over_electron <= 0.5.",
+		},
+	}
+	filtered := objectivePackets[:0]
+	for _, packet := range objectivePackets {
+		if len(statuses) > 0 && !statuses[packet.Status] {
+			continue
+		}
+		if len(areas) > 0 && !areas[packet.Area] {
+			continue
+		}
+		if len(ids) > 0 && !ids[packet.ID] {
+			continue
+		}
+		filtered = append(filtered, packet)
+	}
+	return filtered
+}
+
+func sortPackets(packets []packet) {
 	sort.SliceStable(packets, func(i, j int) bool {
 		if packets[i].Status != packets[j].Status {
 			return rankStatus(packets[i].Status) < rankStatus(packets[j].Status)
@@ -90,8 +164,6 @@ func buildPackets(ledger compat.Ledger, statuses, areas, ids map[string]bool) []
 		}
 		return packets[i].ID < packets[j].ID
 	})
-
-	return packets
 }
 
 func filterSet(raw string) map[string]bool {

@@ -98,3 +98,37 @@ func TestBuildPacketsMarksCompatibleWithoutE2EAsRequired(t *testing.T) {
 		t.Fatal("conformance E2ERequired = true, want false")
 	}
 }
+
+func TestBuildObjectivePacketsExposeRemainingGoalBlockers(t *testing.T) {
+	packets := buildObjectivePackets(nil, nil, nil)
+	if len(packets) != 3 {
+		t.Fatalf("len(objective packets) = %d, want 3", len(packets))
+	}
+	var runtime, perf packet
+	for _, packet := range packets {
+		if packet.ID == "runtime-main-process-conformance" {
+			runtime = packet
+		}
+		if packet.ID == "performance-50-percent-startup-target" {
+			perf = packet
+		}
+	}
+	if runtime.ID == "" || !strings.Contains(runtime.Notes, "main.js") {
+		t.Fatalf("runtime packet = %#v, want main.js blocker", runtime)
+	}
+	if perf.ID == "" || !strings.Contains(strings.Join(perf.Acceptance, " "), "goal_evidence.json") {
+		t.Fatalf("performance packet = %#v, want goal evidence acceptance", perf)
+	}
+}
+
+func TestBuildObjectivePacketsRespectsFilters(t *testing.T) {
+	packets := buildObjectivePackets(nil, filterSet("objective-performance"), nil)
+	if len(packets) != 1 || packets[0].ID != "performance-50-percent-startup-target" {
+		t.Fatalf("area-filtered objective packets = %#v, want performance target", packets)
+	}
+
+	packets = buildObjectivePackets(nil, nil, filterSet("runtime-ipc-preload-conformance"))
+	if len(packets) != 1 || packets[0].ID != "runtime-ipc-preload-conformance" {
+		t.Fatalf("id-filtered objective packets = %#v, want ipc preload target", packets)
+	}
+}
