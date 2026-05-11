@@ -43,6 +43,26 @@ static cef_client_t g_static_client;
 static cef_life_span_handler_t g_static_life_span_handler;
 static cef_load_handler_t g_static_load_handler;
 static cef_display_handler_t g_static_display_handler;
+typedef struct eg_cef_cached_switch {
+  const char* name;
+  cef_string_t value;
+} eg_cef_cached_switch;
+
+static eg_cef_cached_switch g_static_switches[] = {
+    {"disable-background-networking", {0}},
+    {"disable-breakpad", {0}},
+    {"disable-component-update", {0}},
+    {"disable-default-apps", {0}},
+    {"disable-extensions", {0}},
+    {"disable-gpu", {0}},
+    {"disable-dev-shm-usage", {0}},
+    {"disable-sync", {0}},
+    {"metrics-recording-only", {0}},
+    {"no-default-browser-check", {0}},
+    {"no-first-run", {0}},
+    {"no-zygote", {0}},
+};
+static int g_static_switches_initialized = 0;
 
 typedef struct eg_cef_argv_storage {
   int argc;
@@ -86,26 +106,41 @@ static void eg_cef_init_base(cef_base_ref_counted_t* base, size_t size) {
 
 static void eg_cef_init_static_handlers(void);
 
+static void eg_cef_init_static_switches(void) {
+  if (g_static_switches_initialized) {
+    return;
+  }
+  for (size_t i = 0; i < sizeof(g_static_switches) / sizeof(g_static_switches[0]); i++) {
+    memset(&g_static_switches[i].value, 0, sizeof(g_static_switches[i].value));
+    (void)cef_string_from_ascii(
+        g_static_switches[i].name,
+        strlen(g_static_switches[i].name),
+        &g_static_switches[i].value);
+  }
+  g_static_switches_initialized = 1;
+}
+
 static void CEF_CALLBACK eg_cef_on_context_initialized(
     struct _cef_browser_process_handler_t* self) {
   (void)self;
   goOnContextInitialized();
 }
 
-static void eg_cef_append_ascii_switch(
+static void eg_cef_append_cached_switch(
     struct _cef_command_line_t* command_line,
-    const char* name) {
-  if (!command_line || !command_line->append_switch || !name) {
+    size_t index) {
+  if (!command_line || !command_line->append_switch ||
+      index >= sizeof(g_static_switches) / sizeof(g_static_switches[0])) {
     return;
   }
-  cef_string_t switch_name;
-  memset(&switch_name, 0, sizeof(switch_name));
-  if (cef_string_from_ascii(name, strlen(name), &switch_name)) {
-    if (!command_line->has_switch ||
-        !command_line->has_switch(command_line, &switch_name)) {
-      command_line->append_switch(command_line, &switch_name);
-    }
-    cef_string_clear(&switch_name);
+  eg_cef_init_static_switches();
+  cef_string_t* switch_name = &g_static_switches[index].value;
+  if (!switch_name->str) {
+    return;
+  }
+  if (!command_line->has_switch ||
+      !command_line->has_switch(command_line, switch_name)) {
+    command_line->append_switch(command_line, switch_name);
   }
 }
 
@@ -122,18 +157,9 @@ static void CEF_CALLBACK eg_cef_on_before_command_line_processing(
     struct _cef_command_line_t* command_line) {
   (void)self;
   (void)process_type;
-  eg_cef_append_ascii_switch(command_line, "disable-background-networking");
-  eg_cef_append_ascii_switch(command_line, "disable-breakpad");
-  eg_cef_append_ascii_switch(command_line, "disable-component-update");
-  eg_cef_append_ascii_switch(command_line, "disable-default-apps");
-  eg_cef_append_ascii_switch(command_line, "disable-extensions");
-  eg_cef_append_ascii_switch(command_line, "disable-gpu");
-  eg_cef_append_ascii_switch(command_line, "disable-dev-shm-usage");
-  eg_cef_append_ascii_switch(command_line, "disable-sync");
-  eg_cef_append_ascii_switch(command_line, "metrics-recording-only");
-  eg_cef_append_ascii_switch(command_line, "no-default-browser-check");
-  eg_cef_append_ascii_switch(command_line, "no-first-run");
-  eg_cef_append_ascii_switch(command_line, "no-zygote");
+  for (size_t i = 0; i < sizeof(g_static_switches) / sizeof(g_static_switches[0]); i++) {
+    eg_cef_append_cached_switch(command_line, i);
+  }
 }
 
 static cef_browser_process_handler_t* eg_cef_make_browser_process_handler(void) {
@@ -401,6 +427,7 @@ static void eg_cef_init_static_handlers(void) {
   if (g_static_handlers_initialized) {
     return;
   }
+  eg_cef_init_static_switches();
 
   memset(&g_static_app, 0, sizeof(g_static_app));
   eg_cef_init_base(&g_static_app.base, sizeof(cef_app_t));
