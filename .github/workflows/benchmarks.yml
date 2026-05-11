@@ -75,11 +75,15 @@ jobs:
         run: go build -tags electron_go_cef -o bin/electron-go ./cmd/electron-go
 
       - name: Warm benchmark commands
+        env:
+          ELECTRON_GO_ENABLE_SCOPED_MAIN_RUNNER: "1"
         run: |
           xvfb-run -a timeout 30 /tmp/electron-go-bench/node_modules/.bin/electron compat/fixtures/benchmark-hello
           xvfb-run -a timeout 30 bin/electron-go compat/fixtures/benchmark-hello
 
       - name: Compare hello startup against official Electron
+        env:
+          ELECTRON_GO_ENABLE_SCOPED_MAIN_RUNNER: "1"
         run: |
           mkdir -p benchmark-artifacts
           xvfb-run -a go run ./tools/benchmarks \
@@ -97,6 +101,7 @@ jobs:
       - name: Capture Electron-Go startup trace
         env:
           ELECTRON_GO_STARTUP_TRACE: "1"
+          ELECTRON_GO_ENABLE_SCOPED_MAIN_RUNNER: "1"
         run: |
           xvfb-run -a go run ./tools/benchmarks \
             --fixture ./compat/fixtures/benchmark-hello \
