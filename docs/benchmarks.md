@@ -95,23 +95,23 @@ this runner until they are implemented.
 ### Latest Linux Hello Result
 
 PR benchmark run
-`https://github.com/gibavargas/electron-go/actions/runs/25647008742` on commit
-`b5ea164` measured the `compat/fixtures/benchmark-hello` fixture with five
+`https://github.com/gibavargas/electron-go/actions/runs/25647216610` on commit
+`6fd2e21` measured the `compat/fixtures/benchmark-hello` fixture with five
 successful iterations on Ubuntu 22.04:
 
-- median wall-clock startup: Electron-Go `421ms`, Electron `536ms`
-  (`electron_go_over_electron = 0.7854`, about `1.27x` faster);
-- median process-tree peak RSS: Electron-Go `250004KB`, Electron `579060KB`
-  (`electron_go_over_electron = 0.4317`, about `2.32x` lighter);
-- median root max RSS: Electron-Go `249384KB`, Electron `211576KB`
-  (`electron_go_over_electron = 1.1787`, Electron-Go is heavier for this
+- median wall-clock startup: Electron-Go `380ms`, Electron `508ms`
+  (`electron_go_over_electron = 0.7480`, about `1.34x` faster);
+- median process-tree peak RSS: Electron-Go `249244KB`, Electron `601280KB`
+  (`electron_go_over_electron = 0.4145`, about `2.41x` lighter);
+- median root max RSS: Electron-Go `248092KB`, Electron `213956KB`
+  (`electron_go_over_electron = 1.1595`, Electron-Go is heavier for this
   process-only metric).
-- Electron-Go native startup medians: `cef_initialize=149ms`,
-  `create_browser=55ms`, `message_loop=130ms`, `cef_shutdown=32ms`,
-  `total_native_start=370ms`;
-- official Electron fixture trace medians: `app_ready=103ms`,
-  `window_created=166ms`, `load_start=166ms`, `did_finish_load=267ms`,
-  `quit_requested=268ms`.
+- Electron-Go native startup medians: `cef_initialize=138ms`,
+  `create_browser=52ms`, `message_loop=116ms`, `cef_shutdown=29ms`,
+  `total_native_start=335ms`;
+- official Electron fixture trace medians: `app_ready=98ms`,
+  `window_created=149ms`, `load_start=149ms`, `did_finish_load=256ms`,
+  `quit_requested=257ms`.
 
 The earlier PR benchmark run
 `https://github.com/gibavargas/electron-go/actions/runs/25645023440` on commit
