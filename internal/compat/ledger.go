@@ -19,6 +19,15 @@ type TargetVersions struct {
 	Modules   string `json:"modules,omitempty"`
 }
 
+var staticTarget = TargetVersions{
+	Electron:  "42.0.0",
+	Chromium:  "148.0.7778.96",
+	Node:      "24.15.0",
+	V8:        "14.8.178.14",
+	V8Process: "14.8.178.14-electron.0",
+	Modules:   "146",
+}
+
 type Ledger struct {
 	Target     TargetVersions `json:"target"`
 	Generated  string         `json:"generated"`
@@ -102,7 +111,7 @@ func (item *Item) UnmarshalJSON(data []byte) error {
 }
 
 func Target() TargetVersions {
-	return MustLoadLedger().Target
+	return staticTarget
 }
 
 func MustLoadLedger() Ledger {

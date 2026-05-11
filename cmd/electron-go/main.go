@@ -132,8 +132,8 @@ func run(argv []string, env []string) int {
 		return 0
 	}
 
-	ledger := compat.MustLoadLedger()
 	if *showLedger {
+		ledger := compat.MustLoadLedger()
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		if err := enc.Encode(ledger); err != nil {
@@ -144,6 +144,7 @@ func run(argv []string, env []string) int {
 	}
 
 	if *showE2EAudit {
+		ledger := compat.MustLoadLedger()
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		if err := enc.Encode(ledger.AuditE2EEvidence()); err != nil {
@@ -154,6 +155,7 @@ func run(argv []string, env []string) int {
 	}
 
 	if *checkParity {
+		ledger := compat.MustLoadLedger()
 		audit := ledger.AuditE2EEvidence()
 		if ledger.IsComplete() && audit.Pass {
 			fmt.Fprintf(os.Stdout, "electron-go parity complete for Electron %s\n", ledger.Target.Electron)
@@ -620,7 +622,7 @@ func run(argv []string, env []string) int {
 			Supported:                  true,
 			ExperimentalTransformTypes: nodeOptions.ExperimentalTransformTypes,
 			ExecArgvIncludesFlag:       false,
-			Node:                       ledger.Target.Node,
+			Node:                       compat.Target().Node,
 		}
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
@@ -632,7 +634,7 @@ func run(argv []string, env []string) int {
 	}
 
 	if *nodeVersionsCheck {
-		report, err := nodeVersionsReport(ledger.Target)
+		report, err := nodeVersionsReport(compat.Target())
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		if encodeErr := enc.Encode(report); encodeErr != nil {
@@ -795,7 +797,7 @@ func run(argv []string, env []string) int {
 
 	rt := egruntime.New(egruntime.Options{
 		AppDir:          appDir,
-		ElectronVersion: ledger.Target.Electron,
+		ElectronVersion: compat.Target().Electron,
 		Bridge:          native.NewBridge(),
 		Args:            argv,
 		Environment:     env,

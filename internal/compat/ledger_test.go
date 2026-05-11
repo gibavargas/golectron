@@ -27,6 +27,16 @@ func TestLedgerLoadsElectron42Baseline(t *testing.T) {
 	}
 }
 
+func TestStaticTargetMatchesLedgerTarget(t *testing.T) {
+	ledger, err := LoadLedger()
+	if err != nil {
+		t.Fatalf("LoadLedger() error = %v", err)
+	}
+	if got := Target(); got != ledger.Target {
+		t.Fatalf("Target() = %#v, want ledger target %#v", got, ledger.Target)
+	}
+}
+
 func TestLedgerItemsHaveImplementationDrivingMetadata(t *testing.T) {
 	ledger, err := LoadLedger()
 	if err != nil {
