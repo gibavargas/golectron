@@ -129,6 +129,51 @@ func TestRunRuntimeParityAuditPassesWhenRuntimeGatesEnabled(t *testing.T) {
 	}
 }
 
+func TestRunGoalAuditReportsRemainingObjectiveGaps(t *testing.T) {
+	t.Setenv("ELECTRON_GO_ENABLE_IPC_CONFORMANCE", "")
+	t.Setenv("ELECTRON_GO_ENABLE_RUNTIME_FIXTURE_CONFORMANCE", "")
+
+	var stdout bytes.Buffer
+	code := runWithOutput(t, []string{"electron-go", "--goal-audit"}, &stdout, nil)
+	if code != 1 {
+		t.Fatalf("run(--goal-audit) exit = %d, want 1 while objective remains incomplete", code)
+	}
+	var payload struct {
+		Pass   bool `json:"pass"`
+		Ledger struct {
+			Pass       bool `json:"pass"`
+			Compatible int  `json:"compatible"`
+			Total      int  `json:"total"`
+		} `json:"ledger"`
+		Runtime struct {
+			Pass bool `json:"pass"`
+		} `json:"runtime"`
+		Performance struct {
+			Pass                         bool    `json:"pass"`
+			TargetElectronGoOverElectron float64 `json:"target_electron_go_over_electron"`
+			LatestElectronGoOverElectron float64 `json:"latest_electron_go_over_electron"`
+		} `json:"performance"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &payload); err != nil {
+		t.Fatalf("--goal-audit output is not JSON: %v\n%s", err, stdout.String())
+	}
+	if payload.Pass {
+		t.Fatal("pass = true while runtime and performance targets are incomplete")
+	}
+	if !payload.Ledger.Pass || payload.Ledger.Compatible != 49 || payload.Ledger.Total != 49 {
+		t.Fatalf("ledger audit = %#v, want 49/49 pass", payload.Ledger)
+	}
+	if payload.Runtime.Pass {
+		t.Fatal("runtime pass = true while runtime gates are disabled")
+	}
+	if payload.Performance.Pass {
+		t.Fatal("performance pass = true before 0.5 startup ratio target")
+	}
+	if payload.Performance.TargetElectronGoOverElectron != 0.5 || payload.Performance.LatestElectronGoOverElectron <= 0.5 {
+		t.Fatalf("performance audit = %#v, want latest ratio above 0.5 target", payload.Performance)
+	}
+}
+
 func TestRunClipboardCheckReportsTextRoundTrip(t *testing.T) {
 	var stdout bytes.Buffer
 	code := runWithOutput(t, []string{"electron-go", "--clipboard-check"}, &stdout, nil)

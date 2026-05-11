@@ -91,6 +91,7 @@ A release can claim full parity only when:
 go test ./...
 go run ./cmd/electron-go --check-parity
 go run ./cmd/electron-go --runtime-parity-audit
+go run ./cmd/electron-go --goal-audit
 ```
 
 all pass, and the platform conformance suite passes against the latest stable
@@ -110,3 +111,9 @@ explicitly gated until their underlying runtime features land:
 `--runtime-parity-audit` exits nonzero while either gate is skipped. Do not
 claim full Electron app-runtime parity until it passes and the corresponding
 fixture comparisons pass against official Electron.
+
+`--goal-audit` combines the 49/49 ledger gate, e2e evidence audit, runtime
+parity audit, and the current published startup benchmark ratio against the
+`electron_go_over_electron <= 0.5` target. It is the final objective check and
+must remain red until both full runtime parity and the 50% faster target are
+proven.

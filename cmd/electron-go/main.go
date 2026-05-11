@@ -84,6 +84,7 @@ func run(argv []string, env []string) int {
 	showE2EAudit := fs.Bool("e2e-audit", false, "print compatible ledger items lacking e2e/conformance evidence")
 	checkParity := fs.Bool("check-parity", false, "exit successfully only when every ledger item is compatible")
 	runtimeParityAudit := fs.Bool("runtime-parity-audit", false, "exit successfully only when full Electron app-runtime conformance gates are enabled")
+	goalAudit := fs.Bool("goal-audit", false, "print full objective audit for ledger parity, runtime parity, and startup performance")
 	browserWindowOptionsCheck := fs.Bool("browser-window-options-check", false, "print BrowserWindow constructor option compatibility JSON")
 	browserWindowMethodsCheck := fs.Bool("browser-window-methods-check", false, "print BrowserWindow methods compatibility JSON")
 	viewTreeCheck := fs.Bool("view-tree-check", false, "print BaseWindow/View tree compatibility JSON")
@@ -179,6 +180,20 @@ func run(argv []string, env []string) int {
 
 	if *runtimeParityAudit {
 		report := runtimeParityAuditReport()
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(report); err != nil {
+			fmt.Fprintf(os.Stderr, "electron-go: %v\n", err)
+			return 1
+		}
+		if !report.Pass {
+			return 1
+		}
+		return 0
+	}
+
+	if *goalAudit {
+		report := goalAuditReport()
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		if err := enc.Encode(report); err != nil {
@@ -871,6 +886,36 @@ type runtimeParityAuditReportPayload struct {
 	Gates []runtimeParityGateReport `json:"gates"`
 }
 
+type goalAuditReportPayload struct {
+	Pass        bool                            `json:"pass"`
+	Ledger      goalLedgerAuditReport           `json:"ledger"`
+	E2E         goalE2EAuditReport              `json:"e2e"`
+	Runtime     runtimeParityAuditReportPayload `json:"runtime"`
+	Performance goalPerformanceAuditReport      `json:"performance"`
+}
+
+type goalLedgerAuditReport struct {
+	Pass       bool   `json:"pass"`
+	Completion string `json:"completion"`
+	Compatible int    `json:"compatible"`
+	Total      int    `json:"total"`
+}
+
+type goalE2EAuditReport struct {
+	Pass       bool     `json:"pass"`
+	Missing    []string `json:"missing_e2e_evidence"`
+	Incomplete []string `json:"incomplete_items"`
+}
+
+type goalPerformanceAuditReport struct {
+	Pass                         bool    `json:"pass"`
+	TargetElectronGoOverElectron float64 `json:"target_electron_go_over_electron"`
+	LatestElectronGoOverElectron float64 `json:"latest_electron_go_over_electron"`
+	LatestRunURL                 string  `json:"latest_run_url"`
+	LatestCommit                 string  `json:"latest_commit"`
+	Metric                       string  `json:"metric"`
+}
+
 func runtimeParityAuditReport() runtimeParityAuditReportPayload {
 	gates := []runtimeParityGateReport{
 		{
@@ -894,6 +939,40 @@ func runtimeParityAuditReport() runtimeParityAuditReportPayload {
 		}
 	}
 	return runtimeParityAuditReportPayload{Pass: pass, Gates: gates}
+}
+
+func goalAuditReport() goalAuditReportPayload {
+	ledger := compat.MustLoadLedger()
+	e2e := ledger.AuditE2EEvidence()
+	runtimeAudit := runtimeParityAuditReport()
+	performance := goalPerformanceAuditReport{
+		TargetElectronGoOverElectron: 0.5,
+		LatestElectronGoOverElectron: 0.7912,
+		LatestRunURL:                 "https://github.com/gibavargas/electron-go/actions/runs/25649698967",
+		LatestCommit:                 "1c49161",
+		Metric:                       "duration_median_ms",
+	}
+	performance.Pass = performance.LatestElectronGoOverElectron <= performance.TargetElectronGoOverElectron
+
+	ledgerAudit := goalLedgerAuditReport{
+		Pass:       ledger.IsComplete(),
+		Completion: string(ledger.Completion),
+		Compatible: ledger.CompatibleCount(),
+		Total:      ledger.TotalCount(),
+	}
+	e2eAudit := goalE2EAuditReport{
+		Pass:       e2e.Pass,
+		Missing:    e2e.Missing,
+		Incomplete: e2e.Incomplete,
+	}
+	pass := ledgerAudit.Pass && e2eAudit.Pass && runtimeAudit.Pass && performance.Pass
+	return goalAuditReportPayload{
+		Pass:        pass,
+		Ledger:      ledgerAudit,
+		E2E:         e2eAudit,
+		Runtime:     runtimeAudit,
+		Performance: performance,
+	}
 }
 
 func auditEnvEnabled(key string) bool {
