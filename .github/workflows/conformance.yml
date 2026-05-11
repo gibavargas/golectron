@@ -78,6 +78,27 @@ jobs:
       - name: Run Electron-Go hello fixture
         run: xvfb-run -a timeout 30 bin/electron-go compat/fixtures/benchmark-hello
 
+      - name: Probe opt-in scoped main runner
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          ELECTRON_GO_ENABLE_SCOPED_MAIN_RUNNER: "1"
+          ELECTRON_GO_BENCHMARK_TRACE: "1"
+          ELECTRON_GO_STARTUP_TRACE: "1"
+        run: |
+          mkdir -p scoped-runner-artifacts
+          set +e
+          xvfb-run -a timeout 30 bin/electron-go compat/fixtures/benchmark-hello > scoped-runner-artifacts/scoped-main-runner.log 2>&1
+          status="$?"
+          echo "${status}" > scoped-runner-artifacts/scoped-main-runner.status
+          cat scoped-runner-artifacts/scoped-main-runner.log
+          exit "${status}"
+
+      - uses: actions/upload-artifact@v4
+        if: always() && github.event_name == 'workflow_dispatch'
+        with:
+          name: scoped-main-runner-probe
+          path: scoped-runner-artifacts/*
+
       - name: Verify Electron-Go runtime process model
         run: xvfb-run -a timeout 30 bin/electron-go --process-model-check compat/fixtures/benchmark-hello
 
