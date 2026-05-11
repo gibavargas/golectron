@@ -1,14 +1,21 @@
 const { app, BrowserWindow } = require('electron');
 
 let win;
+const traceEnabled = process.env.ELECTRON_GO_BENCHMARK_TRACE === '1';
 const traceStart = performance.now();
 const trace = {};
 
 function mark(name) {
+  if (!traceEnabled) {
+    return;
+  }
   trace[name] = Math.round(performance.now() - traceStart);
 }
 
 function emitTrace() {
+  if (!traceEnabled) {
+    return;
+  }
   console.log(`benchmark-trace: ${JSON.stringify(trace)}`);
 }
 

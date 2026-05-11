@@ -84,7 +84,8 @@ The runner currently records:
   metrics.
 - optional fixture-level `benchmark-trace:` phase timings emitted by benchmark
   fixtures, such as app readiness, window creation, load start, and load finish,
-  when the runtime executes the benchmark fixture main script;
+  when the runtime executes the benchmark fixture main script and
+  `ELECTRON_GO_BENCHMARK_TRACE=1` is set;
 - median summaries for Electron-Go native startup traces and any emitted
   fixture-level benchmark traces.
 
@@ -112,6 +113,11 @@ successful iterations on Ubuntu 22.04:
 - official Electron fixture trace medians: `app_ready=98ms`,
   `window_created=149ms`, `load_start=149ms`, `did_finish_load=256ms`,
   `quit_requested=257ms`.
+
+Fixture-level phase traces are diagnostic and should be collected in explicit
+trace runs. The normal headline benchmark keeps fixture tracing disabled to
+avoid adding JavaScript and console-output work to only one side of the
+comparison.
 
 The earlier PR benchmark run
 `https://github.com/gibavargas/electron-go/actions/runs/25645023440` on commit
