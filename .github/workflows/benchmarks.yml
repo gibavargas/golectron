@@ -98,6 +98,19 @@ jobs:
             --electron-go bin/electron-go \
             --require-faster process_tree_rss_peak_median_kb
 
+      - name: Compare hello startup without RSS probes
+        env:
+          ELECTRON_GO_ENABLE_SCOPED_MAIN_RUNNER: "1"
+        run: |
+          xvfb-run -a go run ./tools/benchmarks \
+            --fixture ./compat/fixtures/benchmark-hello \
+            --iterations 5 \
+            --timeout 30s \
+            --run-order alternating \
+            --output benchmark-artifacts/hello-linux-duration.json \
+            --electron /tmp/electron-go-bench/node_modules/.bin/electron \
+            --electron-go bin/electron-go
+
       - name: Capture Electron-Go startup trace
         env:
           ELECTRON_GO_STARTUP_TRACE: "1"

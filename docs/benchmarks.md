@@ -138,6 +138,15 @@ It does not yet measure time to first visible paint, IPC latency, idle CPU,
 package size, binary size, or build/package time. Do not cite those metrics from
 this runner until they are implemented.
 
+The Linux benchmark workflow uploads two comparable Electron-vs-Electron-Go
+startup reports for the same fixture:
+
+- `hello-linux.json` enables max RSS and process-tree RSS probes, and remains
+  the memory gate;
+- `hello-linux-duration.json` disables RSS probes for both commands, and is the
+  cleaner startup-duration report because it avoids `/usr/bin/time` wrapper and
+  `/proc` sampler overhead.
+
 ### Latest Linux Hello Result
 
 PR benchmark run
