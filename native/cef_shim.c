@@ -101,7 +101,10 @@ static void eg_cef_append_ascii_switch(
   cef_string_t switch_name;
   memset(&switch_name, 0, sizeof(switch_name));
   if (cef_string_from_ascii(name, strlen(name), &switch_name)) {
-    command_line->append_switch(command_line, &switch_name);
+    if (!command_line->has_switch ||
+        !command_line->has_switch(command_line, &switch_name)) {
+      command_line->append_switch(command_line, &switch_name);
+    }
     cef_string_clear(&switch_name);
   }
 }
