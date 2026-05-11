@@ -16,15 +16,16 @@ import (
 )
 
 type Report struct {
-	Fixture     string          `json:"fixture"`
-	OS          string          `json:"os"`
-	Arch        string          `json:"arch"`
-	Iterations  int             `json:"iterations"`
-	RunOrder    string          `json:"run_order,omitempty"`
-	MeasureRSS  bool            `json:"measure_rss"`
-	StartedAt   string          `json:"started_at"`
-	Results     []CommandResult `json:"results"`
-	Comparisons []Comparison    `json:"comparisons,omitempty"`
+	Fixture           string             `json:"fixture"`
+	OS                string             `json:"os"`
+	Arch              string             `json:"arch"`
+	Iterations        int                `json:"iterations"`
+	RunOrder          string             `json:"run_order,omitempty"`
+	MeasureRSS        bool               `json:"measure_rss"`
+	StartedAt         string             `json:"started_at"`
+	Results           []CommandResult    `json:"results"`
+	Comparisons       []Comparison       `json:"comparisons,omitempty"`
+	PairedComparisons []PairedComparison `json:"paired_comparisons,omitempty"`
 }
 
 type CommandResult struct {
@@ -90,6 +91,15 @@ type Comparison struct {
 	ElectronGoFasterOrLighter bool    `json:"electron_go_faster_or_lighter"`
 }
 
+type PairedComparison struct {
+	Metric                         string  `json:"metric"`
+	SuccessfulPairs                int     `json:"successful_pairs"`
+	ElectronGoOverElectronMedian   float64 `json:"electron_go_over_electron_median"`
+	ElectronOverElectronGoMedian   float64 `json:"electron_over_electron_go_median"`
+	LowerIsBetter                  bool    `json:"lower_is_better"`
+	ElectronGoFasterOrLighterPairs int     `json:"electron_go_faster_or_lighter_pairs"`
+}
+
 func main() {
 	fixture := flag.String("fixture", "./compat/fixtures/hello", "fixture app directory appended to each command")
 	electron := flag.String("electron", "", "official Electron command")
@@ -138,6 +148,7 @@ func main() {
 		}
 	}
 	report.Comparisons = computeComparisons(report.Results)
+	report.PairedComparisons = computePairedComparisons(report.Results)
 	requireErr := validateRequiredFaster(report, requiredMetrics(*requireFaster))
 	ratios, ratioParseErr := requiredRatios(*requireRatio)
 	if ratioErr := validateRequiredRatios(report, ratios, ratioParseErr); requireErr == nil {
@@ -493,6 +504,68 @@ func computeComparisons(results []CommandResult) []Comparison {
 	return comparisons
 }
 
+func computePairedComparisons(results []CommandResult) []PairedComparison {
+	var electron, electronGo *CommandResult
+	for i := range results {
+		switch results[i].Name {
+		case "electron":
+			electron = &results[i]
+		case "electron-go":
+			electronGo = &results[i]
+		}
+	}
+	if electron == nil || electronGo == nil {
+		return nil
+	}
+
+	electronSamples := successfulSamplesByPair(electron.Samples)
+	electronGoSamples := successfulSamplesByPair(electronGo.Samples)
+	var comparisons []PairedComparison
+	add := func(metric string, value func(Sample) int64) {
+		var ratios []float64
+		fasterPairs := 0
+		for pair, electronSample := range electronSamples {
+			electronValue := value(electronSample)
+			electronGoValue := value(electronGoSamples[pair])
+			if electronValue <= 0 || electronGoValue <= 0 {
+				continue
+			}
+			ratio := float64(electronGoValue) / float64(electronValue)
+			ratios = append(ratios, ratio)
+			if ratio < 1 {
+				fasterPairs++
+			}
+		}
+		if len(ratios) == 0 {
+			return
+		}
+		medianRatio := medianFloat64(ratios)
+		comparisons = append(comparisons, PairedComparison{
+			Metric:                         metric,
+			SuccessfulPairs:                len(ratios),
+			ElectronGoOverElectronMedian:   medianRatio,
+			ElectronOverElectronGoMedian:   1 / medianRatio,
+			LowerIsBetter:                  true,
+			ElectronGoFasterOrLighterPairs: fasterPairs,
+		})
+	}
+	add("duration_ms", func(sample Sample) int64 { return sample.DurationMS })
+	add("max_rss_kb", func(sample Sample) int64 { return sample.MaxRSSKB })
+	add("process_tree_rss_peak_kb", func(sample Sample) int64 { return sample.ProcessTreeRSSPeakKB })
+	return comparisons
+}
+
+func successfulSamplesByPair(samples []Sample) map[int]Sample {
+	out := map[int]Sample{}
+	for _, sample := range samples {
+		if sample.Pair <= 0 || sample.ExitCode != 0 || sample.Error != "" || sample.TimedOut {
+			continue
+		}
+		out[sample.Pair] = sample
+	}
+	return out
+}
+
 func sampleProcessTreeRSSPeakKB(ctx context.Context, rootPID int, interval time.Duration, done <-chan error) (int64, error, error) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
@@ -782,6 +855,20 @@ func splitCommand(input string) ([]string, error) {
 
 func medianInt64(values []int64) int64 {
 	sorted := append([]int64{}, values...)
+	for i := 1; i < len(sorted); i++ {
+		for j := i; j > 0 && sorted[j] < sorted[j-1]; j-- {
+			sorted[j], sorted[j-1] = sorted[j-1], sorted[j]
+		}
+	}
+	mid := len(sorted) / 2
+	if len(sorted)%2 == 1 {
+		return sorted[mid]
+	}
+	return (sorted[mid-1] + sorted[mid]) / 2
+}
+
+func medianFloat64(values []float64) float64 {
+	sorted := append([]float64{}, values...)
 	for i := 1; i < len(sorted); i++ {
 		for j := i; j > 0 && sorted[j] < sorted[j-1]; j-- {
 			sorted[j], sorted[j-1] = sorted[j-1], sorted[j]

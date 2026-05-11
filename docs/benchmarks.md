@@ -98,6 +98,8 @@ The runner currently records:
   `--require-ratio duration_median_ms=0.5` to enforce a 50% startup target.
 - optional alternating sample order with `--run-order alternating`, recorded as
   `run_order: "alternating"` plus per-sample `sequence` and `pair` fields.
+- paired comparison summaries for alternating runs, including the median
+  per-pair `electron_go_over_electron` ratio for duration and memory metrics.
 - optional fixture-level `benchmark-trace:` phase timings emitted by benchmark
   fixtures, such as app readiness, window creation, load start, and load finish,
   when the runtime executes the benchmark fixture main script and
@@ -196,6 +198,8 @@ claim. Do not mix machines, OS versions, power modes, fixtures, or commands in a
 single ratio.
 Prefer `--run-order alternating` for headline Electron vs Electron-Go startup
 comparisons so both commands take turns running first within each pair.
+When alternating runs are available, inspect both the aggregate median
+comparison and the paired median ratio before making a startup claim.
 Use `--require-ratio duration_median_ms=0.5` when a release gate must enforce
 the claim that Electron-Go starts in no more than half the Electron median.
 

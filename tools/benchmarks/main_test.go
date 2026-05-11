@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math"
 	"reflect"
 	"testing"
 )
@@ -120,6 +121,72 @@ func TestComputeComparisons(t *testing.T) {
 	}
 	if got[2].Metric != "process_tree_rss_peak_median_kb" || got[2].ElectronGoOverElectron != 0.4 {
 		t.Fatalf("process tree rss comparison = %#v, want 0.4 ElectronGoOverElectron", got[2])
+	}
+}
+
+func TestComputePairedComparisons(t *testing.T) {
+	results := []CommandResult{
+		{
+			Name: "electron",
+			Samples: []Sample{
+				{Pair: 1, ExitCode: 0, DurationMS: 100, MaxRSSKB: 1000, ProcessTreeRSSPeakKB: 5000},
+				{Pair: 2, ExitCode: 0, DurationMS: 200, MaxRSSKB: 2000, ProcessTreeRSSPeakKB: 6000},
+				{Pair: 3, ExitCode: 0, DurationMS: 300, MaxRSSKB: 3000, ProcessTreeRSSPeakKB: 7000},
+			},
+		},
+		{
+			Name: "electron-go",
+			Samples: []Sample{
+				{Pair: 1, ExitCode: 0, DurationMS: 50, MaxRSSKB: 500, ProcessTreeRSSPeakKB: 2000},
+				{Pair: 2, ExitCode: 0, DurationMS: 140, MaxRSSKB: 1200, ProcessTreeRSSPeakKB: 2400},
+				{Pair: 3, ExitCode: 0, DurationMS: 240, MaxRSSKB: 1800, ProcessTreeRSSPeakKB: 3500},
+			},
+		},
+	}
+
+	got := computePairedComparisons(results)
+	if len(got) != 3 {
+		t.Fatalf("len(paired comparisons) = %d, want 3", len(got))
+	}
+	if got[0].Metric != "duration_ms" || got[0].SuccessfulPairs != 3 {
+		t.Fatalf("duration paired comparison = %#v", got[0])
+	}
+	if math.Abs(got[0].ElectronGoOverElectronMedian-0.7) > 0.0001 {
+		t.Fatalf("duration median paired ratio = %.4f, want 0.7", got[0].ElectronGoOverElectronMedian)
+	}
+	if got[0].ElectronGoFasterOrLighterPairs != 3 {
+		t.Fatalf("faster pairs = %d, want 3", got[0].ElectronGoFasterOrLighterPairs)
+	}
+	if got[2].Metric != "process_tree_rss_peak_kb" || math.Abs(got[2].ElectronGoOverElectronMedian-0.4) > 0.0001 {
+		t.Fatalf("process tree paired comparison = %#v, want median ratio 0.4", got[2])
+	}
+}
+
+func TestComputePairedComparisonsSkipsFailedOrUnpairedSamples(t *testing.T) {
+	results := []CommandResult{
+		{
+			Name: "electron",
+			Samples: []Sample{
+				{Pair: 1, ExitCode: 0, DurationMS: 100},
+				{Pair: 2, ExitCode: 0, DurationMS: 200},
+			},
+		},
+		{
+			Name: "electron-go",
+			Samples: []Sample{
+				{Pair: 1, ExitCode: 0, DurationMS: 50},
+				{Pair: 2, ExitCode: 1, DurationMS: 100, Error: "failed"},
+				{Pair: 3, ExitCode: 0, DurationMS: 75},
+			},
+		},
+	}
+
+	got := computePairedComparisons(results)
+	if len(got) != 1 {
+		t.Fatalf("len(paired comparisons) = %d, want 1", len(got))
+	}
+	if got[0].SuccessfulPairs != 1 || math.Abs(got[0].ElectronGoOverElectronMedian-0.5) > 0.0001 {
+		t.Fatalf("paired comparison = %#v, want one successful 0.5 pair", got[0])
 	}
 }
 
