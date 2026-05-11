@@ -43,7 +43,6 @@ var cefBrowserProcessSwitches = []string{
 	"--disable-gpu-sandbox",
 	"--disable-dev-shm-usage",
 	"--disable-sync",
-	"--in-process-gpu",
 	"--metrics-recording-only",
 	"--no-default-browser-check",
 	"--no-first-run",
