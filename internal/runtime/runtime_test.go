@@ -169,11 +169,14 @@ func TestRuntimeUsesMainPlanBridgeForSupportedMain(t *testing.T) {
 	if !bridge.initialized || !bridge.shutdown {
 		t.Fatalf("initialized/shutdown = %t/%t, want true/true", bridge.initialized, bridge.shutdown)
 	}
-	if bridge.create.URL != "about:blank" || bridge.create.AutoCloseOnLoad {
-		t.Fatalf("create request = %#v, want about:blank without auto close", bridge.create)
+	if !strings.HasSuffix(bridge.create.URL, "/index.html") || bridge.create.AutoCloseOnLoad {
+		t.Fatalf("create request = %#v, want index.html without auto close", bridge.create)
 	}
-	if !strings.HasSuffix(bridge.load.URL, "/index.html") {
-		t.Fatalf("load URL = %q, want index.html", bridge.load.URL)
+	if bridge.load.URL != "" {
+		t.Fatalf("load URL = %q, want direct create without loadURL", bridge.load.URL)
+	}
+	if !bridge.waited {
+		t.Fatal("bridge did not wait for direct-created load")
 	}
 	if bridge.close.BrowserID != 77 {
 		t.Fatalf("close request = %#v, want browser 77", bridge.close)
@@ -310,6 +313,7 @@ type mainPlanBridgeFake struct {
 	create      native.BrowserWindowCreateRequest
 	load        native.BrowserWindowLoadRequest
 	close       native.BrowserWindowCloseRequest
+	waited      bool
 }
 
 func (b *mainPlanBridgeFake) Start(context.Context, native.StartRequest) (*native.StartResult, error) {
@@ -339,6 +343,11 @@ func (b *mainPlanBridgeFake) LoadURL(_ context.Context, req native.BrowserWindow
 
 func (b *mainPlanBridgeFake) CloseBrowserWindow(_ context.Context, req native.BrowserWindowCloseRequest) error {
 	b.close = req
+	return nil
+}
+
+func (b *mainPlanBridgeFake) WaitForLoad(context.Context) error {
+	b.waited = true
 	return nil
 }
 

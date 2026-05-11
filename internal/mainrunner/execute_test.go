@@ -27,11 +27,14 @@ func TestExecuteRunsBenchmarkPlanThroughDriver(t *testing.T) {
 	if result.BrowserID != 42 || result.ExitCode != 0 {
 		t.Fatalf("result = %#v, want browser 42 exit 0", result)
 	}
-	if driver.create.URL != "about:blank" || driver.create.AutoCloseOnLoad {
-		t.Fatalf("create request = %#v, want about:blank without auto close", driver.create)
+	if !strings.HasSuffix(driver.create.URL, "/compat/fixtures/benchmark-hello/index.html") || driver.create.AutoCloseOnLoad {
+		t.Fatalf("create request = %#v, want benchmark index.html without auto close", driver.create)
 	}
-	if !strings.HasSuffix(driver.load.URL, "/compat/fixtures/benchmark-hello/index.html") {
-		t.Fatalf("load URL = %q, want benchmark index.html", driver.load.URL)
+	if driver.load.URL != "" {
+		t.Fatalf("load URL = %q, want direct create without loadURL", driver.load.URL)
+	}
+	if !driver.waited {
+		t.Fatal("driver did not wait for direct-created benchmark load")
 	}
 	if driver.close.BrowserID != 42 {
 		t.Fatalf("close request = %#v, want browser 42", driver.close)
@@ -84,6 +87,7 @@ type fakeDriver struct {
 	load      native.BrowserWindowLoadRequest
 	close     native.BrowserWindowCloseRequest
 	script    native.BrowserWindowScriptRequest
+	waited    bool
 }
 
 func (d *fakeDriver) CreateBrowserWindow(_ context.Context, req native.BrowserWindowCreateRequest) (int64, error) {
@@ -103,6 +107,11 @@ func (d *fakeDriver) CloseBrowserWindow(_ context.Context, req native.BrowserWin
 
 func (d *fakeDriver) SetLoadEndScript(_ context.Context, req native.BrowserWindowScriptRequest) error {
 	d.script = req
+	return nil
+}
+
+func (d *fakeDriver) WaitForLoad(context.Context) error {
+	d.waited = true
 	return nil
 }
 

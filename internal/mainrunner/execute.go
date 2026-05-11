@@ -26,6 +26,10 @@ type LoadEndScriptDriver interface {
 	SetLoadEndScript(context.Context, native.BrowserWindowScriptRequest) error
 }
 
+type LoadWaitDriver interface {
+	WaitForLoad(context.Context) error
+}
+
 type ExecuteOptions struct {
 	Environment []string
 	Out         io.Writer
@@ -63,12 +67,21 @@ func Execute(ctx context.Context, plan Plan, driver Driver, opts ExecuteOptions)
 	}
 	mark("app_ready")
 
+	loadURL, err := loadFileURL(plan.MainPath, plan.LoadFile)
+	if err != nil {
+		return Result{}, err
+	}
+
 	normalized, err := browserwindow.NormalizeOptions(plan.Window)
 	if err != nil {
 		return Result{}, err
 	}
+	createURL := "about:blank"
+	if plan.LoadEndScript == "" {
+		createURL = loadURL
+	}
 	browserID, err := driver.CreateBrowserWindow(ctx, native.BrowserWindowCreateRequest{
-		URL:             "about:blank",
+		URL:             createURL,
 		Width:           normalized.Width,
 		Height:          normalized.Height,
 		Show:            normalized.Show,
@@ -81,10 +94,6 @@ func Execute(ctx context.Context, plan Plan, driver Driver, opts ExecuteOptions)
 
 	window := browserwindow.NewWindow(browserID, normalized)
 	contents := webcontents.New(browserID)
-	loadURL, err := loadFileURL(plan.MainPath, plan.LoadFile)
-	if err != nil {
-		return Result{}, err
-	}
 	if plan.LoadEndScript != "" {
 		scriptDriver, ok := driver.(LoadEndScriptDriver)
 		if !ok {
@@ -95,8 +104,18 @@ func Execute(ctx context.Context, plan Plan, driver Driver, opts ExecuteOptions)
 		}
 	}
 	mark("load_start")
-	if err := driver.LoadURL(ctx, native.BrowserWindowLoadRequest{BrowserID: browserID, URL: loadURL}); err != nil {
-		return Result{}, err
+	if plan.LoadEndScript == "" {
+		waitDriver, ok := driver.(LoadWaitDriver)
+		if !ok {
+			return Result{}, fmt.Errorf("main runner driver does not support load waits")
+		}
+		if err := waitDriver.WaitForLoad(ctx); err != nil {
+			return Result{}, err
+		}
+	} else {
+		if err := driver.LoadURL(ctx, native.BrowserWindowLoadRequest{BrowserID: browserID, URL: loadURL}); err != nil {
+			return Result{}, err
+		}
 	}
 	if err := contents.LoadURL(loadURL); err != nil {
 		return Result{}, err

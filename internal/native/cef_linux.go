@@ -108,6 +108,10 @@ func (b CEFBridge) SetLoadEndScript(ctx context.Context, req BrowserWindowScript
 	return setBrowserWindowLoadEndScript(ctx, req)
 }
 
+func (b CEFBridge) WaitForLoad(ctx context.Context) error {
+	return runMessageLoopUntilLoad(ctx)
+}
+
 func (b CEFBridge) Start(ctx context.Context, req StartRequest) (*StartResult, error) {
 	traceStart := time.Now()
 	trace := map[string]int64{}
