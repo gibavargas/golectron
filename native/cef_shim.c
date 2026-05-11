@@ -583,18 +583,14 @@ eg_bridge_status eg_cef_shim_create_browser_sync(
     return EG_BRIDGE_STATUS_INVALID_REQUEST;
   }
 
-  cef_browser_t* browser = cef_browser_host_create_browser_sync(
+  int created = cef_browser_host_create_browser(
       &window_info, g_client, &url, &browser_settings, NULL, NULL);
   cef_string_clear(&url);
   cef_string_clear(&window_info.window_name);
 
-  if (!browser) {
+  if (created != 1) {
     out_result->status = EG_BRIDGE_STATUS_FAILED;
     return EG_BRIDGE_STATUS_FAILED;
-  }
-  if (browser->get_identifier) {
-    g_browser_id = browser->get_identifier(browser);
-    out_result->browser_id = g_browser_id;
   }
 
   out_result->status = EG_BRIDGE_STATUS_RUNNING;
