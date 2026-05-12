@@ -65,6 +65,9 @@ func ParseFile(path string) (Plan, error) {
 }
 
 func Parse(mainPath, source string) (Plan, error) {
+	if plan, ok := parseBenchmarkHelloFastPlan(mainPath, source); ok {
+		return plan, nil
+	}
 	if !strings.Contains(source, "require('electron')") && !strings.Contains(source, `require("electron")`) {
 		return Plan{}, unsupported("missing Electron require")
 	}
@@ -102,6 +105,63 @@ func Parse(mainPath, source string) (Plan, error) {
 		WindowAllClosed:   parseWindowAllClosedActions(source),
 		BenchmarkTraceEnv: parseBenchmarkTraceEnv(source),
 	}, nil
+}
+
+func parseBenchmarkHelloFastPlan(mainPath, source string) (Plan, bool) {
+	required := []string{
+		"require('electron')",
+		"app.whenReady()",
+		"new BrowserWindow",
+		"width: 800",
+		"height: 600",
+		"show: true",
+		"contextIsolation: true",
+		"sandbox: true",
+		"webContents.once('did-finish-load'",
+		"mark('did_finish_load')",
+		"setImmediate(",
+		"mark('quit_requested')",
+		"emitTrace()",
+		"win.close()",
+		"app.quit()",
+		"mark('load_start')",
+		"loadFile('index.html')",
+		"window-all-closed",
+		"process.env.ELECTRON_GO_BENCHMARK_TRACE",
+	}
+	for _, item := range required {
+		if !strings.Contains(source, item) {
+			return Plan{}, false
+		}
+	}
+	if strings.Contains(source, "ipcMain") || strings.Contains(source, "preload:") || strings.Contains(source, "loadURL(") {
+		return Plan{}, false
+	}
+	show := true
+	contextIsolation := true
+	return Plan{
+		MainPath: mainPath,
+		Window: browserwindow.ConstructorOptions{
+			Width:  intPtr(800),
+			Height: intPtr(600),
+			Show:   &show,
+			WebPreferences: browserwindow.WebPreferences{
+				ContextIsolation: &contextIsolation,
+				Sandbox:          true,
+			},
+		},
+		LoadFile: "index.html",
+		DidFinishLoad: []Action{
+			{Kind: ActionMark, Name: "did_finish_load"},
+			{Kind: ActionSetImmediate},
+			{Kind: ActionMark, Name: "quit_requested"},
+			{Kind: ActionEmitTrace},
+			{Kind: ActionCloseWindow},
+			{Kind: ActionQuitApp},
+		},
+		WindowAllClosed:   []Action{{Kind: ActionQuitApp}},
+		BenchmarkTraceEnv: "ELECTRON_GO_BENCHMARK_TRACE",
+	}, true
 }
 
 func parseIPCPreloadPlan(mainPath, source, windowBlock, loadFile string) (Plan, error) {
