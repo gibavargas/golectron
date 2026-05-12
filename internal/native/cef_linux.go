@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 	"unsafe"
@@ -33,6 +34,9 @@ var cefBrowserClosed atomic.Bool
 var cefLoadEndUnixNano atomic.Int64
 var cefLoadErrorUnixNano atomic.Int64
 var cefBeforeCloseUnixNano atomic.Int64
+var cefCachePaths sync.Map
+var cefExecutableOnce sync.Once
+var cefExecutablePath string
 
 var cefBrowserProcessSwitches = []string{
 	"--disable-background-networking",
@@ -313,8 +317,8 @@ func NewCEFInitializeRequest(appDir string, args []string) (CEFInitializeRequest
 	if err != nil {
 		return CEFInitializeRequest{}, err
 	}
-	cachePath := cefCachePath(absAppDir)
-	if err := ensureCEFCachePath(cachePath); err != nil {
+	cachePath, err := cachedCEFCachePath(absAppDir)
+	if err != nil {
 		return CEFInitializeRequest{}, err
 	}
 	return NormalizeCEFInitializeRequest(CEFInitializeRequest{
@@ -340,6 +344,18 @@ func ensureCEFCachePath(path string) error {
 	return os.MkdirAll(path, 0o755)
 }
 
+func cachedCEFCachePath(absAppDir string) (string, error) {
+	if path, ok := cefCachePaths.Load(absAppDir); ok {
+		return path.(string), nil
+	}
+	path := cefCachePath(absAppDir)
+	if err := ensureCEFCachePath(path); err != nil {
+		return "", err
+	}
+	cefCachePaths.Store(absAppDir, path)
+	return path, nil
+}
+
 func cefCachePath(absAppDir string) string {
 	root, err := os.UserCacheDir()
 	if err != nil || root == "" {
@@ -355,17 +371,43 @@ func appendCEFBrowserProcessSwitches(args []string) []string {
 	if IsCEFSubprocessArgs(out) {
 		return out
 	}
+	if !hasKnownCEFBrowserProcessSwitch(out) {
+		out = append(out, cefBrowserProcessSwitches...)
+		if executable := cachedExecutablePath(); executable != "" {
+			out = append(out, "--browser-subprocess-path="+executable)
+		}
+		return out
+	}
 	for _, flag := range cefBrowserProcessSwitches {
 		if !hasSwitch(out, flag) {
 			out = append(out, flag)
 		}
 	}
 	if !hasSwitch(out, "--browser-subprocess-path") {
-		if executable, err := os.Executable(); err == nil && executable != "" {
+		if executable := cachedExecutablePath(); executable != "" {
 			out = append(out, "--browser-subprocess-path="+executable)
 		}
 	}
 	return out
+}
+
+func hasKnownCEFBrowserProcessSwitch(args []string) bool {
+	for _, flag := range cefBrowserProcessSwitches {
+		if hasSwitch(args, flag) {
+			return true
+		}
+	}
+	return hasSwitch(args, "--browser-subprocess-path")
+}
+
+func cachedExecutablePath() string {
+	cefExecutableOnce.Do(func() {
+		executable, err := os.Executable()
+		if err == nil {
+			cefExecutablePath = executable
+		}
+	})
+	return cefExecutablePath
 }
 
 func hasSwitch(args []string, name string) bool {
