@@ -3,6 +3,7 @@ package mainrunner
 import (
 	"bytes"
 	"context"
+	"io"
 	"strings"
 	"testing"
 
@@ -102,6 +103,50 @@ func TestExecuteRequiresDriver(t *testing.T) {
 	_, err := Execute(context.Background(), Plan{}, nil, ExecuteOptions{})
 	if err == nil {
 		t.Fatal("Execute() error = nil, want driver error")
+	}
+}
+
+func BenchmarkExecuteBenchmarkPlanNoEvents(b *testing.B) {
+	plan, err := ParseFile("../../compat/fixtures/benchmark-hello/main.js")
+	if err != nil {
+		b.Fatalf("ParseFile() error = %v", err)
+	}
+	ctx := context.Background()
+	var driver fakeDriver
+	b.ReportAllocs()
+	for b.Loop() {
+		driver = fakeDriver{browserID: 42}
+		result, err := Execute(ctx, plan, &driver, ExecuteOptions{})
+		if err != nil {
+			b.Fatal(err)
+		}
+		if result.BrowserID != 42 || result.ExitCode != 0 || !driver.waited {
+			b.Fatalf("result = %#v waited=%v, want browser 42 exit 0 waited", result, driver.waited)
+		}
+	}
+}
+
+func BenchmarkExecuteBenchmarkPlanWithTrace(b *testing.B) {
+	plan, err := ParseFile("../../compat/fixtures/benchmark-hello/main.js")
+	if err != nil {
+		b.Fatalf("ParseFile() error = %v", err)
+	}
+	ctx := context.Background()
+	opts := ExecuteOptions{
+		Environment: []string{"ELECTRON_GO_BENCHMARK_TRACE=1"},
+		Out:         io.Discard,
+	}
+	var driver fakeDriver
+	b.ReportAllocs()
+	for b.Loop() {
+		driver = fakeDriver{browserID: 42}
+		result, err := Execute(ctx, plan, &driver, opts)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if result.BrowserID != 42 || result.ExitCode != 0 || result.TraceMS == nil || !driver.waited {
+			b.Fatalf("result = %#v waited=%v, want traced browser 42 exit 0 waited", result, driver.waited)
+		}
 	}
 }
 

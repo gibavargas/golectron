@@ -28,12 +28,14 @@ const (
 )
 
 type Options struct {
-	AppDir            string
-	ElectronVersion   string
-	Bridge            native.Bridge
-	SubprocessHook    SubprocessHook
-	Args              []string
-	Environment       []string
+	AppDir          string
+	ElectronVersion string
+	Bridge          native.Bridge
+	SubprocessHook  SubprocessHook
+	Args            []string
+	Environment     []string
+	// BorrowArgsEnv skips defensive slice copies for CLI-owned launch data.
+	BorrowArgsEnv     bool
 	NodeOptions       NodeOptions
 	Out               io.Writer
 	SkipFinalShutdown bool
@@ -149,13 +151,19 @@ func New(opts Options) *Runtime {
 	if bridge == nil {
 		bridge = native.StubBridge{}
 	}
+	args := opts.Args
+	environment := opts.Environment
+	if !opts.BorrowArgsEnv {
+		args = append([]string(nil), opts.Args...)
+		environment = append([]string(nil), opts.Environment...)
+	}
 	return &Runtime{
 		appDir:            opts.AppDir,
 		electronVersion:   opts.ElectronVersion,
 		bridge:            bridge,
 		subprocessHook:    opts.SubprocessHook,
-		args:              append([]string(nil), opts.Args...),
-		environment:       append([]string(nil), opts.Environment...),
+		args:              args,
+		environment:       environment,
 		nodeOptions:       opts.NodeOptions,
 		out:               out,
 		skipFinalShutdown: opts.SkipFinalShutdown,

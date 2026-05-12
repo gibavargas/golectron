@@ -76,6 +76,65 @@ func TestRuntimeStartsBridge(t *testing.T) {
 	}
 }
 
+func TestRuntimeCopiesArgsAndEnvironmentByDefault(t *testing.T) {
+	dir := fixtureApp(t)
+	args := []string{"electron-go", dir}
+	env := []string{"PATH=/original"}
+	var got native.StartRequest
+	rt := New(Options{
+		AppDir:          dir,
+		ElectronVersion: "42.0.0",
+		Bridge: bridgeFunc(func(_ context.Context, req native.StartRequest) (*native.StartResult, error) {
+			got = req
+			return &native.StartResult{PID: 100, WindowCount: 1}, nil
+		}),
+		Args:        args,
+		Environment: env,
+	})
+	args[1] = "mutated"
+	env[0] = "PATH=/mutated"
+
+	if err := rt.Run(context.Background()); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if got.Args[1] != dir {
+		t.Fatalf("Args = %#v, want original app dir", got.Args)
+	}
+	if got.Environment[0] != "PATH=/original" {
+		t.Fatalf("Environment = %#v, want original value", got.Environment)
+	}
+}
+
+func TestRuntimeCanBorrowArgsAndEnvironment(t *testing.T) {
+	dir := fixtureApp(t)
+	args := []string{"electron-go", dir}
+	env := []string{"PATH=/original"}
+	var got native.StartRequest
+	rt := New(Options{
+		AppDir:          dir,
+		ElectronVersion: "42.0.0",
+		Bridge: bridgeFunc(func(_ context.Context, req native.StartRequest) (*native.StartResult, error) {
+			got = req
+			return &native.StartResult{PID: 100, WindowCount: 1}, nil
+		}),
+		Args:          args,
+		Environment:   env,
+		BorrowArgsEnv: true,
+	})
+	args[1] = "mutated"
+	env[0] = "PATH=/mutated"
+
+	if err := rt.Run(context.Background()); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if got.Args[1] != "mutated" {
+		t.Fatalf("Args = %#v, want borrowed mutation", got.Args)
+	}
+	if got.Environment[0] != "PATH=/mutated" {
+		t.Fatalf("Environment = %#v, want borrowed mutation", got.Environment)
+	}
+}
+
 func TestRuntimeIsQuietByDefault(t *testing.T) {
 	dir := fixtureApp(t)
 	var out bytes.Buffer
