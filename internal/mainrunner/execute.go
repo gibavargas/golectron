@@ -33,6 +33,8 @@ type LoadWaitDriver interface {
 type ExecuteOptions struct {
 	Environment []string
 	Out         io.Writer
+	Trace       bool
+	Events      bool
 }
 
 type Result struct {
@@ -46,10 +48,15 @@ func Execute(ctx context.Context, plan Plan, driver Driver, opts ExecuteOptions)
 	if driver == nil {
 		return Result{}, fmt.Errorf("main runner driver is required")
 	}
-	started := time.Now()
-	trace := map[string]int64{}
+	traceEnabled := opts.Trace || envEnabled(opts.Environment, plan.BenchmarkTraceEnv)
+	var started time.Time
+	var trace map[string]int64
+	if traceEnabled {
+		started = time.Now()
+		trace = map[string]int64{}
+	}
 	mark := func(name string) {
-		if name != "" {
+		if trace != nil && name != "" {
 			trace[name] = time.Since(started).Milliseconds()
 		}
 	}
@@ -130,10 +137,14 @@ func Execute(ctx context.Context, plan Plan, driver Driver, opts ExecuteOptions)
 			return Result{}, err
 		}
 	}
+	var events []string
+	if opts.Events {
+		events = collectEvents(app, window, contents)
+	}
 	return Result{
 		BrowserID: browserID,
 		TraceMS:   trace,
-		Events:    collectEvents(app, window, contents),
+		Events:    events,
 		ExitCode:  app.ExitCode(),
 	}, nil
 }
@@ -141,7 +152,9 @@ func Execute(ctx context.Context, plan Plan, driver Driver, opts ExecuteOptions)
 func executeAction(ctx context.Context, action Action, app *applifecycle.App, window *browserwindow.Window, driver Driver, trace map[string]int64, started time.Time) error {
 	switch action.Kind {
 	case ActionMark:
-		trace[action.Name] = time.Since(started).Milliseconds()
+		if trace != nil && action.Name != "" {
+			trace[action.Name] = time.Since(started).Milliseconds()
+		}
 	case ActionSetImmediate:
 		return nil
 	case ActionEmitTrace:

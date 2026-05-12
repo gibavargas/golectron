@@ -20,6 +20,7 @@ func TestExecuteRunsBenchmarkPlanThroughDriver(t *testing.T) {
 	result, err := Execute(context.Background(), plan, driver, ExecuteOptions{
 		Environment: []string{"ELECTRON_GO_BENCHMARK_TRACE=1"},
 		Out:         &out,
+		Events:      true,
 	})
 	if err != nil {
 		t.Fatalf("Execute() error = %v", err)
@@ -71,6 +72,29 @@ func TestExecuteInstallsHelloLoadEndScript(t *testing.T) {
 	}
 	if driver.script.BrowserID != 42 {
 		t.Fatalf("script BrowserID = %d, want 42", driver.script.BrowserID)
+	}
+}
+
+func TestExecuteSkipsTraceAndEventsByDefault(t *testing.T) {
+	plan, err := ParseFile("../../compat/fixtures/benchmark-hello/main.js")
+	if err != nil {
+		t.Fatalf("ParseFile() error = %v", err)
+	}
+	driver := &fakeDriver{browserID: 42}
+	var out bytes.Buffer
+
+	result, err := Execute(context.Background(), plan, driver, ExecuteOptions{Out: &out})
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	if result.TraceMS != nil {
+		t.Fatalf("TraceMS = %#v, want nil without trace env", result.TraceMS)
+	}
+	if result.Events != nil {
+		t.Fatalf("Events = %#v, want nil without event collection", result.Events)
+	}
+	if out.String() != "" {
+		t.Fatalf("stdout = %q, want no benchmark trace", out.String())
 	}
 }
 

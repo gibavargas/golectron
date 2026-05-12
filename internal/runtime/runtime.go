@@ -268,6 +268,7 @@ func (r *Runtime) WarmRun(ctx context.Context, iterations int) (WarmRunReport, e
 		execResult, err := mainrunner.Execute(ctx, plan, bridge, mainrunner.ExecuteOptions{
 			Environment: r.environment,
 			Out:         r.out,
+			Trace:       true,
 		})
 		sample := WarmSample{
 			Iteration:      i,
@@ -333,33 +334,57 @@ func (r *Runtime) startBridge(ctx context.Context, req native.StartRequest) (*na
 func (r *Runtime) startMainPlanBridge(ctx context.Context, req native.StartRequest, bridge mainPlanBridge) (*native.StartResult, error) {
 	plan, err := mainrunner.ParseFile(req.MainPath)
 	if err == nil {
-		traceStart := time.Now()
-		stageStart := traceStart
+		traceEnabled := envEnabled(r.environment, StartupTraceEnv)
+		var traceStart time.Time
+		var trace map[string]int64
+		if traceEnabled {
+			traceStart = time.Now()
+		}
+		var stageStart time.Time
+		if traceEnabled {
+			stageStart = time.Now()
+		}
 		if err := bridge.InitializeForStart(ctx, req); err != nil {
 			return nil, err
 		}
-		trace := map[string]int64{
-			"cef_initialize": time.Since(stageStart).Milliseconds(),
+		if traceEnabled {
+			trace = map[string]int64{
+				"cef_initialize": time.Since(stageStart).Milliseconds(),
+			}
+			stageStart = time.Now()
 		}
-		stageStart = time.Now()
-		executeOffset := time.Since(traceStart).Milliseconds()
+		var executeOffset int64
+		if traceEnabled {
+			executeOffset = time.Since(traceStart).Milliseconds()
+		}
 		execResult, execErr := mainrunner.Execute(ctx, plan, bridge, mainrunner.ExecuteOptions{
 			Environment: r.environment,
 			Out:         r.out,
+			Trace:       traceEnabled,
 		})
-		trace["mainrunner_execute"] = time.Since(stageStart).Milliseconds()
-		for key, value := range execResult.TraceMS {
-			trace[key] = executeOffset + value
+		if traceEnabled {
+			trace["mainrunner_execute"] = time.Since(stageStart).Milliseconds()
+			for key, value := range execResult.TraceMS {
+				trace[key] = executeOffset + value
+			}
 		}
 		var shutdownErr error
 		if r.skipFinalShutdown && execErr == nil {
-			trace["cef_shutdown_skipped"] = 1
+			if traceEnabled {
+				trace["cef_shutdown_skipped"] = 1
+			}
 		} else {
-			stageStart = time.Now()
+			if traceEnabled {
+				stageStart = time.Now()
+			}
 			shutdownErr = bridge.Shutdown(ctx)
-			trace["cef_shutdown"] = time.Since(stageStart).Milliseconds()
+			if traceEnabled {
+				trace["cef_shutdown"] = time.Since(stageStart).Milliseconds()
+			}
 		}
-		trace["total_native_start"] = time.Since(traceStart).Milliseconds()
+		if traceEnabled {
+			trace["total_native_start"] = time.Since(traceStart).Milliseconds()
+		}
 		if execErr != nil {
 			return nil, execErr
 		}
