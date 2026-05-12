@@ -82,6 +82,10 @@ type mainPlanBridge interface {
 	Shutdown(context.Context) error
 }
 
+type validatedMainPlanBridge interface {
+	InitializeValidatedForStart(context.Context, native.StartRequest) error
+}
+
 const StartupTraceEnv = "ELECTRON_GO_STARTUP_TRACE"
 const VerboseEnv = "ELECTRON_GO_VERBOSE"
 const ScopedMainRunnerEnv = "ELECTRON_GO_ENABLE_SCOPED_MAIN_RUNNER"
@@ -344,7 +348,7 @@ func (r *Runtime) startMainPlanBridge(ctx context.Context, req native.StartReque
 		if traceEnabled {
 			stageStart = time.Now()
 		}
-		if err := bridge.InitializeForStart(ctx, req); err != nil {
+		if err := initializeMainPlanBridge(ctx, bridge, req); err != nil {
 			return nil, err
 		}
 		if traceEnabled {
@@ -404,6 +408,13 @@ func (r *Runtime) startMainPlanBridge(ctx context.Context, req native.StartReque
 		return nil, err
 	}
 	return r.bridge.Start(ctx, req)
+}
+
+func initializeMainPlanBridge(ctx context.Context, bridge mainPlanBridge, req native.StartRequest) error {
+	if validated, ok := bridge.(validatedMainPlanBridge); ok {
+		return validated.InitializeValidatedForStart(ctx, req)
+	}
+	return bridge.InitializeForStart(ctx, req)
 }
 
 func envEnabled(env []string, key string) bool {

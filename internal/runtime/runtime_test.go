@@ -231,6 +231,26 @@ func TestRuntimeCanSkipFinalShutdownForSupportedMain(t *testing.T) {
 	}
 }
 
+func TestRuntimeUsesValidatedInitializeForSupportedMain(t *testing.T) {
+	dir := scopedMainApp(t)
+	bridge := &validatedMainPlanBridgeFake{mainPlanBridgeFake: mainPlanBridgeFake{browserID: 77}}
+	rt := New(Options{
+		AppDir:          dir,
+		ElectronVersion: "42.0.0",
+		Bridge:          bridge,
+	})
+
+	if err := rt.Run(context.Background()); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if !bridge.validatedInitialized {
+		t.Fatal("validated initialize path was not used")
+	}
+	if bridge.initialized {
+		t.Fatal("InitializeForStart was used, want validated initialize path")
+	}
+}
+
 func parseStartupTrace(t *testing.T, output string) map[string]int64 {
 	t.Helper()
 	const prefix = "electron-go-startup-trace: "
@@ -457,6 +477,17 @@ func (b *mainPlanBridgeFake) CloseBrowserWindow(_ context.Context, req native.Br
 
 func (b *mainPlanBridgeFake) WaitForLoad(context.Context) error {
 	b.waited = true
+	return nil
+}
+
+type validatedMainPlanBridgeFake struct {
+	mainPlanBridgeFake
+	validatedInitialized bool
+}
+
+func (b *validatedMainPlanBridgeFake) InitializeValidatedForStart(context.Context, native.StartRequest) error {
+	time.Sleep(time.Millisecond)
+	b.validatedInitialized = true
 	return nil
 }
 

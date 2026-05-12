@@ -66,6 +66,13 @@ func (b CEFBridge) InitializeForStart(ctx context.Context, req StartRequest) err
 	if err := ValidateStartRequest(req); err != nil {
 		return err
 	}
+	return b.InitializeValidatedForStart(ctx, req)
+}
+
+func (b CEFBridge) InitializeValidatedForStart(ctx context.Context, req StartRequest) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	initReq, err := NewCEFInitializeRequest(req.AppDir, req.Args)
 	if err != nil {
 		return err
