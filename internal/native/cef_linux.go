@@ -91,7 +91,7 @@ func (b CEFBridge) LoadURL(ctx context.Context, req BrowserWindowLoadRequest) er
 	if err := loadBrowserWindowURL(ctx, req); err != nil {
 		return err
 	}
-	return runMessageLoopUntilLoad(ctx, true)
+	return runMessageLoopUntilLoad(ctx)
 }
 
 func (b CEFBridge) CloseBrowserWindow(ctx context.Context, req BrowserWindowCloseRequest) error {
@@ -109,7 +109,7 @@ func (b CEFBridge) SetLoadEndScript(ctx context.Context, req BrowserWindowScript
 }
 
 func (b CEFBridge) WaitForLoad(ctx context.Context) error {
-	return runMessageLoopUntilLoad(ctx, false)
+	return runMessageLoopUntilLoad(ctx)
 }
 
 func (b CEFBridge) Start(ctx context.Context, req StartRequest) (*StartResult, error) {
@@ -550,12 +550,12 @@ func runMessageLoop(ctx context.Context) error {
 	return nil
 }
 
-func runMessageLoopUntilLoad(ctx context.Context, autoClose bool) error {
+func runMessageLoopUntilLoad(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	stageStart := time.Now()
-	status := C.eg_cef_shim_run_message_loop_until_load(nil, boolToCUint8(autoClose))
+	status := C.eg_cef_shim_run_message_loop_until_load(nil)
 	if status == C.EG_BRIDGE_STATUS_FAILED {
 		return fmt.Errorf("CEF BrowserWindow load failed: browser_id=%d status=%d error=%d elapsed_ms=%d", cefLastBrowserID.Load(), cefLastHTTPStatus.Load(), cefLastLoadError.Load(), time.Since(stageStart).Milliseconds())
 	}
