@@ -200,6 +200,37 @@ func TestRuntimeUsesMainPlanBridgeForSupportedMain(t *testing.T) {
 	}
 }
 
+func TestRuntimeCanSkipFinalShutdownForSupportedMain(t *testing.T) {
+	dir := scopedMainApp(t)
+	bridge := &mainPlanBridgeFake{browserID: 77}
+	var out bytes.Buffer
+	rt := New(Options{
+		AppDir:            dir,
+		ElectronVersion:   "42.0.0",
+		Bridge:            bridge,
+		Environment:       []string{"ELECTRON_GO_STARTUP_TRACE=1"},
+		Out:               &out,
+		SkipFinalShutdown: true,
+	})
+
+	if err := rt.Run(context.Background()); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if !bridge.initialized {
+		t.Fatal("bridge was not initialized")
+	}
+	if bridge.shutdown {
+		t.Fatal("bridge shutdown called for final-process run")
+	}
+	startupTrace := parseStartupTrace(t, out.String())
+	if startupTrace["cef_shutdown_skipped"] != 1 {
+		t.Fatalf("startup trace = %#v, want cef_shutdown_skipped marker", startupTrace)
+	}
+	if _, ok := startupTrace["cef_shutdown"]; ok {
+		t.Fatalf("startup trace = %#v, did not want cef_shutdown duration", startupTrace)
+	}
+}
+
 func parseStartupTrace(t *testing.T, output string) map[string]int64 {
 	t.Helper()
 	const prefix = "electron-go-startup-trace: "

@@ -28,26 +28,28 @@ const (
 )
 
 type Options struct {
-	AppDir          string
-	ElectronVersion string
-	Bridge          native.Bridge
-	SubprocessHook  SubprocessHook
-	Args            []string
-	Environment     []string
-	NodeOptions     NodeOptions
-	Out             io.Writer
+	AppDir            string
+	ElectronVersion   string
+	Bridge            native.Bridge
+	SubprocessHook    SubprocessHook
+	Args              []string
+	Environment       []string
+	NodeOptions       NodeOptions
+	Out               io.Writer
+	SkipFinalShutdown bool
 }
 
 type Runtime struct {
-	appDir          string
-	electronVersion string
-	bridge          native.Bridge
-	subprocessHook  SubprocessHook
-	args            []string
-	environment     []string
-	nodeOptions     NodeOptions
-	out             io.Writer
-	state           State
+	appDir            string
+	electronVersion   string
+	bridge            native.Bridge
+	subprocessHook    SubprocessHook
+	args              []string
+	environment       []string
+	nodeOptions       NodeOptions
+	out               io.Writer
+	skipFinalShutdown bool
+	state             State
 }
 
 type WarmRunReport struct {
@@ -144,15 +146,16 @@ func New(opts Options) *Runtime {
 		bridge = native.StubBridge{}
 	}
 	return &Runtime{
-		appDir:          opts.AppDir,
-		electronVersion: opts.ElectronVersion,
-		bridge:          bridge,
-		subprocessHook:  opts.SubprocessHook,
-		args:            append([]string(nil), opts.Args...),
-		environment:     append([]string(nil), opts.Environment...),
-		nodeOptions:     opts.NodeOptions,
-		out:             out,
-		state:           StateCreated,
+		appDir:            opts.AppDir,
+		electronVersion:   opts.ElectronVersion,
+		bridge:            bridge,
+		subprocessHook:    opts.SubprocessHook,
+		args:              append([]string(nil), opts.Args...),
+		environment:       append([]string(nil), opts.Environment...),
+		nodeOptions:       opts.NodeOptions,
+		out:               out,
+		skipFinalShutdown: opts.SkipFinalShutdown,
+		state:             StateCreated,
 	}
 }
 
@@ -348,9 +351,14 @@ func (r *Runtime) startMainPlanBridge(ctx context.Context, req native.StartReque
 		for key, value := range execResult.TraceMS {
 			trace[key] = executeOffset + value
 		}
-		stageStart = time.Now()
-		shutdownErr := bridge.Shutdown(ctx)
-		trace["cef_shutdown"] = time.Since(stageStart).Milliseconds()
+		var shutdownErr error
+		if r.skipFinalShutdown && execErr == nil {
+			trace["cef_shutdown_skipped"] = 1
+		} else {
+			stageStart = time.Now()
+			shutdownErr = bridge.Shutdown(ctx)
+			trace["cef_shutdown"] = time.Since(stageStart).Milliseconds()
+		}
 		trace["total_native_start"] = time.Since(traceStart).Milliseconds()
 		if execErr != nil {
 			return nil, execErr

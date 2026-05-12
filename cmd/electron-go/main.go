@@ -861,13 +861,14 @@ func shouldFastPathAppLaunch(args []string) bool {
 
 func launchApp(ctx context.Context, appDir string, argv []string, env []string, nodeOptions egruntime.NodeOptions) int {
 	rt := egruntime.New(egruntime.Options{
-		AppDir:          appDir,
-		ElectronVersion: compat.Target().Electron,
-		Bridge:          native.NewBridge(),
-		Args:            argv,
-		Environment:     env,
-		NodeOptions:     nodeOptions,
-		Out:             os.Stdout,
+		AppDir:            appDir,
+		ElectronVersion:   compat.Target().Electron,
+		Bridge:            native.NewBridge(),
+		Args:              argv,
+		Environment:       env,
+		NodeOptions:       nodeOptions,
+		Out:               os.Stdout,
+		SkipFinalShutdown: true,
 	})
 
 	if err := rt.Run(ctx); err != nil {
