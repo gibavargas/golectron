@@ -48,7 +48,8 @@ eg_bridge_status eg_cef_shim_set_load_end_script(
     const eg_browser_window_script_request* request);
 
 eg_bridge_status eg_cef_shim_run_message_loop_until_load(
-    eg_bridge_handle bridge);
+    eg_bridge_handle bridge,
+    uint8_t auto_close_on_load);
 eg_bridge_status eg_cef_shim_run_message_loop(eg_bridge_handle bridge);
 eg_bridge_status eg_cef_shim_shutdown(eg_bridge_handle bridge);
 
