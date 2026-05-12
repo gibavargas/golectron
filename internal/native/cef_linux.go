@@ -349,13 +349,13 @@ func cefCachePath(absAppDir string) string {
 }
 
 func appendCEFBrowserProcessSwitches(args []string) []string {
-	out := append([]string(nil), args...)
+	out := make([]string, 0, len(args)+len(cefBrowserProcessSwitches)+1)
+	out = append(out, args...)
 	if IsCEFSubprocessArgs(out) {
 		return out
 	}
-	seen := switchSet(out)
 	for _, flag := range cefBrowserProcessSwitches {
-		if _, ok := seen[flag]; !ok {
+		if !hasSwitch(out, flag) {
 			out = append(out, flag)
 		}
 	}
@@ -365,14 +365,6 @@ func appendCEFBrowserProcessSwitches(args []string) []string {
 		}
 	}
 	return out
-}
-
-func switchSet(args []string) map[string]struct{} {
-	seen := make(map[string]struct{}, len(args))
-	for _, arg := range args {
-		seen[arg] = struct{}{}
-	}
-	return seen
 }
 
 func hasSwitch(args []string, name string) bool {
