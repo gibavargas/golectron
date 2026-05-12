@@ -100,5 +100,5 @@ Before implementing the CEF calls, run:
 ```sh
 go run ./tools/cefresolve --json
 tools/fetch_cef.sh
-go build -tags electron_go_cef -o bin/electron-go ./cmd/electron-go
+go build -trimpath -ldflags="-s -w" -tags electron_go_cef -o bin/electron-go ./cmd/electron-go
 ```

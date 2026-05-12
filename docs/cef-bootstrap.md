@@ -77,7 +77,7 @@ Linux cgo build can include headers from a stable path without vendoring CEF.
 The Linux CEF-linked build is enabled explicitly with the `electron_go_cef` tag:
 
 ```sh
-go build -tags electron_go_cef -o bin/electron-go ./cmd/electron-go
+go build -trimpath -ldflags="-s -w" -tags electron_go_cef -o bin/electron-go ./cmd/electron-go
 ```
 
 The Linux cgo directives live in `internal/native/cef_linux.go` and bake in:

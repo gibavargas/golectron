@@ -42,7 +42,7 @@ jobs:
         run: tools/fetch_cef.sh
 
       - name: Build Electron-Go CEF binary
-        run: go build -tags electron_go_cef -o bin/electron-go ./cmd/electron-go
+        run: go build -trimpath -ldflags="-s -w" -tags electron_go_cef -o bin/electron-go ./cmd/electron-go
 
       - name: Run stable default fixture path
         run: xvfb-run -a timeout 30 bin/electron-go compat/fixtures/benchmark-hello
