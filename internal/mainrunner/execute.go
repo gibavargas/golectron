@@ -61,6 +61,9 @@ func Execute(ctx context.Context, plan Plan, driver Driver, opts ExecuteOptions)
 			trace[name] = time.Since(started).Milliseconds()
 		}
 	}
+	if plan.FastBenchmark && !opts.Events {
+		return executeFastBenchmark(ctx, plan, driver, opts.Out, benchmarkTraceEnabled, trace, started)
+	}
 
 	app := applifecycle.New()
 	for _, action := range plan.WindowAllClosed {
@@ -75,24 +78,14 @@ func Execute(ctx context.Context, plan Plan, driver Driver, opts ExecuteOptions)
 	}
 	mark("app_ready")
 
-	loadURL := plan.LoadURL
-	if loadURL == "" {
-		var err error
-		loadURL, err = loadFileURL(plan.MainPath, plan.LoadFile)
-		if err != nil {
-			return Result{}, err
-		}
+	loadURL, err := resolveLoadURL(plan)
+	if err != nil {
+		return Result{}, err
 	}
 
-	var normalized browserwindow.NormalizedOptions
-	if plan.NormalizedWindow != nil {
-		normalized = *plan.NormalizedWindow
-	} else {
-		var err error
-		normalized, err = browserwindow.NormalizeOptions(plan.Window)
-		if err != nil {
-			return Result{}, err
-		}
+	normalized, err := resolveNormalizedWindow(plan)
+	if err != nil {
+		return Result{}, err
 	}
 	createURL := "about:blank"
 	if plan.LoadEndScript == "" {
@@ -146,15 +139,9 @@ func Execute(ctx context.Context, plan Plan, driver Driver, opts ExecuteOptions)
 			return Result{}, err
 		}
 	}
-	if plan.FastBenchmark && !opts.Events {
-		if err := executeFastBenchmarkActions(ctx, app, browserID, driver, trace, started); err != nil {
+	for _, action := range plan.DidFinishLoad {
+		if err := executeAction(ctx, action, app, window, driver, trace, started); err != nil {
 			return Result{}, err
-		}
-	} else {
-		for _, action := range plan.DidFinishLoad {
-			if err := executeAction(ctx, action, app, window, driver, trace, started); err != nil {
-				return Result{}, err
-			}
 		}
 	}
 	if app.IsQuitting() && opts.Out != nil && benchmarkTraceEnabled {
@@ -174,17 +161,71 @@ func Execute(ctx context.Context, plan Plan, driver Driver, opts ExecuteOptions)
 	}, nil
 }
 
-func executeFastBenchmarkActions(ctx context.Context, app *applifecycle.App, browserID int64, driver Driver, trace map[string]int64, started time.Time) error {
+func executeFastBenchmark(ctx context.Context, plan Plan, driver Driver, out io.Writer, benchmarkTraceEnabled bool, trace map[string]int64, started time.Time) (Result, error) {
+	mark := func(name string) {
+		if trace != nil && name != "" {
+			trace[name] = time.Since(started).Milliseconds()
+		}
+	}
+	mark("app_ready")
+	loadURL, err := resolveLoadURL(plan)
+	if err != nil {
+		return Result{}, err
+	}
+	normalized, err := resolveNormalizedWindow(plan)
+	if err != nil {
+		return Result{}, err
+	}
+	browserID, err := driver.CreateBrowserWindow(ctx, native.BrowserWindowCreateRequest{
+		URL:             loadURL,
+		Width:           normalized.Width,
+		Height:          normalized.Height,
+		Show:            normalized.Show,
+		AutoCloseOnLoad: false,
+	})
+	if err != nil {
+		return Result{}, err
+	}
+	mark("window_created")
+	mark("load_start")
+	waitDriver, ok := driver.(LoadWaitDriver)
+	if !ok {
+		return Result{}, fmt.Errorf("main runner driver does not support load waits")
+	}
+	if err := waitDriver.WaitForLoad(ctx); err != nil {
+		return Result{}, err
+	}
 	if trace != nil {
 		trace["did_finish_load"] = time.Since(started).Milliseconds()
 		trace["quit_requested"] = time.Since(started).Milliseconds()
 	}
 	if err := driver.CloseBrowserWindow(ctx, native.BrowserWindowCloseRequest{BrowserID: browserID}); err != nil {
-		return err
+		return Result{}, err
 	}
-	app.WindowAllClosed()
-	quitApp(app, 0)
-	return nil
+	if out != nil && benchmarkTraceEnabled {
+		if err := emitBenchmarkTrace(out, trace); err != nil {
+			return Result{}, err
+		}
+	}
+	return Result{
+		BrowserID: browserID,
+		TraceMS:   trace,
+		ExitCode:  0,
+	}, nil
+}
+
+func resolveLoadURL(plan Plan) (string, error) {
+	if plan.LoadURL != "" {
+		return plan.LoadURL, nil
+	}
+	return loadFileURL(plan.MainPath, plan.LoadFile)
+}
+
+func resolveNormalizedWindow(plan Plan) (browserwindow.NormalizedOptions, error) {
+	if plan.NormalizedWindow != nil {
+		return *plan.NormalizedWindow, nil
+	}
+	return browserwindow.NormalizeOptions(plan.Window)
 }
 
 func executeAction(ctx context.Context, action Action, app *applifecycle.App, window *browserwindow.Window, driver Driver, trace map[string]int64, started time.Time) error {
