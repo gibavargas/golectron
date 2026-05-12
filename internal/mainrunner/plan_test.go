@@ -31,6 +31,12 @@ func TestParseBenchmarkHelloPlan(t *testing.T) {
 	if normalized.Width != 800 || normalized.Height != 600 || !normalized.Show {
 		t.Fatalf("window = %#v, want visible 800x600", normalized)
 	}
+	if plan.NormalizedWindow == nil {
+		t.Fatal("NormalizedWindow is nil, want benchmark fast-path normalized window")
+	}
+	if *plan.NormalizedWindow != normalized {
+		t.Fatalf("NormalizedWindow = %#v, want %#v", *plan.NormalizedWindow, normalized)
+	}
 	if !normalized.WebPreferences.ContextIsolation || !normalized.WebPreferences.Sandbox {
 		t.Fatalf("webPreferences = %#v, want contextIsolation and sandbox", normalized.WebPreferences)
 	}

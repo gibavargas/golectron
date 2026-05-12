@@ -79,9 +79,15 @@ func Execute(ctx context.Context, plan Plan, driver Driver, opts ExecuteOptions)
 		return Result{}, err
 	}
 
-	normalized, err := browserwindow.NormalizeOptions(plan.Window)
-	if err != nil {
-		return Result{}, err
+	var normalized browserwindow.NormalizedOptions
+	if plan.NormalizedWindow != nil {
+		normalized = *plan.NormalizedWindow
+	} else {
+		var err error
+		normalized, err = browserwindow.NormalizeOptions(plan.Window)
+		if err != nil {
+			return Result{}, err
+		}
 	}
 	createURL := "about:blank"
 	if plan.LoadEndScript == "" {

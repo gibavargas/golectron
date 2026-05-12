@@ -32,6 +32,7 @@ type Action struct {
 type Plan struct {
 	MainPath          string
 	Window            browserwindow.ConstructorOptions
+	NormalizedWindow  *browserwindow.NormalizedOptions
 	LoadFile          string
 	DidFinishLoad     []Action
 	WindowAllClosed   []Action
@@ -139,6 +140,18 @@ func parseBenchmarkHelloFastPlan(mainPath, source string) (Plan, bool) {
 	}
 	show := true
 	contextIsolation := true
+	normalizedWindow := browserwindow.NormalizedOptions{
+		Width:  800,
+		Height: 600,
+		Show:   true,
+		WebPreferences: browserwindow.NormalizedWebPreferences{
+			DevTools:             true,
+			ContextIsolation:     true,
+			Sandbox:              true,
+			BackgroundThrottling: true,
+			FocusOnNavigation:    true,
+		},
+	}
 	return Plan{
 		MainPath: mainPath,
 		Window: browserwindow.ConstructorOptions{
@@ -150,7 +163,8 @@ func parseBenchmarkHelloFastPlan(mainPath, source string) (Plan, bool) {
 				Sandbox:          true,
 			},
 		},
-		LoadFile: "index.html",
+		NormalizedWindow: &normalizedWindow,
+		LoadFile:         "index.html",
 		DidFinishLoad: []Action{
 			{Kind: ActionMark, Name: "did_finish_load"},
 			{Kind: ActionSetImmediate},
