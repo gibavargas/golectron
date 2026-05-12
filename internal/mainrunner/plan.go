@@ -207,7 +207,11 @@ func benchmarkHelloLoadURL(mainPath string) string {
 			path = abs
 		}
 	}
-	return (&url.URL{Scheme: "file", Path: filepath.ToSlash(path)}).String()
+	slashed := filepath.ToSlash(path)
+	if strings.ContainsAny(slashed, " #%?") {
+		return (&url.URL{Scheme: "file", Path: slashed}).String()
+	}
+	return "file://" + slashed
 }
 
 func parseIPCPreloadPlan(mainPath, source, windowBlock, loadFile string) (Plan, error) {
