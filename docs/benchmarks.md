@@ -149,30 +149,30 @@ startup reports for the same fixture:
 
 ### Latest Linux Hello Result
 
-PR benchmark run
-`https://github.com/gibavargas/electron-go/actions/runs/25706984119` on commit
-`7da525c` measured the scoped runtime path for the
+Workflow-dispatched benchmark run
+`https://github.com/gibavargas/electron-go/actions/runs/25707723412` on commit
+`b1ae4e1` measured the scoped runtime path for the
 `compat/fixtures/benchmark-hello` fixture with five successful
 alternating-order iterations on Ubuntu 22.04:
 
-- median wall-clock startup with RSS probes: Electron-Go `413ms`, Electron
-  `559ms` (`electron_go_over_electron = 0.7388`, about `1.35x` faster);
-- median wall-clock startup without RSS probes: Electron-Go `405ms`, Electron
-  `529ms` (`electron_go_over_electron = 0.7656`, about `1.31x` faster);
+- median wall-clock startup with RSS probes: Electron-Go `393ms`, Electron
+  `624ms` (`electron_go_over_electron = 0.6298`, about `1.59x` faster);
+- median wall-clock startup without RSS probes: Electron-Go `390ms`, Electron
+  `520ms` (`electron_go_over_electron = 0.7500`, about `1.33x` faster);
 - median paired wall-clock startup ratio:
-  `electron_go_over_electron_median = 0.7455` across five successful pairs in
+  `electron_go_over_electron_median = 0.7244` across five successful pairs in
   the RSS-enabled report;
-- median process-tree peak RSS: Electron-Go `248624KB`, Electron `601036KB`
-  (`electron_go_over_electron = 0.4137`, about `2.42x` lighter);
+- median process-tree peak RSS: Electron-Go `251284KB`, Electron `606900KB`
+  (`electron_go_over_electron = 0.4140`, about `2.42x` lighter);
 - paired process-tree peak RSS ratio:
-  `electron_go_over_electron_median = 0.4143` across five successful pairs;
-- median root max RSS: Electron-Go `248084KB`, Electron `213232KB`
-  (`electron_go_over_electron = 1.1634`, Electron-Go is heavier for this
+  `electron_go_over_electron_median = 0.4285` across five successful pairs;
+- median root max RSS: Electron-Go `248184KB`, Electron `213264KB`
+  (`electron_go_over_electron = 1.1637`, Electron-Go is heavier for this
   process-only metric).
-- separate Electron-Go scoped startup-trace medians: `cef_initialize=156ms`,
-  `app_ready=156ms`, `window_created=206ms`, `load_start=206ms`,
-  `did_finish_load=341ms`, `quit_requested=341ms`,
-  `cef_shutdown_skipped=1`, `total_native_start=341ms`.
+- separate Electron-Go scoped startup-trace medians: `cef_initialize=144ms`,
+  `app_ready=144ms`, `window_created=199ms`, `load_start=199ms`,
+  `did_finish_load=328ms`, `quit_requested=328ms`,
+  `cef_shutdown_skipped=1`, `total_native_start=329ms`.
 
 Newer Electron-Go startup traces may also include diagnostic message-loop split
 fields such as `message_loop_to_load_end`, `load_end_to_before_close`, and
@@ -184,6 +184,17 @@ Fixture-level phase traces and Electron-Go native startup traces are diagnostic
 and should be collected in explicit trace runs. The normal headline benchmark
 keeps runtime-specific tracing disabled to avoid adding console-output work to
 only one side of the comparison.
+
+The previous alternating-order run
+`https://github.com/gibavargas/electron-go/actions/runs/25707588013` on commit
+`b1ae4e1` measured Electron-Go `393ms` vs Electron `510ms`; the workflow
+dispatch above is the current published ratio evidence for the same commit.
+
+The previous alternating-order run
+`https://github.com/gibavargas/electron-go/actions/runs/25706984119` on commit
+`7da525c` measured Electron-Go `413ms` vs Electron `559ms` after fixing the
+scoped runner trace parser so `load_start` stayed at the pre-wait mark instead
+of being overwritten by the later source scan.
 
 The previous alternating-order run
 `https://github.com/gibavargas/electron-go/actions/runs/25706375616` on commit
