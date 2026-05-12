@@ -337,6 +337,30 @@ func TestWarmRunRejectsRepeatedCEFWindowLoops(t *testing.T) {
 	}
 }
 
+func TestWarmRunUsesValidatedInitializeForSupportedMain(t *testing.T) {
+	dir := scopedMainApp(t)
+	bridge := &validatedMainPlanBridgeFake{mainPlanBridgeFake: mainPlanBridgeFake{browserID: 77}}
+	rt := New(Options{
+		AppDir:          dir,
+		ElectronVersion: "42.0.0",
+		Bridge:          bridge,
+	})
+
+	report, err := rt.WarmRun(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("WarmRun() error = %v", err)
+	}
+	if report.Summary.Successes != 1 {
+		t.Fatalf("summary = %#v, want one success", report.Summary)
+	}
+	if !bridge.validatedInitialized {
+		t.Fatal("validated initialize path was not used")
+	}
+	if bridge.initialized {
+		t.Fatal("InitializeForStart was used, want validated initialize path")
+	}
+}
+
 func TestExtractNodeOptions(t *testing.T) {
 	if got := ExtractNodeOptions([]string{"electron-go", "--experimental-transform-types", "."}); !got.ExperimentalTransformTypes {
 		t.Fatal("ExperimentalTransformTypes = false, want true")

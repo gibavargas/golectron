@@ -246,8 +246,8 @@ func (r *Runtime) WarmRun(ctx context.Context, iterations int) (WarmRunReport, e
 		AppName:         meta.Name,
 		AppVersion:      meta.Version,
 		ElectronVersion: r.electronVersion,
-		Args:            append([]string(nil), r.args...),
-		Environment:     append([]string(nil), r.environment...),
+		Args:            r.args,
+		Environment:     r.environment,
 		NodeOptions: native.NativeNodeOptions{
 			ExperimentalTransformTypes: r.nodeOptions.ExperimentalTransformTypes,
 		},
@@ -262,7 +262,7 @@ func (r *Runtime) WarmRun(ctx context.Context, iterations int) (WarmRunReport, e
 
 	report := WarmRunReport{Iterations: iterations, Samples: make([]WarmSample, 0, iterations)}
 	stageStart := time.Now()
-	if err := bridge.InitializeForStart(ctx, req); err != nil {
+	if err := initializeMainPlanBridge(ctx, bridge, req); err != nil {
 		return report, err
 	}
 	report.InitializeMS = time.Since(stageStart).Milliseconds()
