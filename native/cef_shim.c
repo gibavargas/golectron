@@ -843,12 +843,12 @@ eg_bridge_status eg_cef_shim_run_message_loop_until_load(
     return EG_BRIDGE_STATUS_INVALID_REQUEST;
   }
   int previous_auto_close_on_load = g_auto_close_on_load;
-  g_auto_close_on_load = 1;
-  g_quit_loop_on_load = 0;
+  g_auto_close_on_load = 0;
+  g_quit_loop_on_load = 1;
   cef_run_message_loop();
   g_auto_close_on_load = previous_auto_close_on_load;
   g_quit_loop_on_load = 0;
-  if (g_load_failed || !g_load_complete || !g_browser_closed) {
+  if (g_load_failed || !g_load_complete) {
     return EG_BRIDGE_STATUS_FAILED;
   }
   return EG_BRIDGE_STATUS_STOPPED;
