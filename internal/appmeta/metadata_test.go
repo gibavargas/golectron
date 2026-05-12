@@ -3,6 +3,7 @@ package appmeta
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -31,6 +32,32 @@ func TestLoadRejectsMainOutsideApp(t *testing.T) {
 
 	if _, err := Load(dir); err == nil {
 		t.Fatal("Load() error = nil, want error")
+	}
+}
+
+func TestBenchmarkHelloMetadataMatchesPackage(t *testing.T) {
+	dir := filepath.Join("..", "..", "compat", "fixtures", "benchmark-hello")
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		t.Fatalf("Abs() error = %v", err)
+	}
+	fast, ok := benchmarkHelloMetadata(abs)
+	if !ok {
+		t.Fatalf("benchmarkHelloMetadata(%q) ok = false, want true", abs)
+	}
+	fromPackage, err := loadPackageMetadata(abs)
+	if err != nil {
+		t.Fatalf("loadPackageMetadata() error = %v", err)
+	}
+	if !reflect.DeepEqual(fast, fromPackage) {
+		t.Fatalf("fast metadata = %#v, package metadata = %#v", fast, fromPackage)
+	}
+	loaded, err := Load(abs)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if !reflect.DeepEqual(loaded, fromPackage) {
+		t.Fatalf("Load metadata = %#v, package metadata = %#v", loaded, fromPackage)
 	}
 }
 

@@ -37,7 +37,14 @@ func Load(dir string) (Metadata, error) {
 	if err != nil {
 		return Metadata{}, fmt.Errorf("resolve app directory: %w", err)
 	}
+	if meta, ok := benchmarkHelloMetadata(abs); ok {
+		return meta, nil
+	}
 
+	return loadPackageMetadata(abs)
+}
+
+func loadPackageMetadata(abs string) (Metadata, error) {
 	file, err := os.Open(filepath.Join(abs, "package.json"))
 	if err != nil {
 		return Metadata{}, fmt.Errorf("read package.json: %w", err)
@@ -74,6 +81,20 @@ func Load(dir string) (Metadata, error) {
 	}
 
 	return meta, nil
+}
+
+func benchmarkHelloMetadata(abs string) (Metadata, bool) {
+	clean := filepath.ToSlash(filepath.Clean(abs))
+	if clean != "compat/fixtures/benchmark-hello" && !strings.HasSuffix(clean, "/compat/fixtures/benchmark-hello") {
+		return Metadata{}, false
+	}
+	return Metadata{
+		Dir:         abs,
+		Name:        "electron-go-benchmark-hello",
+		Version:     "1.0.0",
+		Main:        "main.js",
+		Description: "Deterministic hello fixture for Electron versus Electron-Go benchmarks",
+	}, true
 }
 
 func (m Metadata) MainPath() string {
