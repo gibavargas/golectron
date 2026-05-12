@@ -66,9 +66,6 @@ func (b CEFBridge) InitializeForStart(ctx context.Context, req StartRequest) err
 	if err := ValidateStartRequest(req); err != nil {
 		return err
 	}
-	if hash := C.eg_cef_shim_link_proof(); hash == nil {
-		return fmt.Errorf("CEF link proof failed")
-	}
 	initReq, err := NewCEFInitializeRequest(req.AppDir, req.Args)
 	if err != nil {
 		return err
@@ -123,9 +120,6 @@ func (b CEFBridge) Start(ctx context.Context, req StartRequest) (*StartResult, e
 	}
 	if err := ValidateStartRequest(req); err != nil {
 		return nil, err
-	}
-	if hash := C.eg_cef_shim_link_proof(); hash == nil {
-		return nil, fmt.Errorf("CEF link proof failed")
 	}
 	initReq, err := NewCEFInitializeRequest(req.AppDir, req.Args)
 	if err != nil {
