@@ -188,11 +188,14 @@ func loadFileURL(mainPath, loadFile string) (string, error) {
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(filepath.Dir(mainPath), path)
 	}
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		return "", err
+	if !filepath.IsAbs(path) {
+		abs, err := filepath.Abs(path)
+		if err != nil {
+			return "", err
+		}
+		path = abs
 	}
-	return (&url.URL{Scheme: "file", Path: filepath.ToSlash(abs)}).String(), nil
+	return (&url.URL{Scheme: "file", Path: filepath.ToSlash(path)}).String(), nil
 }
 
 func emitBenchmarkTrace(out io.Writer, trace map[string]int64) error {
