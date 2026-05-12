@@ -74,9 +74,13 @@ func Execute(ctx context.Context, plan Plan, driver Driver, opts ExecuteOptions)
 	}
 	mark("app_ready")
 
-	loadURL, err := loadFileURL(plan.MainPath, plan.LoadFile)
-	if err != nil {
-		return Result{}, err
+	loadURL := plan.LoadURL
+	if loadURL == "" {
+		var err error
+		loadURL, err = loadFileURL(plan.MainPath, plan.LoadFile)
+		if err != nil {
+			return Result{}, err
+		}
 	}
 
 	var normalized browserwindow.NormalizedOptions

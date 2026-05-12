@@ -23,6 +23,9 @@ func TestParseBenchmarkHelloPlan(t *testing.T) {
 	if plan.LoadFile != "index.html" {
 		t.Fatalf("LoadFile = %q, want index.html", plan.LoadFile)
 	}
+	if !strings.HasSuffix(plan.LoadURL, "/compat/fixtures/benchmark-hello/index.html") {
+		t.Fatalf("LoadURL = %q, want benchmark index.html URL", plan.LoadURL)
+	}
 	if plan.BenchmarkTraceEnv != "ELECTRON_GO_BENCHMARK_TRACE" {
 		t.Fatalf("BenchmarkTraceEnv = %q, want ELECTRON_GO_BENCHMARK_TRACE", plan.BenchmarkTraceEnv)
 	}

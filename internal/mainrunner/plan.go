@@ -3,6 +3,7 @@ package mainrunner
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -34,6 +35,7 @@ type Plan struct {
 	Window            browserwindow.ConstructorOptions
 	NormalizedWindow  *browserwindow.NormalizedOptions
 	LoadFile          string
+	LoadURL           string
 	DidFinishLoad     []Action
 	WindowAllClosed   []Action
 	BenchmarkTraceEnv string
@@ -182,6 +184,7 @@ func benchmarkHelloPlan(mainPath string) Plan {
 		},
 		NormalizedWindow: &normalizedWindow,
 		LoadFile:         "index.html",
+		LoadURL:          benchmarkHelloLoadURL(mainPath),
 		DidFinishLoad: []Action{
 			{Kind: ActionMark, Name: "did_finish_load"},
 			{Kind: ActionSetImmediate},
@@ -193,6 +196,16 @@ func benchmarkHelloPlan(mainPath string) Plan {
 		WindowAllClosed:   []Action{{Kind: ActionQuitApp}},
 		BenchmarkTraceEnv: "ELECTRON_GO_BENCHMARK_TRACE",
 	}
+}
+
+func benchmarkHelloLoadURL(mainPath string) string {
+	path := filepath.Join(filepath.Dir(mainPath), "index.html")
+	if !filepath.IsAbs(path) {
+		if abs, err := filepath.Abs(path); err == nil {
+			path = abs
+		}
+	}
+	return (&url.URL{Scheme: "file", Path: filepath.ToSlash(path)}).String()
 }
 
 func parseIPCPreloadPlan(mainPath, source, windowBlock, loadFile string) (Plan, error) {
