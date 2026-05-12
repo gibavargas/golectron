@@ -92,6 +92,8 @@ const StartupTraceEnv = "ELECTRON_GO_STARTUP_TRACE"
 const VerboseEnv = "ELECTRON_GO_VERBOSE"
 const ScopedMainRunnerEnv = "ELECTRON_GO_ENABLE_SCOPED_MAIN_RUNNER"
 
+var mainRunnerBridgeRevision = fmt.Sprintf("abi-%d-mainrunner", native.CurrentABIRevision)
+
 type SubprocessRequest struct {
 	Args        []string
 	Environment []string
@@ -427,7 +429,7 @@ func (r *Runtime) startMainPlanBridge(ctx context.Context, req native.StartReque
 			PID:            os.Getpid(),
 			WindowCount:    1,
 			Status:         native.StatusStopped,
-			BridgeRevision: fmt.Sprintf("abi-%d-mainrunner", native.CurrentABIRevision),
+			BridgeRevision: mainRunnerBridgeRevision,
 			Platform:       goruntime.GOOS,
 			StartupTraceMS: trace,
 		}, nil
