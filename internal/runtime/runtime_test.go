@@ -252,7 +252,7 @@ func TestRuntimeUsesMainPlanBridgeForSupportedMain(t *testing.T) {
 	if startupTrace["cef_initialize"] <= 0 || startupTrace["app_ready"] < startupTrace["cef_initialize"] {
 		t.Fatalf("startup trace = %#v, want app marks offset after CEF initialization", startupTrace)
 	}
-	for _, key := range []string{"cef_initialize", "mainrunner_execute", "cef_shutdown", "total_native_start"} {
+	for _, key := range []string{"appmeta_load", "start_request_build", "validate_start_request", "parse_main_plan", "cef_initialize", "mainrunner_execute", "cef_shutdown", "total_native_start"} {
 		if !strings.Contains(out.String(), `"`+key+`"`) {
 			t.Fatalf("stdout = %q, want startup trace key %q", out.String(), key)
 		}

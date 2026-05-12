@@ -187,9 +187,22 @@ func (r *Runtime) Run(ctx context.Context) error {
 		}
 	}
 
+	startupTrace := envEnabled(r.environment, StartupTraceEnv)
+	var traceStart time.Time
+	var startupTraceMS map[string]int64
+	var stageStart time.Time
+	if startupTrace {
+		traceStart = time.Now()
+		stageStart = traceStart
+		startupTraceMS = map[string]int64{}
+	}
 	meta, err := appmeta.Load(r.appDir)
 	if err != nil {
 		return err
+	}
+	if startupTrace {
+		startupTraceMS["appmeta_load"] = time.Since(stageStart).Milliseconds()
+		stageStart = time.Now()
 	}
 	r.state = StateMetadataReady
 	verbose := envEnabled(r.environment, VerboseEnv)
@@ -209,12 +222,19 @@ func (r *Runtime) Run(ctx context.Context) error {
 			ExperimentalTransformTypes: r.nodeOptions.ExperimentalTransformTypes,
 		},
 	})
+	if startupTrace {
+		startupTraceMS["start_request_build"] = time.Since(stageStart).Milliseconds()
+		stageStart = time.Now()
+	}
 	if err := native.ValidateStartRequest(req); err != nil {
 		return err
 	}
+	if startupTrace {
+		startupTraceMS["validate_start_request"] = time.Since(stageStart).Milliseconds()
+	}
 
 	r.state = StateStarting
-	result, err := r.startBridge(ctx, req)
+	result, err := r.startBridge(ctx, req, traceStart, startupTraceMS)
 	if err != nil {
 		return err
 	}
@@ -336,23 +356,25 @@ func summarizeWarmSamples(samples []WarmSample) WarmSummary {
 	return summary
 }
 
-func (r *Runtime) startBridge(ctx context.Context, req native.StartRequest) (*native.StartResult, error) {
+func (r *Runtime) startBridge(ctx context.Context, req native.StartRequest, traceStart time.Time, startupTraceMS map[string]int64) (*native.StartResult, error) {
 	if bridge, ok := r.bridge.(mainPlanBridge); ok {
-		return r.startMainPlanBridge(ctx, req, bridge)
+		return r.startMainPlanBridge(ctx, req, bridge, traceStart, startupTraceMS)
 	}
 	return r.bridge.Start(ctx, req)
 }
 
-func (r *Runtime) startMainPlanBridge(ctx context.Context, req native.StartRequest, bridge mainPlanBridge) (*native.StartResult, error) {
+func (r *Runtime) startMainPlanBridge(ctx context.Context, req native.StartRequest, bridge mainPlanBridge, traceStart time.Time, startupTraceMS map[string]int64) (*native.StartResult, error) {
+	traceEnabled := startupTraceMS != nil
+	var stageStart time.Time
+	if traceEnabled {
+		stageStart = time.Now()
+	}
 	plan, err := mainrunner.ParseFile(req.MainPath)
+	if traceEnabled {
+		startupTraceMS["parse_main_plan"] = time.Since(stageStart).Milliseconds()
+	}
 	if err == nil {
-		traceEnabled := envEnabled(r.environment, StartupTraceEnv)
-		var traceStart time.Time
-		var trace map[string]int64
-		if traceEnabled {
-			traceStart = time.Now()
-		}
-		var stageStart time.Time
+		trace := startupTraceMS
 		if traceEnabled {
 			stageStart = time.Now()
 		}
@@ -360,9 +382,7 @@ func (r *Runtime) startMainPlanBridge(ctx context.Context, req native.StartReque
 			return nil, err
 		}
 		if traceEnabled {
-			trace = map[string]int64{
-				"cef_initialize": time.Since(stageStart).Milliseconds(),
-			}
+			trace["cef_initialize"] = time.Since(stageStart).Milliseconds()
 			stageStart = time.Now()
 		}
 		var executeOffset int64
