@@ -48,7 +48,8 @@ func Execute(ctx context.Context, plan Plan, driver Driver, opts ExecuteOptions)
 	if driver == nil {
 		return Result{}, fmt.Errorf("main runner driver is required")
 	}
-	traceEnabled := opts.Trace || envEnabled(opts.Environment, plan.BenchmarkTraceEnv)
+	benchmarkTraceEnabled := envEnabled(opts.Environment, plan.BenchmarkTraceEnv)
+	traceEnabled := opts.Trace || benchmarkTraceEnabled
 	var started time.Time
 	var trace map[string]int64
 	if traceEnabled {
@@ -147,7 +148,7 @@ func Execute(ctx context.Context, plan Plan, driver Driver, opts ExecuteOptions)
 			return Result{}, err
 		}
 	}
-	if app.IsQuitting() && opts.Out != nil && envEnabled(opts.Environment, plan.BenchmarkTraceEnv) {
+	if app.IsQuitting() && opts.Out != nil && benchmarkTraceEnabled {
 		if err := emitBenchmarkTrace(opts.Out, trace); err != nil {
 			return Result{}, err
 		}
