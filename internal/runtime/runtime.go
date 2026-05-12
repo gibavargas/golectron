@@ -191,8 +191,8 @@ func (r *Runtime) Run(ctx context.Context) error {
 		AppName:         meta.Name,
 		AppVersion:      meta.Version,
 		ElectronVersion: r.electronVersion,
-		Args:            append([]string(nil), r.args...),
-		Environment:     append([]string(nil), r.environment...),
+		Args:            r.args,
+		Environment:     r.environment,
 		NodeOptions: native.NativeNodeOptions{
 			ExperimentalTransformTypes: r.nodeOptions.ExperimentalTransformTypes,
 		},

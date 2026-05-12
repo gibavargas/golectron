@@ -100,7 +100,10 @@ func Execute(ctx context.Context, plan Plan, driver Driver, opts ExecuteOptions)
 	mark("window_created")
 
 	window := browserwindow.NewWindow(browserID, normalized)
-	contents := webcontents.New(browserID)
+	var contents *webcontents.WebContents
+	if opts.Events {
+		contents = webcontents.New(browserID)
+	}
 	if plan.LoadEndScript != "" {
 		scriptDriver, ok := driver.(LoadEndScriptDriver)
 		if !ok {
@@ -124,8 +127,10 @@ func Execute(ctx context.Context, plan Plan, driver Driver, opts ExecuteOptions)
 			return Result{}, err
 		}
 	}
-	if err := contents.LoadURL(loadURL); err != nil {
-		return Result{}, err
+	if contents != nil {
+		if err := contents.LoadURL(loadURL); err != nil {
+			return Result{}, err
+		}
 	}
 	for _, action := range plan.DidFinishLoad {
 		if err := executeAction(ctx, action, app, window, driver, trace, started); err != nil {
@@ -215,8 +220,10 @@ func collectEvents(app *applifecycle.App, window *browserwindow.Window, contents
 	for _, event := range window.Events() {
 		events = append(events, "window:"+string(event))
 	}
-	for _, event := range contents.Events() {
-		events = append(events, "webContents:"+string(event))
+	if contents != nil {
+		for _, event := range contents.Events() {
+			events = append(events, "webContents:"+string(event))
+		}
 	}
 	return events
 }
