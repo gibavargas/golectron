@@ -36,6 +36,7 @@ type Plan struct {
 	NormalizedWindow  *browserwindow.NormalizedOptions
 	LoadFile          string
 	LoadURL           string
+	FastBenchmark     bool
 	DidFinishLoad     []Action
 	WindowAllClosed   []Action
 	BenchmarkTraceEnv string
@@ -185,6 +186,7 @@ func benchmarkHelloPlan(mainPath string) Plan {
 		NormalizedWindow: &normalizedWindow,
 		LoadFile:         "index.html",
 		LoadURL:          benchmarkHelloLoadURL(mainPath),
+		FastBenchmark:    true,
 		DidFinishLoad: []Action{
 			{Kind: ActionMark, Name: "did_finish_load"},
 			{Kind: ActionSetImmediate},

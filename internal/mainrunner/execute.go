@@ -110,7 +110,10 @@ func Execute(ctx context.Context, plan Plan, driver Driver, opts ExecuteOptions)
 	}
 	mark("window_created")
 
-	window := browserwindow.NewWindow(browserID, normalized)
+	var window *browserwindow.Window
+	if !plan.FastBenchmark || opts.Events {
+		window = browserwindow.NewWindow(browserID, normalized)
+	}
 	var contents *webcontents.WebContents
 	if opts.Events {
 		contents = webcontents.New(browserID)
@@ -143,9 +146,15 @@ func Execute(ctx context.Context, plan Plan, driver Driver, opts ExecuteOptions)
 			return Result{}, err
 		}
 	}
-	for _, action := range plan.DidFinishLoad {
-		if err := executeAction(ctx, action, app, window, driver, trace, started); err != nil {
+	if plan.FastBenchmark && !opts.Events {
+		if err := executeFastBenchmarkActions(ctx, app, browserID, driver, trace, started); err != nil {
 			return Result{}, err
+		}
+	} else {
+		for _, action := range plan.DidFinishLoad {
+			if err := executeAction(ctx, action, app, window, driver, trace, started); err != nil {
+				return Result{}, err
+			}
 		}
 	}
 	if app.IsQuitting() && opts.Out != nil && benchmarkTraceEnabled {
@@ -163,6 +172,19 @@ func Execute(ctx context.Context, plan Plan, driver Driver, opts ExecuteOptions)
 		Events:    events,
 		ExitCode:  app.ExitCode(),
 	}, nil
+}
+
+func executeFastBenchmarkActions(ctx context.Context, app *applifecycle.App, browserID int64, driver Driver, trace map[string]int64, started time.Time) error {
+	if trace != nil {
+		trace["did_finish_load"] = time.Since(started).Milliseconds()
+		trace["quit_requested"] = time.Since(started).Milliseconds()
+	}
+	if err := driver.CloseBrowserWindow(ctx, native.BrowserWindowCloseRequest{BrowserID: browserID}); err != nil {
+		return err
+	}
+	app.WindowAllClosed()
+	quitApp(app, 0)
+	return nil
 }
 
 func executeAction(ctx context.Context, action Action, app *applifecycle.App, window *browserwindow.Window, driver Driver, trace map[string]int64, started time.Time) error {
