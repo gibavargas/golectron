@@ -1,4 +1,4 @@
-.PHONY: test bench build run-hello parity workpackets cef-packet cefresolve ceffetch fetch-cef cef-layout memaudit releasecheck conformance
+.PHONY: test bench build run-hello parity workpackets cef-packet cefresolve ceffetch fetch-cef cef-layout memaudit releasecheck conformance local-ci local-goal-audit local-benchmarks
 
 test:
 	go test ./...
@@ -41,3 +41,12 @@ releasecheck:
 
 conformance:
 	go run ./tools/conformance --fixture ./compat/fixtures/hello --electron electron --electron-go "go run ./cmd/electron-go" --allow-mismatch
+
+local-ci:
+	tools/local_actions.sh ci
+
+local-goal-audit:
+	tools/local_actions.sh goal-audit
+
+local-benchmarks:
+	tools/local_actions.sh benchmarks

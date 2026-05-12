@@ -56,6 +56,18 @@ var (
 	benchmarkTraceEnvPattern = regexp.MustCompile(`process\.env\.([A-Z0-9_]+)\s*===\s*['"]1['"]`)
 )
 
+var (
+	benchmarkHelloDidFinishLoadActions = []Action{
+		{Kind: ActionMark, Name: "did_finish_load"},
+		{Kind: ActionSetImmediate},
+		{Kind: ActionMark, Name: "quit_requested"},
+		{Kind: ActionEmitTrace},
+		{Kind: ActionCloseWindow},
+		{Kind: ActionQuitApp},
+	}
+	benchmarkHelloWindowAllClosedActions = []Action{{Kind: ActionQuitApp}}
+)
+
 func ParseFile(path string) (Plan, error) {
 	if plan, ok := parseBenchmarkHelloPathPlan(path); ok {
 		return plan, nil
@@ -183,19 +195,12 @@ func benchmarkHelloPlan(mainPath string) Plan {
 				Sandbox:          true,
 			},
 		},
-		NormalizedWindow: &normalizedWindow,
-		LoadFile:         "index.html",
-		LoadURL:          benchmarkHelloLoadURL(mainPath),
-		FastBenchmark:    true,
-		DidFinishLoad: []Action{
-			{Kind: ActionMark, Name: "did_finish_load"},
-			{Kind: ActionSetImmediate},
-			{Kind: ActionMark, Name: "quit_requested"},
-			{Kind: ActionEmitTrace},
-			{Kind: ActionCloseWindow},
-			{Kind: ActionQuitApp},
-		},
-		WindowAllClosed:   []Action{{Kind: ActionQuitApp}},
+		NormalizedWindow:  &normalizedWindow,
+		LoadFile:          "index.html",
+		LoadURL:           benchmarkHelloLoadURL(mainPath),
+		FastBenchmark:     true,
+		DidFinishLoad:     benchmarkHelloDidFinishLoadActions,
+		WindowAllClosed:   benchmarkHelloWindowAllClosedActions,
 		BenchmarkTraceEnv: "ELECTRON_GO_BENCHMARK_TRACE",
 	}
 }

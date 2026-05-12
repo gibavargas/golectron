@@ -10,6 +10,10 @@ coverage.out
 node_modules/
 .electron-go/
 benchmark-results/
+benchmark-artifacts-*/
+local-actions-out/
+local-actions-src.tar
+scoped-runner-artifacts*/
 native/cef/
 cef_binary_*/
 *.tar.bz2
