@@ -19,6 +19,7 @@ type Metadata struct {
 	Version     string
 	Main        string
 	Description string
+	mainPath    string
 }
 
 type packageJSON struct {
@@ -79,6 +80,7 @@ func loadPackageMetadata(abs string) (Metadata, error) {
 	if strings.HasPrefix(filepath.Clean(meta.Main), "..") {
 		return Metadata{}, fmt.Errorf("main entry must stay inside app directory: %s", meta.Main)
 	}
+	meta.mainPath = filepath.Join(meta.Dir, meta.Main)
 
 	return meta, nil
 }
@@ -94,9 +96,13 @@ func benchmarkHelloMetadata(abs string) (Metadata, bool) {
 		Version:     "1.0.0",
 		Main:        "main.js",
 		Description: "Deterministic hello fixture for Electron versus Electron-Go benchmarks",
+		mainPath:    filepath.Join(abs, "main.js"),
 	}, true
 }
 
 func (m Metadata) MainPath() string {
+	if m.mainPath != "" {
+		return m.mainPath
+	}
 	return filepath.Join(m.Dir, m.Main)
 }

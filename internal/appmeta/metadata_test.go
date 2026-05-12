@@ -24,6 +24,9 @@ func TestLoadDefaults(t *testing.T) {
 	if meta.Main != defaultMain {
 		t.Fatalf("Main = %q, want %q", meta.Main, defaultMain)
 	}
+	if meta.MainPath() != filepath.Join(dir, defaultMain) {
+		t.Fatalf("MainPath() = %q, want cached default main path", meta.MainPath())
+	}
 }
 
 func TestLoadRejectsMainOutsideApp(t *testing.T) {
@@ -58,6 +61,9 @@ func TestBenchmarkHelloMetadataMatchesPackage(t *testing.T) {
 	}
 	if !reflect.DeepEqual(loaded, fromPackage) {
 		t.Fatalf("Load metadata = %#v, package metadata = %#v", loaded, fromPackage)
+	}
+	if loaded.MainPath() != filepath.Join(abs, "main.js") {
+		t.Fatalf("MainPath() = %q, want benchmark main.js", loaded.MainPath())
 	}
 }
 
