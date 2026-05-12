@@ -2,7 +2,9 @@ package mainrunner
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -64,6 +66,25 @@ func TestParseHelloIPCPreloadPlan(t *testing.T) {
 	}
 	if plan.LoadEndScript == "" || !strings.Contains(plan.LoadEndScript, "fixture-result") {
 		t.Fatalf("LoadEndScript = %q, want fixture-result injection", plan.LoadEndScript)
+	}
+}
+
+func TestParseBenchmarkHelloPathPlanMatchesSourcePlan(t *testing.T) {
+	mainPath := filepath.Join("..", "..", "compat", "fixtures", "benchmark-hello", "main.js")
+	source, err := os.ReadFile(mainPath)
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	fromSource, err := Parse(mainPath, string(source))
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	fromPath, err := ParseFile(mainPath)
+	if err != nil {
+		t.Fatalf("ParseFile() error = %v", err)
+	}
+	if !reflect.DeepEqual(fromPath, fromSource) {
+		t.Fatalf("path plan = %#v, source plan = %#v", fromPath, fromSource)
 	}
 }
 

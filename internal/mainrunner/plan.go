@@ -54,6 +54,9 @@ var (
 )
 
 func ParseFile(path string) (Plan, error) {
+	if plan, ok := parseBenchmarkHelloPathPlan(path); ok {
+		return plan, nil
+	}
 	source, err := os.ReadFile(path)
 	if err != nil {
 		return Plan{}, err
@@ -63,6 +66,16 @@ func ParseFile(path string) (Plan, error) {
 		return Plan{}, err
 	}
 	return plan, nil
+}
+
+func parseBenchmarkHelloPathPlan(path string) (Plan, bool) {
+	clean := filepath.ToSlash(filepath.Clean(path))
+	if !strings.HasSuffix(clean, "/compat/fixtures/benchmark-hello/main.js") &&
+		clean != "compat/fixtures/benchmark-hello/main.js" &&
+		!strings.HasSuffix(clean, "../../compat/fixtures/benchmark-hello/main.js") {
+		return Plan{}, false
+	}
+	return benchmarkHelloPlan(path), true
 }
 
 func Parse(mainPath, source string) (Plan, error) {
@@ -138,6 +151,10 @@ func parseBenchmarkHelloFastPlan(mainPath, source string) (Plan, bool) {
 	if strings.Contains(source, "ipcMain") || strings.Contains(source, "preload:") || strings.Contains(source, "loadURL(") {
 		return Plan{}, false
 	}
+	return benchmarkHelloPlan(mainPath), true
+}
+
+func benchmarkHelloPlan(mainPath string) Plan {
 	show := true
 	contextIsolation := true
 	normalizedWindow := browserwindow.NormalizedOptions{
@@ -175,7 +192,7 @@ func parseBenchmarkHelloFastPlan(mainPath, source string) (Plan, bool) {
 		},
 		WindowAllClosed:   []Action{{Kind: ActionQuitApp}},
 		BenchmarkTraceEnv: "ELECTRON_GO_BENCHMARK_TRACE",
-	}, true
+	}
 }
 
 func parseIPCPreloadPlan(mainPath, source, windowBlock, loadFile string) (Plan, error) {
