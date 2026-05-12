@@ -53,21 +53,32 @@ var goalEvidenceJSON []byte
 
 func main() {
 	goruntime.LockOSThread()
-	code := run(os.Args, os.Environ())
+	code := runMain(os.Args, os.Environ)
 	os.Exit(code)
 }
 
 var launchAppForRun = launchApp
 
 func run(argv []string, env []string) int {
+	return runMain(argv, func() []string {
+		return env
+	})
+}
+
+func runMain(argv []string, environ func() []string) int {
 	ctx := context.Background()
-	subprocess, err := egruntime.ExecuteSubprocess(ctx, egruntime.NativeSubprocessHook, argv, env)
+	subprocess, err := egruntime.ExecuteSubprocess(ctx, egruntime.NativeSubprocessHook, argv, nil)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "electron-go: %v\n", err)
 		return 1
 	}
 	if subprocess.Handled {
 		return subprocess.ExitCode
+	}
+
+	var env []string
+	if environ != nil {
+		env = environ()
 	}
 
 	args := []string(nil)

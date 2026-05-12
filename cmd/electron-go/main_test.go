@@ -848,6 +848,20 @@ func TestRunAcceptsExperimentalTransformTypes(t *testing.T) {
 	}
 }
 
+func TestRunMainSkipsEnvironmentForCEFSubprocess(t *testing.T) {
+	called := false
+	code := runMain([]string{"electron-go", "--type=renderer"}, func() []string {
+		called = true
+		return []string{"ELECTRON_GO_TEST=1"}
+	})
+	if code != 78 {
+		t.Fatalf("runMain(CEF subprocess) exit = %d, want bridge-unavailable 78", code)
+	}
+	if called {
+		t.Fatal("environment provider called for CEF subprocess")
+	}
+}
+
 func replaceLaunchAppForRun(t *testing.T, launcher func(context.Context, string, []string, []string, egruntime.NodeOptions) int) func() {
 	t.Helper()
 	old := launchAppForRun
