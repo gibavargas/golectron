@@ -40,6 +40,7 @@ func TestParseBenchmarkHelloPlan(t *testing.T) {
 	assertAction(t, plan.DidFinishLoad, ActionEmitTrace, "")
 	assertAction(t, plan.DidFinishLoad, ActionCloseWindow, "")
 	assertAction(t, plan.DidFinishLoad, ActionQuitApp, "")
+	assertNoAction(t, plan.DidFinishLoad, ActionMark, "load_start")
 	assertAction(t, plan.WindowAllClosed, ActionQuitApp, "")
 }
 
@@ -84,4 +85,13 @@ func assertAction(t *testing.T, actions []Action, kind ActionKind, name string) 
 		}
 	}
 	t.Fatalf("actions = %#v, missing %s/%q", actions, kind, name)
+}
+
+func assertNoAction(t *testing.T, actions []Action, kind ActionKind, name string) {
+	t.Helper()
+	for _, action := range actions {
+		if action.Kind == kind && action.Name == name {
+			t.Fatalf("actions = %#v, unexpectedly found %s/%q", actions, kind, name)
+		}
+	}
 }

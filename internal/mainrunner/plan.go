@@ -240,6 +240,7 @@ func parseDidFinishLoadActions(source string) ([]Action, error) {
 		return nil, unsupported("missing did-finish-load")
 	}
 	rest := source[start:]
+	rest = trimAfterLoadStartMark(rest)
 	actions := make([]Action, 0, 4)
 	for _, name := range markCallPattern.FindAllStringSubmatch(rest, -1) {
 		if len(name) == 2 {
@@ -262,6 +263,16 @@ func parseDidFinishLoadActions(source string) ([]Action, error) {
 		return nil, unsupported("empty did-finish-load action set")
 	}
 	return actions, nil
+}
+
+func trimAfterLoadStartMark(source string) string {
+	cut := len(source)
+	for _, marker := range []string{`mark('load_start')`, `mark("load_start")`} {
+		if index := strings.Index(source, marker); index >= 0 && index < cut {
+			cut = index
+		}
+	}
+	return source[:cut]
 }
 
 func parseWindowAllClosedActions(source string) []Action {
