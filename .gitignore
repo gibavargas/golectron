@@ -12,6 +12,7 @@ node_modules/
 benchmark-results/
 benchmark-artifacts-*/
 local-actions-out/
+local-actions-cache/
 local-actions-src.tar
 scoped-runner-artifacts*/
 native/cef/

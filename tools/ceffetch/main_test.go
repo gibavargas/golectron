@@ -86,3 +86,56 @@ func TestStageCEFLayout(t *testing.T) {
 		}
 	}
 }
+
+func TestRunReusesExtractedCEFLayout(t *testing.T) {
+	root := t.TempDir()
+	manifest := filepath.Join(root, "CEF_VERSION")
+	archive := "cef_binary_147.0.10+gd58e84d+chromium-147.0.7727.118_linux64_minimal.tar.bz2"
+	if err := os.WriteFile(manifest, []byte("INDEX_URL=https://invalid.test/index.json\nDOWNLOAD_BASE_URL=https://invalid.test/\nPLATFORM=linux64\nDISTRIBUTION=minimal\nCHROMIUM_MAJOR=147\nCHROMIUM_VERSION=147.0.7727.118\nCEF_VERSION=147.0.10+gd58e84d+chromium-147.0.7727.118\nARCHIVE="+archive+"\nSHA1=UNRESOLVED\nSHA256=UNRESOLVED\nSIZE=1\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile(manifest) error = %v", err)
+	}
+	index := filepath.Join(root, "index.json")
+	if err := os.WriteFile(index, []byte(`{"linux64":{"versions":[{"cef_version":"147.0.10+gd58e84d+chromium-147.0.7727.118","chromium_version":"147.0.7727.118","channel":"stable","files":[{"type":"minimal","name":"`+archive+`","sha1":"UNRESOLVED","size":1}]}]}}`), 0o644); err != nil {
+		t.Fatalf("WriteFile(index) error = %v", err)
+	}
+	outputDir := filepath.Join(root, "cef")
+	extractedDir := filepath.Join(outputDir, extractedDirName(archive))
+	createMinimalCEFLayout(t, extractedDir)
+
+	binDir := filepath.Join(root, "bin")
+	report, err := run(manifest, "", index, outputDir, binDir, 0, false, false, true)
+	if err != nil {
+		t.Fatalf("run() error = %v", err)
+	}
+	if !report.Extracted || report.SHA1 != "" || report.SHA256 != "" {
+		t.Fatalf("report = %#v, want reused extracted layout without download checksums", report)
+	}
+	if !regularFile(filepath.Join(binDir, "libcef.so")) {
+		t.Fatal("cached CEF layout was not staged")
+	}
+}
+
+func createMinimalCEFLayout(t *testing.T, cefDir string) {
+	t.Helper()
+	releaseDir := filepath.Join(cefDir, "Release")
+	resourcesDir := filepath.Join(cefDir, "Resources")
+	localesDir := filepath.Join(resourcesDir, "locales")
+	for _, dir := range []string{releaseDir, localesDir} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("MkdirAll() error = %v", err)
+		}
+	}
+	files := map[string]string{
+		filepath.Join(releaseDir, "libcef.so"):                 "cef",
+		filepath.Join(resourcesDir, "icudtl.dat"):              "icu",
+		filepath.Join(resourcesDir, "v8_context_snapshot.bin"): "v8",
+		filepath.Join(resourcesDir, "resources.pak"):           "resources",
+		filepath.Join(resourcesDir, "chrome_100_percent.pak"):  "chrome",
+		filepath.Join(localesDir, "en-US.pak"):                 "locale",
+	}
+	for path, body := range files {
+		if err := os.WriteFile(path, []byte(body), 0o755); err != nil {
+			t.Fatalf("WriteFile(%s) error = %v", path, err)
+		}
+	}
+}

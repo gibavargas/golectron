@@ -87,6 +87,29 @@ func run(manifestPath, indexURL, indexFile, outputDir, stageBin string, timeout 
 		return nil, fmt.Errorf("create output dir: %w", err)
 	}
 	archivePath := filepath.Join(outputDir, artifact.Archive)
+	extractedDir := filepath.Join(outputDir, extractedDirName(artifact.Archive))
+	if regularFile(filepath.Join(extractedDir, "Release", "libcef.so")) {
+		current := ""
+		if linkCurrent {
+			current = filepath.Join(outputDir, "current")
+			if err := replaceSymlink(extractedDirName(artifact.Archive), current); err != nil {
+				return nil, err
+			}
+		}
+		if stageBin != "" {
+			if err := stageCEFLayout(extractedDir, stageBin); err != nil {
+				return nil, err
+			}
+		}
+		return &fetchReport{
+			Artifact:  artifact,
+			Output:    outputDir,
+			Archive:   archivePath,
+			Extracted: true,
+			Current:   current,
+			StageBin:  stageBin,
+		}, nil
+	}
 	sums, err := downloadFile(artifact.URL, archivePath, timeout)
 	if err != nil {
 		return nil, err
@@ -103,7 +126,6 @@ func run(manifestPath, indexURL, indexFile, outputDir, stageBin string, timeout 
 	if err := extractTarBzip2(archivePath, outputDir); err != nil {
 		return nil, err
 	}
-	extractedDir := filepath.Join(outputDir, extractedDirName(artifact.Archive))
 	current := ""
 	if linkCurrent {
 		current = filepath.Join(outputDir, "current")
