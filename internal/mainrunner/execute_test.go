@@ -94,6 +94,9 @@ func TestExecuteSkipsTraceAndEventsByDefault(t *testing.T) {
 	if result.Events != nil {
 		t.Fatalf("Events = %#v, want nil without event collection", result.Events)
 	}
+	if !driver.create.AutoCloseOnLoad {
+		t.Fatalf("create request = %#v, want benchmark fast path to auto-close on load", driver.create)
+	}
 	if out.String() != "" {
 		t.Fatalf("stdout = %q, want no benchmark trace", out.String())
 	}

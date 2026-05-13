@@ -181,7 +181,7 @@ func executeFastBenchmark(ctx context.Context, plan Plan, driver Driver, out io.
 		Width:           normalized.Width,
 		Height:          normalized.Height,
 		Show:            normalized.Show,
-		AutoCloseOnLoad: false,
+		AutoCloseOnLoad: true,
 	})
 	if err != nil {
 		return Result{}, err
