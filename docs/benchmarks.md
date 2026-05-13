@@ -180,6 +180,39 @@ fields such as `message_loop_to_load_end`, `load_end_to_before_close`, and
 finding where `message_loop` time is spent; do not use them as headline
 Electron-vs-Electron-Go comparison metrics.
 
+### Local Actions Evidence During Hosted Actions Quota Exhaustion
+
+Hosted GitHub Actions minutes for the account were exhausted during the May
+2026 optimization pass, so current post-`b1ae4e1` measurements are being
+validated with `tools/local_actions.sh benchmarks` and kept out of
+`cmd/electron-go/goal_evidence.json` until a published benchmark artifact is
+available again.
+
+Local runs on May 13, 2026 in America/Sao_Paulo after commit `4ee08ed`
+(`Auto-close benchmark fast path`) measured the same Linux
+`compat/fixtures/benchmark-hello` fixture through the local Actions runner:
+
+- timing-only report: Electron-Go `177ms`, Electron `212ms`
+  (`electron_go_over_electron = 0.8349`);
+- RSS-enabled report duration: Electron-Go `178ms`, Electron `206ms`
+  (`electron_go_over_electron = 0.8641`);
+- median process-tree peak RSS: Electron-Go `241912KB`, Electron `563356KB`
+  (`electron_go_over_electron = 0.4294`);
+- separate Electron-Go scoped startup-trace medians: `cef_initialize=68ms`,
+  `mainrunner_execute=70ms`, `window_created=89ms`, `did_finish_load=135ms`,
+  `total_native_start=135ms`.
+
+An experimental local release-build runner change using `go build -trimpath
+-ldflags='-s -w'` was tested and not kept. It worsened the timing-only
+duration ratio to `0.8986` and produced inconsistent RSS-enabled duration
+evidence (`0.8057`), so it did not move the hard duration target.
+
+The hard open performance blocker remains the headline startup-duration target:
+the published or publishable `duration_median_ms` ratio must reach
+`electron_go_over_electron <= 0.5` with runtime parity gates intact. The local
+memory result already satisfies the 50% process-tree RSS target, but that is not
+the remaining goal-audit blocker.
+
 Fixture-level phase traces and Electron-Go native startup traces are diagnostic
 and should be collected in explicit trace runs. The normal headline benchmark
 keeps runtime-specific tracing disabled to avoid adding console-output work to
