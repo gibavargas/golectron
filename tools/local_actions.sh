@@ -53,7 +53,7 @@ run_goal_audit() {
 
 write_source_archive() {
   COPYFILE_DISABLE=1 git ls-files -z | COPYFILE_DISABLE=1 tar --null -T - -cf local-actions-src.tar
-  mkdir -p local-actions-out
+  mkdir -p local-actions-out local-actions-cache
 }
 
 docker_run() {
@@ -64,6 +64,7 @@ docker_run() {
     -e CEF_FETCH_TIMEOUT="${cef_fetch_timeout}" \
     -v "${repo_root}/local-actions-src.tar:/src.tar:ro" \
     -v "${repo_root}/local-actions-out:/out" \
+    -v "${repo_root}/local-actions-cache:/cache" \
     "${docker_image}" bash -lc "$1"
 }
 
@@ -111,6 +112,14 @@ install_node22() {
   npm --version
 }
 
+install_electron_wrapper() {
+  cat >/tmp/electron-go/electron-local <<'EOF'
+#!/usr/bin/env bash
+exec /tmp/electron-go/node_modules/.bin/electron --no-sandbox "$@"
+EOF
+  chmod +x /tmp/electron-go/electron-local
+}
+
 fetch_cef_with_retries() {
   attempts="${CEF_FETCH_RETRIES:-3}"
   timeout="${CEF_FETCH_TIMEOUT:-120s}"
@@ -127,6 +136,17 @@ fetch_cef_with_retries() {
     fi
   done
   return 1
+}
+
+link_cached_cef_headers() {
+  if [[ -z "${CEF_OUTPUT_DIR:-}" ]]; then
+    return 0
+  fi
+  if [[ ! -e "${CEF_OUTPUT_DIR}/current/include/capi/cef_app_capi.h" ]]; then
+    return 0
+  fi
+  mkdir -p native/cef
+  ln -sfn "${CEF_OUTPUT_DIR}/current" native/cef/current
 }
 
 preflight_linux_toolchain() {
@@ -156,40 +176,51 @@ EOF
 
 linux_common_preamble="$(declare -f select_cef_manifest)
 $(declare -f install_node22)
+$(declare -f install_electron_wrapper)
 $(declare -f fetch_cef_with_retries)
+$(declare -f link_cached_cef_headers)
 set -euo pipefail
 export PATH=/usr/local/go/bin:$PATH
 export DEBIAN_FRONTEND=noninteractive
+export CEF_OUTPUT_DIR=/cache/cef-${cef_platform}
 mkdir -p /work /out
 tar -xf /src.tar -C /work >/dev/null 2>&1
 cd /work
 go version
 select_cef_manifest
 apt-get update -qq
-apt-get install -y --no-install-recommends ca-certificates curl xz-utils libgtk-3-0 libgdk-pixbuf2.0-0 libglib2.0-0 libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2 xvfb xauth
+apt-get install -y --no-install-recommends ca-certificates curl xz-utils time libgtk-3-0 libgdk-pixbuf2.0-0 libglib2.0-0 libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2 xvfb xauth
 install_node22
 npm install --prefix /tmp/electron-go electron@42.0.0
+install_electron_wrapper
 fetch_cef_with_retries
+link_cached_cef_headers
 go build -tags electron_go_cef -o bin/electron-go ./cmd/electron-go"
 
 run_benchmarks() {
   preflight_linux_toolchain
   docker_run "${linux_common_preamble}
-ELECTRON_GO_ENABLE_SCOPED_MAIN_RUNNER=1 xvfb-run -a timeout 30 /tmp/electron-go/node_modules/.bin/electron compat/fixtures/benchmark-hello
-ELECTRON_GO_ENABLE_SCOPED_MAIN_RUNNER=1 xvfb-run -a timeout 30 bin/electron-go compat/fixtures/benchmark-hello
-mkdir -p /out/benchmark-artifacts
-ELECTRON_GO_ENABLE_SCOPED_MAIN_RUNNER=1 xvfb-run -a go run ./tools/benchmarks --fixture ./compat/fixtures/benchmark-hello --iterations 5 --timeout 30s --run-order alternating --measure-rss --measure-process-tree-rss --output /out/benchmark-artifacts/hello-linux.json --electron /tmp/electron-go/node_modules/.bin/electron --electron-go bin/electron-go --require-faster process_tree_rss_peak_median_kb
-ELECTRON_GO_ENABLE_SCOPED_MAIN_RUNNER=1 xvfb-run -a go run ./tools/benchmarks --fixture ./compat/fixtures/benchmark-hello --iterations 5 --timeout 30s --run-order alternating --output /out/benchmark-artifacts/hello-linux-duration.json --electron /tmp/electron-go/node_modules/.bin/electron --electron-go bin/electron-go
-ELECTRON_GO_STARTUP_TRACE=1 ELECTRON_GO_ENABLE_SCOPED_MAIN_RUNNER=1 xvfb-run -a go run ./tools/benchmarks --fixture ./compat/fixtures/benchmark-hello --iterations 5 --timeout 30s --output /out/benchmark-artifacts/electron-go-startup-trace-linux.json --electron-go bin/electron-go"
+	if ! timeout 45 env ELECTRON_GO_ENABLE_SCOPED_MAIN_RUNNER=1 xvfb-run -a /tmp/electron-go/electron-local compat/fixtures/benchmark-hello; then
+		echo '[benchmark] official Electron smoke timed out or failed; continuing to measured benchmark for structured diagnostics' >&2
+	fi
+	if ! timeout 45 env ELECTRON_GO_ENABLE_SCOPED_MAIN_RUNNER=1 xvfb-run -a bin/electron-go compat/fixtures/benchmark-hello; then
+		echo '[benchmark] Electron-Go smoke timed out or failed; continuing to measured benchmark for structured diagnostics' >&2
+	fi
+	mkdir -p /out/benchmark-artifacts
+	timeout 210 env ELECTRON_GO_ENABLE_SCOPED_MAIN_RUNNER=1 xvfb-run -a go run ./tools/benchmarks --fixture ./compat/fixtures/benchmark-hello --iterations 5 --timeout 30s --run-order alternating --measure-rss --measure-process-tree-rss --output /out/benchmark-artifacts/hello-linux.json --electron /tmp/electron-go/electron-local --electron-go bin/electron-go --require-faster process_tree_rss_peak_median_kb
+	timeout 210 env ELECTRON_GO_ENABLE_SCOPED_MAIN_RUNNER=1 xvfb-run -a go run ./tools/benchmarks --fixture ./compat/fixtures/benchmark-hello --iterations 5 --timeout 30s --run-order alternating --output /out/benchmark-artifacts/hello-linux-duration.json --electron /tmp/electron-go/electron-local --electron-go bin/electron-go
+if ! timeout 210 env ELECTRON_GO_STARTUP_TRACE=1 ELECTRON_GO_ENABLE_SCOPED_MAIN_RUNNER=1 xvfb-run -a go run ./tools/benchmarks --fixture ./compat/fixtures/benchmark-hello --iterations 5 --timeout 30s --output /out/benchmark-artifacts/electron-go-startup-trace-linux.json --electron-go bin/electron-go; then
+	echo '[benchmark] startup trace diagnostic did not complete; main benchmark reports were already written' >&2
+fi"
 }
 
 run_conformance() {
   preflight_linux_toolchain
   docker_run "${linux_common_preamble}
-xvfb-run -a timeout 30 /tmp/electron-go/node_modules/.bin/electron compat/fixtures/benchmark-hello
-xvfb-run -a timeout 30 bin/electron-go compat/fixtures/benchmark-hello
-xvfb-run -a timeout 30 bin/electron-go --process-model-check compat/fixtures/benchmark-hello
-xvfb-run -a env ELECTRON_BIN=/tmp/electron-go/node_modules/.bin/electron ELECTRON_GO_BIN=/work/bin/electron-go go test ./compat"
+	xvfb-run -a timeout 30 /tmp/electron-go/electron-local compat/fixtures/benchmark-hello
+	xvfb-run -a timeout 30 bin/electron-go compat/fixtures/benchmark-hello
+	xvfb-run -a timeout 30 bin/electron-go --process-model-check compat/fixtures/benchmark-hello
+	xvfb-run -a env ELECTRON_BIN=/tmp/electron-go/electron-local ELECTRON_GO_BIN=/work/bin/electron-go go test ./compat"
 }
 
 case "${1:-}" in
