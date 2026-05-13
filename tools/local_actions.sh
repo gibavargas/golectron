@@ -18,6 +18,8 @@ else
   docker_platform="linux/amd64"
 fi
 docker_image="${DOCKER_IMAGE:-golang:1.26-bookworm}"
+cef_fetch_retries="${CEF_FETCH_RETRIES:-3}"
+cef_fetch_timeout="${CEF_FETCH_TIMEOUT:-120s}"
 if [[ -n "${CEF_PLATFORM:-}" ]]; then
   cef_platform="${CEF_PLATFORM}"
 elif [[ "${docker_platform}" == "linux/arm64" ]]; then
@@ -58,6 +60,8 @@ docker_run() {
   "${docker_bin}" --config "${docker_config}" -H "${docker_host}" run --rm \
     --platform "${docker_platform}" \
     -e CEF_PLATFORM="${cef_platform}" \
+    -e CEF_FETCH_RETRIES="${cef_fetch_retries}" \
+    -e CEF_FETCH_TIMEOUT="${cef_fetch_timeout}" \
     -v "${repo_root}/local-actions-src.tar:/src.tar:ro" \
     -v "${repo_root}/local-actions-out:/out" \
     "${docker_image}" bash -lc "$1"
@@ -107,6 +111,24 @@ install_node22() {
   npm --version
 }
 
+fetch_cef_with_retries() {
+  attempts="${CEF_FETCH_RETRIES:-3}"
+  timeout="${CEF_FETCH_TIMEOUT:-120s}"
+  if [[ "${attempts}" -lt 1 ]]; then
+    attempts=1
+  fi
+  for attempt in $(seq 1 "${attempts}"); do
+    echo "[CEF] fetch attempt ${attempt}/${attempts} with timeout ${timeout}"
+    if CEF_RESOLVE_TIMEOUT="${timeout}" CEF_FETCH_TIMEOUT="${timeout}" tools/fetch_cef.sh; then
+      return 0
+    fi
+    if [[ "${attempt}" -lt "${attempts}" ]]; then
+      sleep $((attempt * 5))
+    fi
+  done
+  return 1
+}
+
 preflight_linux_toolchain() {
   write_source_archive
   if docker_run "$(declare -f select_cef_manifest)
@@ -134,6 +156,7 @@ EOF
 
 linux_common_preamble="$(declare -f select_cef_manifest)
 $(declare -f install_node22)
+$(declare -f fetch_cef_with_retries)
 set -euo pipefail
 export PATH=/usr/local/go/bin:$PATH
 export DEBIAN_FRONTEND=noninteractive
@@ -146,7 +169,7 @@ apt-get update -qq
 apt-get install -y --no-install-recommends ca-certificates curl xz-utils libgtk-3-0 libgdk-pixbuf2.0-0 libglib2.0-0 libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2 xvfb xauth
 install_node22
 npm install --prefix /tmp/electron-go electron@42.0.0
-tools/fetch_cef.sh
+fetch_cef_with_retries
 go build -tags electron_go_cef -o bin/electron-go ./cmd/electron-go"
 
 run_benchmarks() {
