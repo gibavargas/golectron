@@ -371,7 +371,8 @@ func appendCEFBrowserProcessSwitches(args []string) []string {
 	if IsCEFSubprocessArgs(out) {
 		return out
 	}
-	if !hasKnownCEFBrowserProcessSwitch(out) {
+	present := presentCEFSwitches(out)
+	if len(present) == 0 {
 		out = append(out, cefBrowserProcessSwitches...)
 		if executable := cachedExecutablePath(); executable != "" {
 			out = append(out, "--browser-subprocess-path="+executable)
@@ -379,11 +380,11 @@ func appendCEFBrowserProcessSwitches(args []string) []string {
 		return out
 	}
 	for _, flag := range cefBrowserProcessSwitches {
-		if !hasSwitch(out, flag) {
+		if !present[flag] {
 			out = append(out, flag)
 		}
 	}
-	if !hasSwitch(out, "--browser-subprocess-path") {
+	if !present["--browser-subprocess-path"] {
 		if executable := cachedExecutablePath(); executable != "" {
 			out = append(out, "--browser-subprocess-path="+executable)
 		}
@@ -392,12 +393,34 @@ func appendCEFBrowserProcessSwitches(args []string) []string {
 }
 
 func hasKnownCEFBrowserProcessSwitch(args []string) bool {
+	return len(presentCEFSwitches(args)) > 0
+}
+
+func presentCEFSwitches(args []string) map[string]bool {
+	var present map[string]bool
+	for _, arg := range args {
+		name, ok := cefSwitchName(arg)
+		if !ok {
+			continue
+		}
+		if present == nil {
+			present = make(map[string]bool, len(cefBrowserProcessSwitches)+1)
+		}
+		present[name] = true
+	}
+	return present
+}
+
+func cefSwitchName(arg string) (string, bool) {
+	if arg == "--browser-subprocess-path" || strings.HasPrefix(arg, "--browser-subprocess-path=") {
+		return "--browser-subprocess-path", true
+	}
 	for _, flag := range cefBrowserProcessSwitches {
-		if hasSwitch(args, flag) {
-			return true
+		if arg == flag || strings.HasPrefix(arg, flag+"=") {
+			return flag, true
 		}
 	}
-	return hasSwitch(args, "--browser-subprocess-path")
+	return "", false
 }
 
 func cachedExecutablePath() string {

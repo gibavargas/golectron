@@ -217,10 +217,10 @@ fi"
 run_conformance() {
   preflight_linux_toolchain
   docker_run "${linux_common_preamble}
-	xvfb-run -a timeout 30 /tmp/electron-go/electron-local compat/fixtures/benchmark-hello
-	xvfb-run -a timeout 30 bin/electron-go compat/fixtures/benchmark-hello
-	xvfb-run -a timeout 30 bin/electron-go --process-model-check compat/fixtures/benchmark-hello
-	xvfb-run -a env ELECTRON_BIN=/tmp/electron-go/electron-local ELECTRON_GO_BIN=/work/bin/electron-go go test ./compat"
+	timeout 45 xvfb-run -a /tmp/electron-go/electron-local compat/fixtures/benchmark-hello
+	timeout 45 xvfb-run -a bin/electron-go compat/fixtures/benchmark-hello
+	timeout 45 xvfb-run -a bin/electron-go --process-model-check compat/fixtures/benchmark-hello
+	timeout 240 xvfb-run -a env ELECTRON_BIN=/tmp/electron-go/electron-local ELECTRON_GO_BIN=/work/bin/electron-go go test ./compat -timeout=180s -v"
 }
 
 case "${1:-}" in
