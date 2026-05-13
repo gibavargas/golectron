@@ -188,19 +188,25 @@ validated with `tools/local_actions.sh benchmarks` and kept out of
 `cmd/electron-go/goal_evidence.json` until a published benchmark artifact is
 available again.
 
-Local runs on May 13, 2026 in America/Sao_Paulo after commit `4ee08ed`
-(`Auto-close benchmark fast path`) measured the same Linux
-`compat/fixtures/benchmark-hello` fixture through the local Actions runner:
+Local runs on May 13, 2026 in America/Sao_Paulo measured the same Linux
+`compat/fixtures/benchmark-hello` fixture through the local Actions runner. The
+latest runner-validation pass after prebuilding pure-Go local Actions helpers
+measured:
 
-- timing-only report: Electron-Go `177ms`, Electron `212ms`
-  (`electron_go_over_electron = 0.8349`);
-- RSS-enabled report duration: Electron-Go `178ms`, Electron `206ms`
-  (`electron_go_over_electron = 0.8641`);
-- median process-tree peak RSS: Electron-Go `241912KB`, Electron `563356KB`
-  (`electron_go_over_electron = 0.4294`);
-- separate Electron-Go scoped startup-trace medians: `cef_initialize=68ms`,
-  `mainrunner_execute=70ms`, `window_created=89ms`, `did_finish_load=135ms`,
-  `total_native_start=135ms`.
+- timing-only report: Electron-Go `198ms`, Electron `202ms`
+  (`electron_go_over_electron = 0.9802`);
+- RSS-enabled report duration: Electron-Go `175ms`, Electron `201ms`
+  (`electron_go_over_electron = 0.8706`);
+- median process-tree peak RSS: Electron-Go `240324KB`, Electron `571120KB`
+  (`electron_go_over_electron = 0.4208`);
+- separate Electron-Go scoped startup-trace medians: `cef_initialize=69ms`,
+  `mainrunner_execute=71ms`, `window_created=86ms`, `did_finish_load=142ms`,
+  `total_native_start=142ms`.
+
+An earlier post-`4ee08ed` local pass measured a better timing-only duration
+ratio of `0.8349` and an RSS-enabled duration ratio of `0.8641`, which keeps
+the current conclusion unchanged: local wall-clock startup remains faster than
+official Electron, but not close to the 50% target.
 
 An experimental local release-build runner change using `go build -trimpath
 -ldflags='-s -w'` was tested and not kept. It worsened the timing-only

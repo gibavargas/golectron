@@ -27,6 +27,18 @@ elif [[ "${docker_platform}" == "linux/arm64" ]]; then
 else
   cef_platform="linux64"
 fi
+case "${docker_platform}" in
+  linux/amd64)
+    docker_goarch="amd64"
+    ;;
+  linux/arm64)
+    docker_goarch="arm64"
+    ;;
+  *)
+    echo "unsupported DOCKER_PLATFORM=${docker_platform}" >&2
+    exit 2
+    ;;
+esac
 
 usage() {
   cat <<'USAGE'
@@ -54,6 +66,15 @@ run_goal_audit() {
 write_source_archive() {
   COPYFILE_DISABLE=1 git ls-files -z | COPYFILE_DISABLE=1 tar --null -T - -cf local-actions-src.tar
   mkdir -p local-actions-out local-actions-cache
+}
+
+build_linux_helper_tools() {
+  tools_dir="local-actions-out/tools/linux-${docker_goarch}"
+  mkdir -p "${tools_dir}"
+  CGO_ENABLED=0 GOOS=linux GOARCH="${docker_goarch}" go build -trimpath -o "${tools_dir}/benchmarks" ./tools/benchmarks
+  CGO_ENABLED=0 GOOS=linux GOARCH="${docker_goarch}" go build -trimpath -o "${tools_dir}/cefresolve" ./tools/cefresolve
+  CGO_ENABLED=0 GOOS=linux GOARCH="${docker_goarch}" go build -trimpath -o "${tools_dir}/ceffetch" ./tools/ceffetch
+  CGO_ENABLED=0 GOOS=linux GOARCH="${docker_goarch}" go build -trimpath -o "${tools_dir}/memaudit" ./tools/memaudit
 }
 
 docker_run() {
@@ -151,6 +172,7 @@ link_cached_cef_headers() {
 
 preflight_linux_toolchain() {
   write_source_archive
+  build_linux_helper_tools
   if docker_run "$(declare -f select_cef_manifest)
 set -euo pipefail
 export PATH=/usr/local/go/bin:$PATH
@@ -183,6 +205,9 @@ set -euo pipefail
 export PATH=/usr/local/go/bin:$PATH
 export DEBIAN_FRONTEND=noninteractive
 export CEF_OUTPUT_DIR=/cache/cef-${cef_platform}
+export CEFRESOLVE_BIN=/out/tools/linux-${docker_goarch}/cefresolve
+export CEFFETCH_BIN=/out/tools/linux-${docker_goarch}/ceffetch
+export MEMAUDIT_BIN=/out/tools/linux-${docker_goarch}/memaudit
 mkdir -p /work /out
 tar -xf /src.tar -C /work >/dev/null 2>&1
 cd /work
@@ -207,9 +232,9 @@ run_benchmarks() {
 		echo '[benchmark] Electron-Go smoke timed out or failed; continuing to measured benchmark for structured diagnostics' >&2
 	fi
 	mkdir -p /out/benchmark-artifacts
-	timeout 210 env ELECTRON_GO_ENABLE_SCOPED_MAIN_RUNNER=1 xvfb-run -a go run ./tools/benchmarks --fixture ./compat/fixtures/benchmark-hello --iterations 5 --timeout 30s --run-order alternating --measure-rss --measure-process-tree-rss --output /out/benchmark-artifacts/hello-linux.json --electron /tmp/electron-go/electron-local --electron-go bin/electron-go --require-faster process_tree_rss_peak_median_kb
-	timeout 210 env ELECTRON_GO_ENABLE_SCOPED_MAIN_RUNNER=1 xvfb-run -a go run ./tools/benchmarks --fixture ./compat/fixtures/benchmark-hello --iterations 5 --timeout 30s --run-order alternating --output /out/benchmark-artifacts/hello-linux-duration.json --electron /tmp/electron-go/electron-local --electron-go bin/electron-go
-if ! timeout 210 env ELECTRON_GO_STARTUP_TRACE=1 ELECTRON_GO_ENABLE_SCOPED_MAIN_RUNNER=1 xvfb-run -a go run ./tools/benchmarks --fixture ./compat/fixtures/benchmark-hello --iterations 5 --timeout 30s --output /out/benchmark-artifacts/electron-go-startup-trace-linux.json --electron-go bin/electron-go; then
+	timeout 210 env ELECTRON_GO_ENABLE_SCOPED_MAIN_RUNNER=1 xvfb-run -a /out/tools/linux-${docker_goarch}/benchmarks --fixture ./compat/fixtures/benchmark-hello --iterations 5 --timeout 30s --run-order alternating --measure-rss --measure-process-tree-rss --output /out/benchmark-artifacts/hello-linux.json --electron /tmp/electron-go/electron-local --electron-go bin/electron-go --require-faster process_tree_rss_peak_median_kb
+	timeout 210 env ELECTRON_GO_ENABLE_SCOPED_MAIN_RUNNER=1 xvfb-run -a /out/tools/linux-${docker_goarch}/benchmarks --fixture ./compat/fixtures/benchmark-hello --iterations 5 --timeout 30s --run-order alternating --output /out/benchmark-artifacts/hello-linux-duration.json --electron /tmp/electron-go/electron-local --electron-go bin/electron-go
+if ! timeout 210 env ELECTRON_GO_STARTUP_TRACE=1 ELECTRON_GO_ENABLE_SCOPED_MAIN_RUNNER=1 xvfb-run -a /out/tools/linux-${docker_goarch}/benchmarks --fixture ./compat/fixtures/benchmark-hello --iterations 5 --timeout 30s --output /out/benchmark-artifacts/electron-go-startup-trace-linux.json --electron-go bin/electron-go; then
 	echo '[benchmark] startup trace diagnostic did not complete; main benchmark reports were already written' >&2
 fi"
 }

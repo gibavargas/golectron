@@ -15,23 +15,26 @@ if [[ "${CEF_ALLOW_MAJOR:-0}" == "1" ]]; then
   echo "[CEF] WARNING: allowing same-major CEF fallback for architecture smoke only."
   allow_major=(--allow-major)
 fi
+read -r -a cefresolve_cmd <<< "${CEFRESOLVE_BIN:-go run ./tools/cefresolve}"
+read -r -a ceffetch_cmd <<< "${CEFFETCH_BIN:-go run ./tools/ceffetch}"
+read -r -a memaudit_cmd <<< "${MEMAUDIT_BIN:-go run ./tools/memaudit}"
 
 echo "[CEF] Resolving Electron-Go CEF target from ${manifest}..."
 if [[ ${#allow_major[@]} -gt 0 ]]; then
-  go run ./tools/cefresolve --json --manifest "${manifest}" --timeout "${resolve_timeout}" "${allow_major[@]}"
+  "${cefresolve_cmd[@]}" --json --manifest "${manifest}" --timeout "${resolve_timeout}" "${allow_major[@]}"
 else
-  go run ./tools/cefresolve --json --manifest "${manifest}" --timeout "${resolve_timeout}"
+  "${cefresolve_cmd[@]}" --json --manifest "${manifest}" --timeout "${resolve_timeout}"
 fi
 
 echo "[CEF] Fetching, verifying, extracting, and staging runtime layout..."
 if [[ ${#allow_major[@]} -gt 0 ]]; then
-  go run ./tools/ceffetch --json --manifest "${manifest}" --output "${output_dir}" --stage-bin "${bin_dir}" --timeout "${fetch_timeout}" "${allow_major[@]}"
+  "${ceffetch_cmd[@]}" --json --manifest "${manifest}" --output "${output_dir}" --stage-bin "${bin_dir}" --timeout "${fetch_timeout}" "${allow_major[@]}"
 else
-  go run ./tools/ceffetch --json --manifest "${manifest}" --output "${output_dir}" --stage-bin "${bin_dir}" --timeout "${fetch_timeout}"
+  "${ceffetch_cmd[@]}" --json --manifest "${manifest}" --output "${output_dir}" --stage-bin "${bin_dir}" --timeout "${fetch_timeout}"
 fi
 
 echo "[CEF] Validating staged runtime layout..."
 test -f "${bin_dir}/libcef.so"
-go run ./tools/memaudit --root . --check-cef-layout "${bin_dir}"
+"${memaudit_cmd[@]}" --root . --check-cef-layout "${bin_dir}"
 
 echo "[CEF] Environment staged in ${bin_dir}/"
